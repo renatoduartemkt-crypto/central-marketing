@@ -86,15 +86,32 @@
   const polls = {};
 
   /* ---------- modo gas (Google Apps Script + Planilha no Drive) ---------- */
+  // O Google responde cada pedido em alguns segundos e fica instável com vários pedidos ao mesmo tempo.
+  // Por isso: (1) os pedidos vão em fila, um por vez; (2) falha passageira é repetida; (3) a página pede
+  // todas as coleções de uma vez; (4) o que já foi carregado fica guardado nesta aba (sessionStorage)
+  // e aparece na hora ao trocar de página, enquanto a versão nova chega.
+  let fila = Promise.resolve();
+  const espera = ms => new Promise(r => setTimeout(r, ms));
+  function viaFetch(fn, args){
+    const uma = () => fetch(CFG.backendUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, args }), redirect: "follow" })
+      .then(r => { if (!r.ok) throw { passageira: true, message: "HTTP " + r.status }; return r.json().catch(() => { throw { passageira: true, message: "Resposta inválida do servidor." }; }); })
+      .then(j => {
+        if (j && j.erro) throw { code: "invalid_argument", message: j.erro };
+        if (!j || !("result" in j)) throw { passageira: true, message: "Resposta incompleta do servidor." };
+        return j.result;
+      }, e => { if (e && e.passageira) throw e; throw { passageira: true, message: (e && e.message) || "Sem conexão com o servidor." }; });
+    const tentar = n => uma().catch(e => { if (!e.passageira || n <= 0) throw e; return espera(1500).then(() => tentar(n - 1)); });
+    const p = fila.then(() => tentar(2));
+    fila = p.catch(() => {});
+    GAS.ocupado++; const fim = () => { GAS.ocupado--; };
+    p.then(fim, fim);
+    return p.catch(e => { throw { code: e.code || "unavailable", message: e.message || "Sem conexão com o servidor." }; });
+  }
   const GAS = {
+    ocupado: 0,
     call(fn, ...args){
       // site no GitHub Pages: conversa com o backend (Apps Script) pelo link /exec
-      if (CFG.backendUrl) {
-        return fetch(CFG.backendUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, args }), redirect: "follow" })
-          .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
-          .then(j => { if (j && j.erro) throw new Error(j.erro); return j ? j.result : null; })
-          .catch(e => { throw { code: "unavailable", message: (e && e.message) || "Sem conexão com o servidor." }; });
-      }
+      if (CFG.backendUrl) return viaFetch(fn, args);
       return new Promise((res, rej) => {
         if (!(window.google && google.script && google.script.run)) return rej({ code: "unavailable", message: "Google Apps Script indisponível" });
         google.script.run.withSuccessHandler(res).withFailureHandler(e => rej({ code: "unavailable", message: (e && e.message) || String(e) }))[fn](...args);
@@ -102,12 +119,13 @@
     },
     // sessão por usuário e senha: o token fica só neste navegador e vai junto em cada chamada
     token(){ try { return localStorage.getItem(TOKEN_KEY) || memToken; } catch (_) { return memToken; } },
-    setToken(t){ memToken = t || ""; try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (_) {} },
+    setToken(t){ memToken = t || ""; try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (_) {} if (!t) GAS.limparCache(); },
+    limparCache(){ try { Object.keys(sessionStorage).filter(k => k.indexOf(SS) === 0).forEach(k => sessionStorage.removeItem(k)); } catch (_) {} },
     api(req){
       return GAS.call("api", Object.assign({}, req, { token: GAS.token() })).then(r => {
         if (r && r.erro) {
           if (r.codigo === "unauthenticated") GAS.setToken("");
-          if ((r.codigo === "unauthenticated" || r.codigo === "trocar_senha") && window.Auth && req.acao !== "me") Auth.goLogin();
+          if ((r.codigo === "unauthenticated" || r.codigo === "trocar_senha") && window.Auth && req.acao !== "me" && req.acao !== "login") Auth.goLogin();
           throw { code: r.codigo || "invalid_argument", message: r.erro };
         }
         return r;
@@ -115,25 +133,60 @@
     }
   };
   const TOKEN_KEY = "central-mkt:token"; let memToken = "";
+  const SS = "central-mkt:c:";
   window.GAS = GAS;
   const toMap = arr => { const map = {}; (arr || []).forEach(r => { const id = r.id; const d = Object.assign({}, r); delete d.id; map[id] = d; }); return map; };
+  const ultimo = {}, fresco = {};
+  const lerGuardado = n => { try { const s = sessionStorage.getItem(SS + n); return s ? JSON.parse(s) : null; } catch (_) { return null; } };
+  const guardar = n => { try { sessionStorage.setItem(SS + n, JSON.stringify(cache[n] || {})); } catch (_) {} };
+  // aplica a lista que veio do servidor; só redesenha a tela se algo mudou
+  function aplicar(n, arr){
+    if (!Array.isArray(arr)) return;
+    const m = toMap(arr), j = JSON.stringify(m);
+    fresco[n] = true;
+    if (ultimo[n] === j && cache[n]) return;
+    ultimo[n] = j; cache[n] = m; guardar(n); emit(n);
+  }
+  // junta os pedidos de várias coleções feitos ao mesmo tempo num único pedido ao servidor
+  let lote = null;
+  function buscar(n){
+    return new Promise((res, rej) => {
+      if (!lote) { lote = { nomes: new Set(), quem: [] }; setTimeout(enviarLote, 60); }
+      lote.nomes.add(n); lote.quem.push({ n, res, rej });
+    });
+  }
+  async function enviarLote(){
+    const l = lote; lote = null; const nomes = [...l.nomes];
+    try {
+      const r = await GAS.api({ acao: "listarVarias", colecoes: nomes });
+      nomes.forEach(n => aplicar(n, (r.colecoes || {})[n]));
+      l.quem.forEach(q => q.res(cache[q.n] || {}));
+    } catch (e) { l.quem.forEach(q => q.rej(e)); }
+  }
   const Gas = {
-    async list(name){ const r = await GAS.api({ acao: "listar", colecao: name }); cache[name] = toMap(r.itens); emit(name); return cache[name]; },
+    async list(name){
+      if (cache[name] && fresco[name]) return cache[name];
+      if (!cache[name]) { const g = lerGuardado(name); if (g) { cache[name] = g; ultimo[name] = JSON.stringify(g); } }
+      const p = buscar(name);
+      if (cache[name]) { p.catch(() => {}); return cache[name]; }   // mostra o que já tinha; a versão nova chega em seguida
+      return p;
+    },
+    refresh(name){ fresco[name] = false; return buscar(name); },
     async create(name, data){ const r = await GAS.api({ acao: "criar", colecao: name, dados: data }); applyGas(name, r); return { id: r.id }; },
     async put(name, id, data){ const r = await GAS.api({ acao: "gravar", colecao: name, id, dados: data }); applyGas(name, r); },
     async patch(name, id, data){ const r = await GAS.api({ acao: "mesclar", colecao: name, id, dados: data }); applyGas(name, r); },
-    async remove(name, id){ await GAS.api({ acao: "excluir", colecao: name, id }); if (cache[name]) delete cache[name][id]; emit(name); }
+    async remove(name, id){ await GAS.api({ acao: "excluir", colecao: name, id }); if (cache[name]) delete cache[name][id]; ultimo[name] = JSON.stringify(cache[name] || {}); guardar(name); emit(name); }
   };
-  function applyGas(name, r){ if (r && r.item) { cache[name] = cache[name] || {}; const d = Object.assign({}, r.item); delete d.id; cache[name][r.item.id] = d; emit(name); } }
-  // uma única chamada atualiza todas as coleções abertas na página
+  function applyGas(name, r){ if (r && r.item) { cache[name] = cache[name] || {}; const d = Object.assign({}, r.item); delete d.id; cache[name][r.item.id] = d; ultimo[name] = JSON.stringify(cache[name]); guardar(name); emit(name); } }
+  // de tempos em tempos, um único pedido atualiza todas as coleções abertas na página
   let gasTimer = null;
   function gasPoll(){
     if (gasTimer) return;
-    gasTimer = setInterval(async () => {
+    gasTimer = setInterval(() => {
       const names = Object.keys(listeners).filter(n => listeners[n].size);
-      if (!names.length || document.hidden) return;
-      try { const r = await GAS.api({ acao: "listarVarias", colecoes: names }); names.forEach(n => { cache[n] = toMap((r.colecoes || {})[n]); emit(n); }); } catch (_) {}
-    }, CFG.intervaloAtualizacao || 20000);
+      if (!names.length || document.hidden || GAS.ocupado || !GAS.token()) return;
+      names.forEach(n => { fresco[n] = false; buscar(n).catch(() => {}); });
+    }, Math.max(CFG.intervaloAtualizacao || 30000, 30000));
   }
 
   const A = () => (CFG.modo === "api" ? Api : CFG.modo === "gas" ? Gas : Local);
@@ -161,7 +214,7 @@
     };
   }
 
-  window.Store = { collection, modo: () => CFG.modo || "local" };
+  window.Store = { collection, modo: () => CFG.modo || "local", refresh: name => (CFG.modo === "gas" ? Gas.refresh(name) : A().list(name)) };
 
   /* ---------- navegação entre páginas (no Apps Script as páginas são ?p=nome) ---------- */
   const isGas = () => CFG.modo === "gas" && window.GAS_BASE;
