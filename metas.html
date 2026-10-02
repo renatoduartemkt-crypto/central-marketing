@@ -133,8 +133,9 @@ table.cc{min-width:760px}
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h2>Metas do e-commerce <small id="metaInfo"></small></h2>
         <div class="tabs sites" id="siteSeg" role="group" aria-label="Site"><button type="button" data-s="lopes" aria-pressed="true"><i style="--c:#1B2D49"></i>Site Lopes</button><button type="button" data-s="opta" aria-pressed="false"><i style="--c:#EE3B2D"></i>Site Opta</button><button type="button" data-s="total" aria-pressed="false">Lopes + Opta</button></div></div>
       <div class="metas">
-        <div class="field"><label for="mVendas">Meta de vendas do mês (R$)</label><input class="inp" type="number" id="mVendas" min="0" step="100" inputmode="decimal" placeholder="0"></div>
-        <div class="field"><label for="mPos">Meta de positivações do mês</label><input class="inp" type="number" id="mPos" min="0" step="1" inputmode="numeric" placeholder="0"></div>
+        <div class="field"><label for="mVendas">Meta de vendas do mês (R$)</label><input class="inp" type="number" id="mVendas" min="0" step="100" inputmode="decimal" placeholder="0" readonly></div>
+        <div class="field"><label for="mPos">Meta de positivações do mês</label><input class="inp" type="number" id="mPos" min="0" step="1" inputmode="numeric" placeholder="0" readonly></div>
+        <p class="lock-note" id="metaLock" hidden>🔒 As metas são definidas pelo gerente do setor.</p>
       </div>
     </div>
     <div class="score" id="score"></div>
@@ -203,7 +204,7 @@ table.cc{min-width:760px}
   const metaE=()=>{if(site!=="total")return mensais[metaKey()]||{};const a=mensais[metaKey("lopes")]||{},b=mensais[metaKey("opta")]||{};return{metaVendas:(+a.metaVendas||0)+(+b.metaVendas||0),metaPositivacoes:(+a.metaPositivacoes||0)+(+b.metaPositivacoes||0)};};
   const metaA=()=>mensais["alcance-"+mk()]||{};
 
-  async function saveDoc(col,id,patch){try{try{await col.doc(id).update(patch);}catch(e){await col.doc(id).set(patch);}toast("Salvo");}catch(_){toast("Não foi possível salvar.");}}
+  async function saveDoc(col,id,patch){try{await col.doc(id).update(patch);}catch(e){toast("Não foi possível salvar.");}}
 
   /* ---------- e-commerce ---------- */
   function ecomData(){
@@ -215,6 +216,7 @@ table.cc{min-width:760px}
     const m=metaE(), mv=+m.metaVendas||0, mp=+m.metaPositivacoes||0, rows=ecomData(), N=rows.length;
     if(document.activeElement!==$("mVendas"))$("mVendas").value=mv||""; if(document.activeElement!==$("mPos"))$("mPos").value=mp||"";
     $("mVendas").disabled=$("mPos").disabled=site==="total";
+    const adm=Auth.isAdmin(); $("mVendas").readOnly=$("mPos").readOnly=!adm; $("metaLock").hidden=adm;
     document.querySelectorAll("#siteSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.s===site)));
     const vend=rows[N-1].acV, pos=rows[N-1].acP, hoje=todayIso();
     const passados=rows.filter(r=>r.s<=hoje).length, restantes=Math.max(0,N-passados);
@@ -270,7 +272,7 @@ table.cc{min-width:760px}
     host.append(s);
     if(!rows.some(r=>r.v>0))host.append(el("p",{class:"hint"},"Nenhuma venda lançada neste mês ainda."));
   }
-  const metaChange=()=>{if(site==="total")return;const id=metaKey(), patch={tipo:"ecommerce",site,mes:mk(),metaVendas:+$("mVendas").value||0,metaPositivacoes:+$("mPos").value||0}; mensais[id]=Object.assign({},mensais[id],patch); renderEcom(); saveDoc(colM,id,patch,true);};
+  const metaChange=()=>{if(site==="total"||!Auth.isAdmin())return;const id=metaKey(), patch={tipo:"ecommerce",site,mes:mk(),metaVendas:+$("mVendas").value||0,metaPositivacoes:+$("mPos").value||0}; mensais[id]=Object.assign({},mensais[id],patch); renderEcom(); saveDoc(colM,id,patch,true);};
   $("mVendas").onchange=metaChange; $("mPos").onchange=metaChange;
   $("siteSeg").addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;site=b.dataset.s;try{localStorage.setItem("metas-site",site)}catch(_){}renderEcom();});
 
@@ -281,7 +283,7 @@ table.cc{min-width:760px}
       EMP.forEach(e=>{const body=el("div",{class:"body"});
         ALC.filter(g=>g.emp===e.k).forEach(g=>{
           const st=g.dec?"0.01":"1";
-          const im=el("input",{class:"inp",type:"number",min:"0",step:st,inputmode:"decimal",id:g.k+"m"});
+          const im=el("input",{class:"inp",type:"number",min:"0",step:st,inputmode:"decimal",id:g.k+"m",readonly:Auth.isAdmin()?null:"readonly",title:Auth.isAdmin()?null:"Meta definida pelo gerente do setor"});
           const ir=el("input",{class:"inp",type:"number",min:"0",step:st,inputmode:"decimal",id:g.k+"r"});
           const save=()=>{const id="alcance-"+mk(); const patch={tipo:"alcance",mes:mk()}; patch[g.k]={meta:+im.value||0,realizado:+ir.value||0}; mensais[id]=Object.assign({},mensais[id],patch); renderAlc(); saveDoc(colM,id,patch);};
           im.addEventListener("change",save); ir.addEventListener("change",save);
@@ -400,11 +402,11 @@ table.cc{min-width:760px}
     const tb=el("tbody");
     cc.forEach(x=>{const s=x.proj-x.real,pp=x.proj?x.real/x.proj*100:(x.real?101:0);
       tb.append(el("tr",null,el("td",{class:"l"},el("b",null,x.nome)),
-        el("td",null,el("input",{type:"text",class:"pin money",id:"pj-"+x.id,inputmode:"decimal",value:x.proj?num(x.proj):"",placeholder:"0,00","aria-label":"Projetado "+x.nome,
+        el("td",null,el("input",{type:"text",class:"pin money",id:"pj-"+x.id,inputmode:"decimal",value:x.proj?num(x.proj):"",placeholder:"0,00","aria-label":"Projetado "+x.nome,readonly:Custos.isAdmin()?null:"readonly",title:Custos.isAdmin()?null:"Projetado definido pelo gerente do setor",
           onchange:ev=>saveProj(x.id,parseBR(ev.target.value)),onblur:ev=>{const v=parseBR(ev.target.value);ev.target.value=v?num(v):"";}})),
         el("td",null,brl(x.real,2)),el("td",{class:"pe"},x.pend?brl(x.pend,2):"—"),el("td",{class:s<0?"neg":""},(s<0?"− ":"")+brl(Math.abs(s),2)),
         el("td",{class:"l"},el("div",{class:"minib"},el("i",{style:`width:${Math.min(100,pp)}%;background:var(${pp>100?"--bad":pp>85?"--warn":"--ok"})`})),el("span",{class:"hint"},x.proj?pct(pp):x.real?"sem projetado":""))));});
-    B.append(el("div",{class:"box"},el("div",{style:"display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"},el("h2",null,"Total por centro de custo"),el("span",{class:"hint"},"Digite o projetado do mês de cada centro. Salva sozinho.")),
+    B.append(el("div",{class:"box"},el("div",{style:"display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"},el("h2",null,"Total por centro de custo"),el("span",{class:"hint"},Custos.isAdmin()?"Digite o projetado do mês de cada centro. Salva sozinho.":"🔒 O projetado é definido pelo gerente do setor.")),
       itensBox(),
       el("div",{class:"tw"},el("table",{class:"ct cc"},el("thead",null,el("tr",null,el("th",{class:"l"},"Centro de custo"),el("th",null,"Projetado (R$)"),el("th",null,"Realizado"),el("th",null,"Aguardando"),el("th",null,"Saldo"),el("th",{class:"l"},"Uso"))),tb,
         el("tfoot",null,el("tr",null,el("td",{class:"l"},"Total do setor"),el("td",null,brl(P,2)),el("td",null,brl(Rr,2)),el("td",null,brl(Pe,2)),el("td",{class:S<0?"neg":""},(S<0?"− ":"")+brl(Math.abs(S),2)),el("td",{class:"l"},P?pct(p):"")))))));
@@ -418,8 +420,8 @@ table.cc{min-width:760px}
     return el("details",{class:"det",style:"border-top:0;padding-top:0"},el("summary",null,`Itens do planejamento financeiro (${it.length}) · ${brl(tot,2)}`+(projDoc().fonte?" · "+projDoc().fonte:"")),
       el("div",{class:"tw",style:"margin-top:8px"},el("table",{class:"ct"},el("thead",null,el("tr",null,el("th",{class:"l"},"Centro de custo"),el("th",{class:"l"},"Item planejado"),el("th",null,"Valor"))),tb,
         el("tfoot",null,el("tr",null,el("td",{class:"l",colspan:"2"},"Total planejado"),el("td",null,brl(tot,2)))))));}
-  async function saveProj(id,v){const col=Store.collection("metas_mensais"),key="custos-"+mk(),cur=Object.assign({},projDoc().projetado||{});cur[id]=v;
-    try{try{await col.doc(key).update({projetado:cur});}catch(_){await col.doc(key).set({tipo:"custos",mes:mk(),projetado:cur});}toast("Projetado salvo");}catch(_){toast("Não foi possível salvar.");}}
+  async function saveProj(id,v){if(!Custos.isAdmin())return;const col=Store.collection("metas_mensais"),key="custos-"+mk(),cur=Object.assign({},projDoc().projetado||{});cur[id]=v;
+    try{await col.doc(key).update({tipo:"custos",mes:mk(),projetado:cur});}catch(_){toast("Não foi possível salvar.");}}
 
   function centrosBox(){const d=el("details",{class:"box det2"},el("summary",null,el("h2",{style:"display:inline"},"Centros de custo"),el("span",{class:"hint",style:"margin-left:8px"},Custos.isAdmin()?"cadastrar, renomear ou desativar":"só administradores alteram")));
     const raw=state.raw.centros_custo||[],usingDefault=!raw.length,L=state.centros;
