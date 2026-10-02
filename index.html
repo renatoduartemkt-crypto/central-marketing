@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Painel · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.monthbar{display:flex;align-items:center;gap:8px}
+.monthbar b{font-size:18px;min-width:160px;text-align:center;text-transform:capitalize}
+.icon{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer}
+.apv{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--warn);border-left:6px solid var(--accent);border-radius:12px;padding:14px 18px;text-decoration:none;color:var(--fg)}
+.apv:hover{box-shadow:0 2px 10px -4px rgba(0,0,0,.2)}
+.apv .ic{width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;flex:none}
+.apv .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.apv .tx b{font-size:16px}
+.apv .tx small{font-size:12.5px;color:var(--muted)}
+.apv .go{font-weight:700;color:var(--accent);white-space:nowrap;font-size:14px}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mod{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.mod header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mod h2{font-size:18px}
+.mod header a{font-size:13px;font-weight:700;color:var(--accent);text-decoration:none;white-space:nowrap}
+.kpi{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.kpi b{font-size:36px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:13.5px}
+.meter{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden;display:flex}
+.meter i{display:block;height:100%}
+.rows{display:flex;flex-direction:column;gap:7px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;font-size:13.5px;align-items:center}
+.row b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;background:var(--c);vertical-align:0}
+.sub{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.agenda{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.agenda h2{font-size:18px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.dcol{background:var(--bg);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:120px}
+.dcol .dh{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dcol.today{outline:2px solid var(--accent);outline-offset:-2px}
+.it{display:block;text-decoration:none;color:var(--fg);background:var(--surface);border-left:3px solid var(--c);border-radius:5px;padding:4px 6px;font-size:12px;line-height:1.25}
+.it small{display:block;color:var(--muted);font-size:10.5px;font-weight:600}
+.it span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.none{color:var(--muted);font-size:12px}
+@media (max-width:980px){.cols,.cols2{grid-template-columns:1fr}.days{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow" id="hello">Painel geral</div><h1>Marketing <span>em um só lugar</span></h1></div>
+    <div class="monthbar"><button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button><b id="mTitle"></b><button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button></div>
+  </div>
+
+  <a class="apv" id="apvAlert" href="aprovacoes.html" hidden></a>
+
+  <div class="cols">
+    <section class="mod" id="mEmail"></section>
+    <section class="mod" id="mTraf"></section>
+    <section class="mod" id="mRedes"></section>
+  </div>
+
+  <div class="cols cols2">
+    <section class="mod" id="mMetaE"></section>
+    <section class="mod" id="mMetaA"></section>
+  </div>
+
+  <section class="agenda">
+    <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline"><h2>Próximos 7 dias</h2><span class="hint">E-mails, posts e início/fim de campanhas</span></div>
+    <div class="days" id="days"></div>
+  </section>
+</div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/custos.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const DOW=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+  const pad=n=>String(n).padStart(2,"0");
+  const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+  const now=new Date(); let Y=now.getFullYear(), M=now.getMonth();
+  const D={emails:[],camps:[],posts:[],dias:{},mensais:{}};
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(v!=null)e.setAttribute(k,v);}kids.forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
+  const mk=()=>`${Y}-${pad(M+1)}`;
+  const execOf=e=>e.execucao||(e.status==="enviado"?"enviado":(e.status==="producao"||e.status==="agendado")?"producao":"nao_enviado");
+  const stc=c=>c.statusCampanha||"planejamento";
+  const row=(label,val,c)=>el("div",{class:"row"},el("span",null,c?el("i",{class:"dot",style:`--c:${c}`}):null,label),el("b",null,val));
+  const meter=parts=>{const t=parts.reduce((s,p)=>s+p[0],0)||1;return el("div",{class:"meter"},...parts.map(([n,c])=>el("i",{style:`width:${n/t*100}%;background:${c}`})));};
+  const head=(t,href)=>el("header",null,el("h2",null,t),el("a",{href},"Abrir ›"));
+
+  function renderEmail(){const m=$("mEmail");m.textContent="";
+    const L=D.emails.filter(e=>(e.data||"").slice(0,7)===mk()); const n=L.length;
+    const c=k=>L.filter(e=>execOf(e)===k).length, env=c("enviado"), pro=c("producao"), nao=c("nao_enviado");
+    const hoje=iso(new Date()), atr=L.filter(e=>e.data<hoje&&execOf(e)!=="enviado").length;
+    m.append(head("E-mail marketing","emails.html"),
+      el("div",{class:"kpi"},el("b",null,`${env}/${n}`),el("span",null,`realizado × planejado · ${n?Math.round(env/n*100):0}%`)),
+      meter([[env,"var(--ok)"],[pro,"var(--warn)"],[nao,"var(--bad)"]]),
+      el("div",{class:"rows"},row("Enviados",env,"var(--ok)"),row("Em produção",pro,"var(--warn)"),row("Não enviados",nao,"var(--bad)"),row("Atrasados (data já passou)",atr)),
+      el("div",{class:"sub"},"Por empresa"),
+      el("div",{class:"rows"},...["lopes","opta"].map(k=>{const x=L.filter(e=>e.empresa===k);return row(k==="lopes"?"Lopes":"Opta",`${x.filter(e=>execOf(e)==="enviado").length}/${x.length}`);})));}
+  function renderTraf(){const m=$("mTraf");m.textContent="";
+    const ini=`${mk()}-01`, fim=`${mk()}-${pad(new Date(Y,M+1,0).getDate())}`;
+    const L=D.camps.filter(c=>!c.inicio||!c.fim?true:(c.inicio<=fim&&c.fim>=ini));
+    const vp=L.reduce((s,c)=>s+(+c.verba||0),0), vi=L.reduce((s,c)=>s+(+c.verbaInvestida||0),0);
+    const k=s=>L.filter(c=>stc(c)===s).length;
+    m.append(head("Tráfego pago","trafego.html"),
+      el("div",{class:"kpi"},el("b",null,brl(vi)),el("span",null,`investidos de ${brl(vp)} projetados · ${vp?Math.round(vi/vp*100):0}%`)),
+      meter([[vi,"var(--ok)"],[Math.max(0,vp-vi),"var(--surface-2)"]]),
+      el("div",{class:"rows"},row("Ativas",k("ativa"),"var(--ok)"),row("Em planejamento",k("planejamento"),"var(--warn)"),row("Inativas",k("inativa"),"var(--muted)")),
+      el("div",{class:"sub"},`${L.length} campanha(s) no mês`),
+      el("div",{class:"rows"},...L.slice(0,5).map(c=>row(c.nome||"Sem nome",brl(+c.verba||0)))));}
+  function renderRedes(){const m=$("mRedes");m.textContent="";
+    const L=D.posts.filter(p=>(p.data||"").slice(0,7)===mk());
+    const S=[["ideia","Ideia","var(--muted)"],["producao","Em produção","var(--warn)"],["programado","Programado","var(--info)"],["postado","Postado","var(--ok)"],["derrubado","Derrubado","var(--bad)"]];
+    const c=k=>L.filter(p=>(p.status||"ideia")===k).length;
+    const pm=L.filter(p=>p.planoMarketing).length;
+    m.append(head("Redes sociais","redes.html"),
+      el("div",{class:"kpi"},el("b",null,`${c("postado")}/${L.length}`),el("span",null,"posts publicados no mês")),
+      meter(S.map(s=>[c(s[0]),s[2]])),
+      el("div",{class:"rows"},...S.map(s=>row(s[1],c(s[0]),s[2]))),
+      el("div",{class:"sub"},"Plano de marketing"),el("div",{class:"rows"},row("Posts marcados",pm)));}
+  function renderMetas(){
+    const eL=D.mensais["ecom-"+mk()]||{}, eO=D.mensais["ecom-opta-"+mk()]||{}, mA=D.mensais["alcance-"+mk()]||{};
+    const mE={metaVendas:(+eL.metaVendas||0)+(+eO.metaVendas||0),metaPositivacoes:(+eL.metaPositivacoes||0)+(+eO.metaPositivacoes||0)};
+    let v=0,p=0,vL=0,vO=0; Object.entries(D.dias).forEach(([id,x])=>{if((x.data||"").slice(0,7)===mk()){const n=+x.vendido||0;v+=n;p+=+x.positivacoes||0;if(id.indexOf("opta-")===0||x.site==="opta")vO+=n;else vL+=n;}});
+    const pc=(r,m)=>m?Math.round(r/m*100):0;
+    const a=$("mMetaE"); a.textContent="";
+    const mv=+mE.metaVendas||0, mp=+mE.metaPositivacoes||0;
+    a.append(head("Metas do e-commerce · Lopes + Opta","metas.html"),
+      el("div",{class:"kpi"},el("b",null,mv?pc(v,mv)+"%":"—"),el("span",null,mv?`da meta de vendas · ${brl(v)} de ${brl(mv)}`:"defina a meta de vendas do mês")),
+      meter([[Math.min(v,mv||v),"var(--ok)"],[Math.max(0,mv-v),"var(--surface-2)"]]),
+      el("div",{class:"rows"},row("Faltam vender",mv?brl(Math.max(0,mv-v)):"—"),row("Positivações",mp?`${p} de ${mp} (${pc(p,mp)}%)`:String(p)),row("Ticket médio do mês",p?brl(v/p):"—"),row("Site Lopes",+eL.metaVendas?`${brl(vL)} · ${pc(vL,+eL.metaVendas)}%`:brl(vL)),row("Site Opta",+eO.metaVendas?`${brl(vO)} · ${pc(vO,+eO.metaVendas)}%`:brl(vO))));
+    const b=$("mMetaA"); b.textContent="";
+    const G=[["ig_lopes","Instagram Lopes · alcance"],["ig_opta","Instagram Opta · alcance"],["in_lopes","LinkedIn Lopes · interações"],["in_opta","LinkedIn Opta · seguidores"],["roas_email","ROAS E-mail"],["roas_pago","ROAS Pago"]];
+    const def=G.filter(g=>+(mA[g[0]]||{}).meta), bat=def.filter(g=>(+(mA[g[0]]||{}).realizado||0)>=+(mA[g[0]]||{}).meta).length;
+    b.append(head("Metas de redes sociais e ROAS","metas.html"),
+      el("div",{class:"kpi"},el("b",null,def.length?`${bat}/${def.length}`:"—"),el("span",null,def.length?"metas batidas no mês":"defina as metas do mês")),
+      el("div",{class:"rows"},...G.map(g=>{const x=mA[g[0]]||{};return row(g[1],+x.meta?`${pc(+x.realizado||0,+x.meta)}%`:"—");})));
+  }
+  function renderAgenda(){const h=$("days");h.textContent=""; const t0=new Date(); t0.setHours(12,0,0,0);
+    for(let i=0;i<7;i++){const d=new Date(t0);d.setDate(t0.getDate()+i);const s=iso(d);
+      const col=el("div",{class:"dcol"+(i===0?" today":"")},el("div",{class:"dh"},`${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)}`));
+      const items=[];
+      D.emails.filter(e=>e.data===s).forEach(e=>items.push([e.hora||"",el("a",{class:"it",href:"emails.html",style:"--c:var(--accent)"},el("small",null,`E-mail · ${e.empresa==="opta"?"Opta":"Lopes"}${e.hora?" · "+e.hora:""}`),el("span",null,e.nome||e.assunto||"E-mail"))]));
+      D.posts.filter(p=>p.data===s).forEach(p=>items.push([p.hora||"",el("a",{class:"it",href:"redes.html",style:"--c:var(--info)"},el("small",null,`Post${p.hora?" · "+p.hora:""}`),el("span",null,p.titulo||"Post"))]));
+      D.camps.forEach(c=>{if(c.inicio===s)items.push(["",el("a",{class:"it",href:"trafego.html",style:"--c:var(--ok)"},el("small",null,"Campanha começa"),el("span",null,c.nome||"Campanha"))]);
+        if(c.fim===s)items.push(["",el("a",{class:"it",href:"trafego.html",style:"--c:var(--muted)"},el("small",null,"Campanha termina"),el("span",null,c.nome||"Campanha"))]);});
+      items.sort((a,b)=>a[0].localeCompare(b[0])).forEach(x=>col.append(x[1]));
+      if(!items.length)col.append(el("span",{class:"none"},"Nada programado"));
+      h.append(col);}}
+  function render(){$("mTitle").textContent=`${MESES[M]} ${Y}`;renderEmail();renderTraf();renderRedes();renderMetas();renderAgenda();}
+  $("prevM").onclick=()=>{M--;if(M<0){M=11;Y--;}render();};
+  $("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}render();};
+  Central.boot("painel",user=>{
+    $("hello").textContent=`Olá, ${(user.nome||"").split(" ")[0]||"bem-vindo"}${user.cargo?" · "+user.cargo:""}`;
+    const sub=(name,key)=>Store.collection(name).onSnapshot(sn=>{D[key]=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
+    sub("emails","emails"); sub("trafego_campanhas","camps"); sub("posts","posts");
+    const subMap=(name,key)=>Store.collection(name).onSnapshot(sn=>{D[key]={};sn.docs.forEach(d=>D[key][d.id]=d.data());render();});
+    subMap("metas_ecommerce","dias"); subMap("metas_mensais","mensais"); render();
+    // alerta de aprovações pendentes (só para o administrador)
+    if(Custos.isAdmin())Custos.watch(s=>{const P=Custos.pendencias(s.raw).filter(i=>i.status==="pendente"),a=$("apvAlert");a.hidden=!P.length;if(!P.length)return;
+      const tot=P.reduce((t,i)=>t+i.valor,0),old=P.filter(i=>{const d=(i.raw&&(i.raw.criadoEm||i.raw.em))||i.data;return d&&Date.now()-new Date(d.length<=10?d+"T12:00:00":d)>=3*864e5;}).length;
+      const org={};P.forEach(i=>{const n=Custos.ORIGENS[i.origem]||i.origem;org[n]=(org[n]||0)+1;});
+      a.textContent="";a.append(el("span",{class:"ic","aria-hidden":"true"},"!"),el("span",{class:"tx"},el("b",null,`${P.length} aprovaç${P.length===1?"ão pendente":"ões pendentes"} · ${brl(tot)}`),
+        el("small",null,Object.entries(org).map(([n,c])=>`${n} (${c})`).join(" · ")+(old?` · ${old} esperando há 3 dias ou mais`:""))),el("span",{class:"go"},"Ver aprovações ›"));});
+  });
+})();
+</script>
+</body>
+</html>

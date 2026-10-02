@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Usuários · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:18px;align-items:start}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.box h2{font-size:17px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.av{width:30px;height:30px;border-radius:50%;background:var(--navy);color:var(--bg);display:inline-grid;place-items:center;font-weight:800;font-size:11.5px;margin-right:8px;vertical-align:middle}
+.pf{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700;background:var(--surface-2);color:var(--muted)}
+.pf.admin{background:var(--accent-soft);color:var(--accent)}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12.5px;font-weight:700;color:var(--muted)}
+input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+.err{color:var(--bad);font-size:13px;font-weight:600}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.lnk{border:0;background:none;color:var(--accent);font-weight:600;cursor:pointer;padding:2px 4px;font-size:13px}
+.lnk.bad{color:var(--bad)}
+.actcol{width:150px}.actcol>.lnk{display:block;margin-left:auto;text-align:right;white-space:nowrap}.actcol>input{display:block;margin:0 0 4px auto}
+.notice{background:var(--surface-2);border-radius:8px;padding:10px 14px;font-size:13.5px;color:var(--muted)}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow">Acesso à Central</div><h1>Usuários</h1></div>
+    <span class="hint" id="count"></span>
+  </div>
+  <div class="grid2">
+    <section class="box">
+      <h2>Equipe cadastrada</h2>
+      <div class="tw"><table><thead><tr><th>Nome</th><th id="thLogin">E-mail</th><th>Cargo</th><th>Perfil</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+    </section>
+    <section class="box">
+      <h2 id="fTitle">Meu cadastro</h2>
+      <form id="f" novalidate style="display:flex;flex-direction:column;gap:12px">
+        <div class="field"><label for="uEmail" id="lbLogin">E-mail</label><input type="email" id="uEmail" maxlength="120" autocapitalize="none" spellcheck="false"></div>
+        <div class="field"><label for="uNome">Nome</label><input type="text" id="uNome" maxlength="80"></div>
+        <div class="field"><label for="uCargo">Cargo</label><input type="text" id="uCargo" maxlength="80"></div>
+        <div class="field" id="pfF"><label for="uPerfil">Perfil</label><select id="uPerfil"><option value="editor">Editor (planeja e edita)</option><option value="admin">Administrador (também gerencia usuários)</option></select></div>
+        <div class="field" id="pwF" hidden><label for="uSenha">Senha provisória</label><input type="text" id="uSenha" maxlength="120" autocomplete="off" spellcheck="false"><span class="hint">Mínimo de 8 caracteres, com letras e números. A pessoa troca no primeiro acesso.</span></div>
+        <p class="err" id="err" hidden></p>
+        <div class="acts"><button class="btn primary" type="submit" id="save">Salvar</button><button class="btn" type="button" id="novo">Cadastrar outra pessoa</button></div>
+      </form>
+      <p class="notice" id="adminNote" hidden>Só administradores podem cadastrar ou remover outras pessoas.</p>
+      <form id="fPw" novalidate hidden style="display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:14px">
+        <h2>Trocar minha senha</h2>
+        <input type="text" id="pUser" autocomplete="username" hidden>
+        <div class="field"><label for="pAtual">Senha atual</label><input type="password" id="pAtual" autocomplete="current-password" maxlength="120"></div>
+        <div class="field"><label for="pNova">Nova senha</label><input type="password" id="pNova" autocomplete="new-password" maxlength="120"></div>
+        <div class="field"><label for="pConf">Repita a nova senha</label><input type="password" id="pConf" autocomplete="new-password" maxlength="120"></div>
+        <p class="err" id="errP" hidden></p>
+        <div class="acts"><button class="btn" type="submit" id="pBtn">Trocar senha</button></div>
+      </form>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id); let users=[], me=null, editing=null, confirmDel=null, resetFor=null;
+  const GASM=Store.modo()==="gas"; const loginOk=v=>/^[a-z0-9_.@+-]{3,80}$/.test(v);
+  const senhaOk=v=>v.length>=8&&/[a-zA-Z]/.test(v)&&/[0-9]/.test(v);
+  if(GASM){$("thLogin").textContent="Usuário";$("lbLogin").textContent="Usuário (login)";$("uEmail").type="text";$("uEmail").placeholder="ex.: ana.silva";$("fPw").hidden=false;}
+  const fmt=s=>s?new Date(s).toLocaleDateString("pt-BR"):"";
+  const ini=n=>String(n||"?").trim().split(/\s+/).slice(0,2).map(p=>p[0]).join("").toUpperCase();
+  let tt; const toast=m=>{const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2400);};
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!=null&&v!==false)e.setAttribute(k,v);}kids.forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
+
+  function fill(u){editing=u?u.email:null; const admin=Auth.isAdmin(), self=!u||u.email===me.email;
+    $("fTitle").textContent=!u?"Cadastrar pessoa":self?"Meu cadastro":"Editar cadastro";
+    $("uEmail").value=u?u.email:""; $("uEmail").disabled=!!u; $("uNome").value=u?u.nome||"":""; $("uCargo").value=u?u.cargo||"":""; $("uPerfil").value=u?u.perfil||"editor":"editor";
+    $("pfF").hidden=!admin||(!!u&&u.email===me.email); $("novo").hidden=!admin; $("pwF").hidden=!(GASM&&!u); $("uSenha").value=""; $("adminNote").hidden=admin; $("err").hidden=true;
+    [$("uNome"),$("uCargo"),$("save")].forEach(x=>x.disabled=!(admin||self));}
+  function render(){
+    const tb=$("rows"); tb.textContent=""; const admin=Auth.isAdmin();
+    users.slice().sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email)).forEach(u=>{
+      const acts=el("td",{class:GASM?"actcol":null,style:GASM?"text-align:right":"text-align:right;white-space:nowrap"});
+      if(admin||u.email===me.email)acts.append(el("button",{class:"lnk",type:"button",onclick:()=>fill(u)},"Editar"));
+      if(GASM&&admin&&u.email!==me.email){
+        if(resetFor===u.email){const inp=el("input",{type:"text",placeholder:"nova senha provisória",maxlength:"120",autocomplete:"off",style:"width:170px;padding:5px 8px"});
+          acts.append(inp,el("button",{class:"lnk",type:"button",onclick:async()=>{const v=inp.value; if(!senhaOk(v))return toast("Mínimo de 8 caracteres, com letras e números");
+            try{await Auth.resetPassword(u.email,v);resetFor=null;toast("Senha provisória definida. Passe para a pessoa.");}catch(e){toast(e.message||"Não foi possível redefinir");}}},"Salvar"),
+            el("button",{class:"lnk",type:"button",onclick:()=>{resetFor=null;render();}},"Cancelar"));}
+        else acts.append(el("button",{class:"lnk",type:"button",onclick:()=>{resetFor=u.email;confirmDel=null;render();}},"Redefinir senha"),
+          el("button",{class:"lnk",type:"button",onclick:async()=>{try{await Auth.saveUser(Object.assign({},u,{ativo:u.ativo===false}));toast(u.ativo===false?"Acesso liberado":"Acesso bloqueado");}catch(e){toast(e.message||"Não foi possível alterar");}}},u.ativo===false?"Desbloquear":"Bloquear"));
+      }
+      if(admin&&u.email!==me.email&&resetFor!==u.email){
+        if(confirmDel===u.email)acts.append(el("span",{class:"hint"},"Remover? "),el("button",{class:"lnk bad",type:"button",onclick:async()=>{await Auth.removeUser(u.email);confirmDel=null;toast("Usuário removido");}},"Sim"),el("button",{class:"lnk",type:"button",onclick:()=>{confirmDel=null;render();}},"Não"));
+        else acts.append(el("button",{class:"lnk bad",type:"button",onclick:()=>{confirmDel=u.email;render();}},"Remover"));}
+      tb.append(el("tr",null,el("td",null,el("span",{class:"av"},ini(u.nome||u.email)),el("b",null,u.nome||"—"),u.email===me.email?el("span",{class:"hint"}," (você)"):null),
+        el("td",{class:"mono",style:"font-size:13px"},u.email),el("td",null,u.cargo||"—"),
+        el("td",null,el("span",{class:"pf "+(u.perfil==="admin"?"admin":"")},u.perfil==="admin"?"Administrador":"Editor"),
+          GASM&&u.ativo===false?el("span",{class:"pf",style:"margin-left:4px;color:var(--bad)"},"Bloqueado"):null,
+          GASM&&u.trocarSenha?el("span",{class:"pf",style:"margin-left:4px"},"Senha provisória"):null,
+          el("div",{class:"hint"},GASM&&u.ultimoAcesso?"último acesso "+fmt(u.ultimoAcesso):u.criadoEm?"desde "+fmt(u.criadoEm):"")),acts));});
+    $("count").textContent=`${users.length} pessoa(s) com acesso`;
+  }
+  $("fPw").addEventListener("submit",async ev=>{ev.preventDefault(); const e=m=>{$("errP").textContent=m;$("errP").hidden=!m;};
+    const a=$("pAtual").value,n=$("pNova").value,c=$("pConf").value;
+    if(!a)return e("Informe a senha atual."); if(!senhaOk(n))return e("Use pelo menos 8 caracteres, com letras e números."); if(n!==c)return e("As duas senhas não são iguais.");
+    e(""); $("pBtn").disabled=true;
+    try{await Auth.trocarSenha(a,n);["pAtual","pNova","pConf"].forEach(i=>$(i).value="");toast("Senha alterada");}catch(x){e(x.message||"Não foi possível trocar a senha.");}finally{$("pBtn").disabled=false;}});
+  $("novo").onclick=()=>{fill(null);$("uEmail").focus();};
+  $("f").addEventListener("submit",async ev=>{ev.preventDefault();
+    const err=m=>{$("err").textContent=m;$("err").hidden=!m;};
+    const email=(editing||$("uEmail").value).trim().toLowerCase(), nome=$("uNome").value.trim(), cargo=$("uCargo").value.trim();
+    if(!editing){const m=GASM?(loginOk(email)?"":"Usuário inválido: de 3 a 80 caracteres, só letras minúsculas, números, ponto, hífen ou @, sem espaços."):Auth.validate(email); if(m)return err(m); if(users.some(u=>u.email===email))return err(GASM?"Este usuário já existe.":"Este e-mail já está cadastrado.");
+      if(GASM&&!senhaOk($("uSenha").value))return err("A senha provisória precisa ter pelo menos 8 caracteres, com letras e números.");}
+    if(!nome)return err("Informe o nome."); if(!cargo)return err("Informe o cargo.");
+    const prev=users.find(u=>u.email===email)||{};
+    const perfil=Auth.isAdmin()?$("uPerfil").value:(prev.perfil||"editor");
+    try{if(GASM&&!editing)await Auth.createUser({email,nome,cargo,perfil},$("uSenha").value);
+      else await Auth.saveUser(Object.assign({},prev,{email,nome,cargo,perfil,criadoEm:prev.criadoEm||new Date().toISOString()}));toast(editing?"Cadastro atualizado":"Pessoa cadastrada");
+      if(email===me.email){Central.mount("usuarios",Auth.current());} fill(users.find(u=>u.email===email)||null);}
+    catch(e){err("Não foi possível salvar. "+(e.message||""));}});
+  Central.boot("usuarios",user=>{me=user;
+    Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>Object.assign({},d.data()));render();});
+    $("pUser").value=user.email; fill(user);});
+})();
+</script>
+</body>
+</html>

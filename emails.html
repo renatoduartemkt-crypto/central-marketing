@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>E-mail marketing · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+/* Layout: cabeçalho + resumo, depois calendário mensal (seg→dom) que vira agenda em telas estreitas; formulário em painel sobreposto */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --surface-2:#EAEEF4; --line:#D5DCE6;
+  --fg:#16233A; --muted:#5C6B82; --navy:#1B2D49; --accent:#E84826; --accent-fg:#FFFFFF;
+  --lopes:#1B2D49; --lopes-bg:#E3E9F2; --opta:#0F7A6C; --opta-bg:#DDF1EC;
+  --t-desc:#8A5A00; --t-desc-bg:#FBEFD5; --t-nov:#5B3FB8; --t-nov-bg:#ECE6FB;
+  --t-of:#C23A1C; --t-of-bg:#FCE4DC; --t-blog:#24679A; --t-blog-bg:#DFEDF8;
+  --t-inst:#4F6B1F; --t-inst-bg:#E8EFD8;
+  --warn:#9A5B00; --warn-bg:#FFF3D6; --best:#0F7A6C;
+  --display:"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body:"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1522; --surface:#152033; --surface-2:#1B2840; --line:#2A3A55;
+  --fg:#E7ECF4; --muted:#9AA8BE; --navy:#C9D6EA; --accent:#FF6A45; --accent-fg:#1A0E08;
+  --lopes:#C9D6EA; --lopes-bg:#22324E; --opta:#5FD3C0; --opta-bg:#123A35;
+  --t-desc:#F2C46A; --t-desc-bg:#3A2D12; --t-nov:#B9A5FF; --t-nov-bg:#2B2350;
+  --t-of:#FF9A7E; --t-of-bg:#47201A; --t-blog:#8CC4F0; --t-blog-bg:#16324A;
+  --t-inst:#B8D27A; --t-inst-bg:#26301A;
+  --warn:#F2C46A; --warn-bg:#3A2D12; --best:#5FD3C0; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1522; --surface:#152033; --surface-2:#1B2840; --line:#2A3A55;
+  --fg:#E7ECF4; --muted:#9AA8BE; --navy:#C9D6EA; --accent:#FF6A45; --accent-fg:#1A0E08;
+  --lopes:#C9D6EA; --lopes-bg:#22324E; --opta:#5FD3C0; --opta-bg:#123A35;
+  --t-desc:#F2C46A; --t-desc-bg:#3A2D12; --t-nov:#B9A5FF; --t-nov-bg:#2B2350;
+  --t-of:#FF9A7E; --t-of-bg:#47201A; --t-blog:#8CC4F0; --t-blog-bg:#16324A;
+  --t-inst:#B8D27A; --t-inst-bg:#26301A;
+  --warn:#F2C46A; --warn-bg:#3A2D12; --best:#5FD3C0; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px;display:flex;flex-direction:column;gap:22px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(28px,4vw,40px);font-weight:800;letter-spacing:-.02em;color:var(--navy);line-height:1.05}
+h1 span{color:var(--accent)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.danger{color:var(--t-of);border-color:var(--t-of)}
+
+.notice{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:10px 14px;font-size:14px}
+
+/* resumo */
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.stat h3{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.stat .big{font-family:var(--display);font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:96px 1fr 26px;align-items:center;gap:8px;font-size:12.5px}
+.bar .track{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.bar .fill{height:100%;border-radius:4px}
+.bar b{font-family:var(--mono);font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+
+/* filtros */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
+.filters{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;border-radius:6px;padding:6px 11px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.flabel{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:6px}
+
+/* calendário */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.dow,.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.dow div{padding:9px 10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);display:flex;gap:6px;align-items:center}
+.dow .best{color:var(--best)}
+.day{min-height:118px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:7px 7px 9px;display:flex;flex-direction:column;gap:5px;min-width:0;position:relative}
+.grid .day:nth-child(7n){border-right:0}
+.day.out{background:var(--bg);opacity:.55}
+.day.weekend{background:color-mix(in srgb,var(--surface-2) 45%,var(--surface))}
+.day .dh{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.day .num{font-family:var(--mono);font-size:13px;font-weight:500;font-variant-numeric:tabular-nums}
+.day.today .num{background:var(--accent);color:var(--accent-fg);border-radius:5px;padding:0 5px}
+.day .add{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;width:24px;height:24px;border-radius:5px;opacity:0}
+.day:hover .add,.day .add:focus-visible{opacity:1}
+.day .add:hover{background:var(--surface-2);color:var(--fg)}
+.tag{font-size:10.5px;font-weight:600;border-radius:4px;padding:1px 5px;color:var(--warn);background:var(--warn-bg);align-self:flex-start}
+.chip{display:flex;flex-direction:column;gap:1px;text-align:left;border:0;border-left:3px solid var(--c);background:var(--cbg);color:var(--fg);border-radius:5px;padding:4px 6px;font-size:12px;line-height:1.25;min-width:0;width:100%}
+.chip .l1{display:flex;gap:5px;align-items:center;font-weight:700;color:var(--c);font-size:11px}
+.chip .l1 .h{font-family:var(--mono);font-weight:500;color:var(--muted)}
+.chip .l2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.sent{opacity:.6}
+.chip.sent .l2{text-decoration:line-through}
+.chip:hover{filter:brightness(.97)}
+.warnday{font-size:10.5px;color:var(--warn);font-weight:600}
+
+/* lista */
+.listwrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:820px}
+th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+td.mono{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;color:var(--c);background:var(--cbg);white-space:nowrap}
+.monthbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.monthbar h2{font-size:22px;font-weight:800;min-width:190px;text-transform:capitalize}
+.icon{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:36px;height:36px;font-size:18px;line-height:1;cursor:pointer}
+.pvr{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+.pvr .big{font-size:30px}
+.meter{grid-column:1/-1;height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden;display:flex}
+.meter i{display:block;height:100%}
+.exsel{border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700;background:var(--surface);color:var(--fg)}
+.flagx{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;color:var(--sc);background:var(--surface)}
+.status{font-size:12px;font-weight:600;white-space:nowrap}
+.status::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--sc);vertical-align:1px}
+
+.empty{padding:34px 20px;text-align:center;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.empty strong{color:var(--fg);font-family:var(--display);font-size:17px}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;background:var(--c);display:inline-block}
+
+/* painel */
+.overlay{position:fixed;inset:0;background:rgba(10,16,28,.45);display:flex;justify-content:flex-end;z-index:20}
+.panel{background:var(--surface);width:min(460px,100%);height:100%;overflow-y:auto;padding:22px 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px;box-shadow:-8px 0 30px rgba(0,0,0,.18)}
+.panel header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.panel h2{font-size:21px;color:var(--navy)}
+.x{border:0;background:var(--surface-2);border-radius:7px;width:32px;height:32px;font-size:18px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.field>.lab{font-size:12.5px;font-weight:700;color:var(--muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+input[type=text],input[type=date],input[type=time],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+textarea{min-height:76px;resize:vertical}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt span{display:inline-block;border:1px solid var(--line);border-radius:7px;padding:7px 11px;font-size:13.5px;font-weight:600;background:var(--surface)}
+.opt input:checked+span{border-color:var(--c,var(--accent));background:var(--cbg,var(--surface-2));color:var(--c,var(--fg))}
+.opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.opt input[type=checkbox]:checked+span::before{content:"✓ ";font-weight:800}
+.opt.all span{border-style:dashed}
+.repeat{display:flex;flex-direction:column;gap:12px;background:var(--surface-2);border-radius:9px;padding:12px}
+.repeat .opt span{background:var(--surface)}
+.hint{font-size:12.5px;color:var(--muted)}
+.hint.warn{color:var(--warn)}
+.err{font-size:13px;color:var(--t-of);font-weight:600}
+.panel footer{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:auto;padding-top:8px;border-top:1px solid var(--line)}
+.confirm{display:flex;gap:8px;align-items:center;font-size:13.5px;flex-wrap:wrap}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;z-index:30}
+
+@media (max-width:720px){
+  .dow{display:none}
+  .grid{grid-template-columns:1fr}
+  .day{min-height:0;border-right:0;flex-direction:row;flex-wrap:wrap;align-items:flex-start}
+  .day.out{display:none}
+  .day .dh{width:100%}
+  .day .add{opacity:1}
+  .day .num::after{content:attr(data-dow);margin-left:8px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  .day.empty-day:not(.today){display:none}
+  .chip{width:100%}
+  .row2{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Distribuidora Lopes · Opta · RD Station</div>
+      <h1>E-mail <span>marketing</span></h1>
+    </div>
+    <div class="actions">
+      <button class="btn" id="copyBtn" type="button">Copiar tabela</button>
+      <button class="btn primary" id="newBtn" type="button">+ Novo e-mail</button>
+    </div>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="monthbar">
+    <button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button>
+    <h2 id="monthTitle"></h2>
+    <button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button>
+    <button class="btn" type="button" id="todayBtn">Mês atual</button>
+  </div>
+
+  <section class="summary" id="summary" aria-label="Resumo do mês"></section>
+
+  <div class="toolbar">
+    <div class="filters">
+      <div><span class="flabel">Empresa</span>
+        <div class="seg" id="fEmpresa" role="group" aria-label="Filtrar por empresa"></div></div>
+      <div><span class="flabel">Tipo</span>
+        <div class="seg" id="fTipo" role="group" aria-label="Filtrar por tipo"></div></div>
+      <div><span class="flabel">Estado</span>
+        <div class="seg" id="fUF" role="group" aria-label="Filtrar por estado"></div></div>
+    </div>
+    <div class="seg" id="viewSeg" role="group" aria-label="Visualização">
+      <button type="button" data-v="cal" aria-pressed="true">Calendário</button>
+      <button type="button" data-v="list" aria-pressed="false">Lista</button>
+    </div>
+  </div>
+
+  <section id="calView">
+    <div class="cal">
+      <div class="dow" id="dow"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <section id="listView" hidden>
+    <div class="listwrap" id="listWrap"></div>
+  </section>
+
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <form class="panel" id="form" novalidate>
+    <header>
+      <h2 id="formTitle">Novo e-mail</h2>
+      <button class="x" type="button" id="closeBtn" aria-label="Fechar">×</button>
+    </header>
+
+    <div class="row2">
+      <div class="field"><label for="fData">Data de envio</label>
+        <input type="date" id="fData" required></div>
+      <div class="field"><label for="fHora">Horário</label>
+        <input type="time" id="fHora" value="06:00"></div>
+    </div>
+    <p class="hint" id="dayHint"></p>
+
+    <div class="field"><span class="lab">Empresa</span><div class="opts" id="oEmpresa"></div></div>
+    <div class="field"><span class="lab">Tipo de e-mail</span><div class="opts" id="oTipo"></div></div>
+    <div class="field"><span class="lab">Estados <span class="hint">(marque um ou mais)</span></span>
+      <div class="opts" id="oUF"></div></div>
+    <div class="field"><span class="lab">Segmentações <span class="hint">(marque uma ou mais)</span></span>
+      <div class="opts" id="oSeg"></div></div>
+
+    <div class="field"><label for="fNome">Nome / tema da campanha</label>
+      <input type="text" id="fNome" maxlength="120" placeholder="Ex.: Ofertas da Semana MS"></div>
+    <div class="field"><label for="fAssunto">Assunto do e-mail</label>
+      <input type="text" id="fAssunto" maxlength="160" placeholder="Ex.: Sua semana começou com desconto..."></div>
+    <div class="field"><span class="lab">Execução do envio</span>
+      <div class="opts" id="oExec"></div>
+      <p class="hint">Marque como o e-mail está para medir o planejado × realizado.</p></div>
+
+    <div class="repeat">
+      <div class="field"><label for="fRep" id="repLabel">Repetir este e-mail</label>
+        <select id="fRep">
+          <option value="nao">Não repetir</option>
+          <option value="semana">Toda semana, no mesmo dia</option>
+          <option value="quinzena">A cada 2 semanas, no mesmo dia</option>
+          <option value="uteis">Todo dia útil (seg a sex)</option>
+          <option value="dias">Em dias da semana que eu escolher</option>
+        </select></div>
+      <div class="field" id="repDiasField" hidden><span class="lab">Dias da semana</span><div class="opts" id="oRepDias"></div></div>
+      <div class="field" id="repAteField" hidden><label for="fRepAte">Repetir até</label>
+        <input type="date" id="fRepAte"></div>
+      <p class="hint" id="repPreview"></p>
+    </div>
+    <div class="field"><label for="fNotas">Observações</label>
+      <textarea id="fNotas" maxlength="1000" placeholder="Oferta, link, responsável, briefing..."></textarea></div>
+
+    <p class="err" id="formErr" hidden></p>
+
+    <footer>
+      <div id="delArea"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" type="button" id="cancelBtn">Cancelar</button>
+        <button class="btn primary" type="submit" id="saveBtn">Salvar</button>
+      </div>
+    </footer>
+  </form>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script>
+(function(){
+  const NOW=new Date(); let YEAR=NOW.getFullYear(), MONTH=NOW.getMonth();
+  const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const EMPRESAS=[{k:"lopes",n:"Lopes",c:"--lopes",b:"--lopes-bg"},{k:"opta",n:"Opta",c:"--opta",b:"--opta-bg"}];
+  const TIPOS=[{k:"ofertas",n:"Ofertas",c:"--t-of",b:"--t-of-bg"},{k:"novidades",n:"Novidades",c:"--t-nov",b:"--t-nov-bg"},{k:"blog",n:"Blog",c:"--t-blog",b:"--t-blog-bg"},{k:"institucional",n:"Institucional",c:"--t-inst",b:"--t-inst-bg"},{k:"descadastramento",n:"Descadastramento",c:"--t-desc",b:"--t-desc-bg"}];
+  const SEGS=[{k:"engajados",n:"Engajados (quentes)",short:"Engajados"},{k:"novos",n:"Novos leads (frios)",short:"Novos leads"},{k:"indeterminados",n:"Indeterminados",short:"Indetermin."}];
+  const UFS=["MS","MT","RO","AC"];
+  // compatibilidade com lançamentos antigos (segmentação única)
+  const segsOf=e=>Array.isArray(e.segs)?e.segs:(e.seg&&e.seg!=="estado"?[e.seg]:[]);
+  const ufsOf=e=>Array.isArray(e.estados)?e.estados:[];
+  // flag de execução: mede o planejado × realizado
+  const EXEC=[{k:"nao_enviado",n:"Não enviado",c:"--bad",b:"--bad-bg"},{k:"producao",n:"Em produção",c:"--warn",b:"--warn-bg"},{k:"enviado",n:"Enviado",c:"--ok",b:"--ok-bg"}];
+  const execOf=e=>e.execucao||(e.status==="enviado"?"enviado":(e.status==="producao"||e.status==="agendado")?"producao":"nao_enviado");
+  const HOLIDAYS={"2026-10-12":"Feriado nacional","2026-11-02":"Feriado nacional","2026-11-15":"Feriado nacional","2026-11-20":"Feriado nacional","2026-12-25":"Natal",
+    "2027-01-01":"Ano-novo","2027-03-26":"Sexta-feira Santa","2027-04-21":"Feriado nacional","2027-05-01":"Dia do Trabalho","2027-09-07":"Independência","2027-10-12":"Feriado nacional","2027-11-02":"Feriado nacional","2027-11-15":"Feriado nacional","2027-11-20":"Feriado nacional","2027-12-25":"Natal"};
+  const DOW=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const BEST=new Set([0,2]); // seg e qua
+  const by=(arr,k)=>arr.find(x=>x.k===k);
+  const $=id=>document.getElementById(id);
+
+  let emails=[]; let col=null; let canWrite=false;
+  let fEmp="all", fTip="all", fUF="all", view="cal", editingId=null;
+
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(k,v===true?"":v);}for(const kid of kids){if(kid==null||kid===false)continue;e.append(kid.nodeType?kid:document.createTextNode(String(kid)));}return e;}
+  const pad=n=>String(n).padStart(2,"0");
+  const iso=d=>`${YEAR}-${pad(MONTH+1)}-${pad(d)}`;
+  const dowIdx=s=>{const d=new Date(s+"T12:00:00");return (d.getDay()+6)%7;};
+  const fmtDate=s=>{const[y,m,d]=s.split("-");return `${d}/${m}`;};
+  const addDays=(s,n)=>{const d=new Date(s+"T12:00");d.setDate(d.getDate()+n);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+  const endOfMonth=s=>{const[y,m]=s.split("-").map(Number);return `${y}-${pad(m)}-${pad(new Date(y,m,0).getDate())}`;};
+  const todayIso=()=>{const n=new Date();return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;};
+  const inMonth=e=>(e.data||"").slice(0,7)===`${YEAR}-${pad(MONTH+1)}`;
+  const ufLabel=e=>{const u=ufsOf(e);return u.length===UFS.length?"Todos os estados":(u.join(", ")||"—");};
+  const segNames=e=>segsOf(e).map(k=>(by(SEGS,k)||{short:k}).short).join(", ")||"—";
+  const segLabel=e=>`${ufLabel(e)} · ${segNames(e)}`;
+  const vars=(c,b)=>`--c:var(${c});--cbg:var(${b})`;
+
+  function filtered(){return emails.filter(e=>inMonth(e)&&(fEmp==="all"||e.empresa===fEmp)&&(fTip==="all"||e.tipo===fTip)&&(fUF==="all"||ufsOf(e).includes(fUF)));}
+  function sorted(list){return list.slice().sort((a,b)=>(a.data+a.hora).localeCompare(b.data+b.hora));}
+
+  // filtros
+  function buildSeg(host,items,cur,on){host.textContent="";[{k:"all",n:"Todos"}].concat(items).forEach(it=>{host.append(el("button",{type:"button","aria-pressed":String(cur===it.k),onclick:()=>on(it.k)},it.k==="all"&&host.id==="fEmpresa"?"Todas":it.n));});}
+  function renderFilters(){buildSeg($("fEmpresa"),EMPRESAS,fEmp,k=>{fEmp=k;render();});buildSeg($("fTipo"),TIPOS,fTip,k=>{fTip=k;render();});buildSeg($("fUF"),UFS.map(u=>({k:u,n:u})),fUF,k=>{fUF=k;render();});}
+  $("viewSeg").addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;view=b.dataset.v;try{localStorage.setItem("emails-out-view",view)}catch(_){ }render();});
+  try{const v=localStorage.getItem("emails-out-view");if(v==="list"||v==="cal")view=v;}catch(_){}
+
+  // resumo
+  function renderSummary(){
+    const list=filtered(); const s=$("summary"); s.textContent="";
+    const n=list.length, cnt=k=>list.filter(e=>execOf(e)===k).length, sent=cnt("enviado"), prod=cnt("producao"), nao=cnt("nao_enviado");
+    const hoje=todayIso(), atras=list.filter(e=>e.data<hoje&&execOf(e)!=="enviado").length, pct=n?Math.round(sent/n*100):0;
+    const pv=el("div",{class:"stat pvr"},
+      el("div",null,el("h3",null,"Planejado"),el("div",{class:"big"},n),el("span",{class:"hint"},"e-mails no mês")),
+      el("div",null,el("h3",null,"Realizado"),el("div",{class:"big",style:"color:var(--ok)"},sent),el("span",{class:"hint"},`${pct}% enviados`)),
+      el("div",null,el("h3",null,"Em produção"),el("div",{class:"big",style:"color:var(--warn)"},prod)),
+      el("div",null,el("h3",null,"Não enviados"),el("div",{class:"big",style:"color:var(--bad)"},nao),el("span",{class:"hint"},atras?`${atras} com data já passada`:"nenhum atrasado")),
+      el("div",{class:"meter",title:`${sent} enviados, ${prod} em produção, ${nao} não enviados`},
+        el("i",{style:`width:${n?sent/n*100:0}%;background:var(--ok)`}),el("i",{style:`width:${n?prod/n*100:0}%;background:var(--warn)`}),el("i",{style:`width:${n?nao/n*100:0}%;background:var(--bad)`})));
+    s.append(pv);
+    const block=(title,items,keyFn,colorFn)=>{const st=el("div",{class:"stat"},el("h3",null,title));const bars=el("div",{class:"bars"});const max=Math.max(1,...items.map(it=>list.filter(e=>keyFn(e,it)).length));items.forEach(it=>{const n=list.filter(e=>keyFn(e,it)).length;bars.append(el("div",{class:"bar"},el("span",null,it.short||it.n),el("div",{class:"track"},el("div",{class:"fill",style:`width:${n/max*100}%;background:${colorFn(it)}`})),el("b",null,n)));});st.append(bars);return st;};
+    s.append(block("Por empresa",EMPRESAS,(e,it)=>e.empresa===it.k,it=>`var(${it.c})`));
+    s.append(block("Por tipo",TIPOS.map(t=>Object.assign({},t,{short:t.k==="descadastramento"?"Descadastro":t.n})),(e,it)=>e.tipo===it.k,it=>`var(${it.c})`));
+    s.append(block("Por estado",UFS.map(u=>({k:u,n:u})),(e,it)=>ufsOf(e).includes(it.k),()=>"var(--navy)"));
+    s.append(block("Por segmentação",SEGS,(e,it)=>segsOf(e).includes(it.k),()=>"var(--accent)"));
+  }
+
+  // calendário
+  function chip(e){
+    const t=by(TIPOS,e.tipo)||TIPOS[0]; const emp=by(EMPRESAS,e.empresa)||EMPRESAS[0];
+    const ex=by(EXEC,execOf(e));
+    return el("button",{type:"button",class:"chip"+(execOf(e)==="enviado"?" sent":""),style:vars(t.c,t.b),title:`${emp.n} · ${t.n} · ${segLabel(e)}${e.assunto?" — "+e.assunto:""}`,onclick:ev=>{ev.stopPropagation();openForm(e);}},
+      el("span",{class:"l1"},el("span",{class:"h"},e.hora||"--:--"),`${emp.n} · ${t.n}`),
+      el("span",{class:"flagx",style:`--sc:var(${ex.c})`},"● "+ex.n),
+      el("span",{class:"l2"},e.nome||e.assunto||segNames(e)),
+      el("span",{class:"l2 h",style:"font-family:var(--mono);font-size:10.5px;color:var(--muted)"},ufLabel(e)));
+  }
+  function renderCal(){
+    const dow=$("dow"); dow.textContent="";
+    DOW.forEach((d,i)=>dow.append(el("div",{class:BEST.has(i)?"best":null},d,BEST.has(i)?el("span",{title:"Melhor CTR no semestre"},"★"):null)));
+    const grid=$("grid"); grid.textContent="";
+    const first=new Date(YEAR,MONTH,1); const lead=(first.getDay()+6)%7; const days=new Date(YEAR,MONTH+1,0).getDate();
+    const prevDays=new Date(YEAR,MONTH,0).getDate();
+    for(let i=lead;i>0;i--)grid.append(el("div",{class:"day out"},el("div",{class:"dh"},el("span",{class:"num"},prevDays-i+1))));
+    const list=filtered(); const todayS=todayIso();
+    for(let d=1;d<=days;d++){
+      const s=iso(d); const di=(lead+d-1)%7; const items=sorted(list.filter(e=>e.data===s));
+      const cls=["day"]; if(di>=5)cls.push("weekend"); if(s===todayS)cls.push("today"); if(!items.length&&!HOLIDAYS[s])cls.push("empty-day");
+      const cell=el("div",{class:cls.join(" ")},
+        el("div",{class:"dh"},el("span",{class:"num","data-dow":DOW[di]},pad(d)),
+          canWrite?el("button",{type:"button",class:"add","aria-label":`Adicionar e-mail em ${pad(d)}/${pad(MONTH+1)}`,onclick:()=>openForm(null,s)},"+"):null));
+      if(HOLIDAYS[s])cell.append(el("span",{class:"tag"},HOLIDAYS[s]));
+      items.forEach(e=>cell.append(chip(e)));
+      const dup=duplicateWarn(emails.filter(e=>e.data===s));
+      if(dup)cell.append(el("span",{class:"warnday"},dup));
+      grid.append(cell);
+    }
+    const tail=(7-(lead+days)%7)%7; for(let i=1;i<=tail;i++)grid.append(el("div",{class:"day out"},el("div",{class:"dh"},el("span",{class:"num"},pad(i)))));
+  }
+  function duplicateWarn(items){
+    const m={}; items.forEach(e=>ufsOf(e).forEach(u=>segsOf(e).forEach(sg=>{const key=e.empresa+"|"+u+"|"+sg;m[key]=(m[key]||0)+1;})));
+    return Object.values(m).some(n=>n>1)?"⚠ mesma base 2× no dia":"";
+  }
+
+  // lista
+  function renderList(){
+    const w=$("listWrap"); w.textContent=""; const list=sorted(filtered());
+    if(!list.length){w.append(emptyState());return;}
+    const tb=el("tbody");
+    list.forEach(e=>{const t=by(TIPOS,e.tipo)||TIPOS[0]; const emp=by(EMPRESAS,e.empresa)||EMPRESAS[0]; const ex=by(EXEC,execOf(e));
+      const sel=el("select",{class:"exsel","aria-label":"Execução do envio",style:`color:var(${ex.c})`,onclick:ev=>ev.stopPropagation(),onchange:ev=>setExec(e.id,ev.target.value)},...EXEC.map(x=>el("option",{value:x.k},x.n)));
+      sel.value=execOf(e); if(!canWrite)sel.disabled=true;
+      tb.append(el("tr",{tabindex:"0",onclick:()=>openForm(e),onkeydown:ev=>{if(ev.key==="Enter")openForm(e);}},
+        el("td",{class:"mono"},`${fmtDate(e.data)} ${DOW[dowIdx(e.data)]}`),
+        el("td",{class:"mono"},e.hora||"—"),
+        el("td",null,el("span",{class:"pill",style:vars(emp.c,emp.b)},emp.n)),
+        el("td",null,el("span",{class:"pill",style:vars(t.c,t.b)},t.n)),
+        el("td",{class:"mono"},ufLabel(e)),
+        el("td",null,segNames(e)),
+        el("td",null,el("div",{style:"font-weight:600"},e.nome||"—"),e.assunto?el("div",{class:"hint"},e.assunto):null),
+        el("td",null,sel)));});
+    w.append(el("table",null,el("thead",null,el("tr",null,...["Data","Hora","Empresa","Tipo","Estados","Segmentações","Campanha / assunto","Execução"].map(h=>el("th",null,h)))),tb));
+  }
+  async function setExec(id,v){try{await col.doc(id).update({execucao:v});toast("Execução: "+by(EXEC,v).n);}catch(_){toast("Não foi possível atualizar.");}}
+  function emptyState(){
+    return el("div",{class:"empty"},el("strong",null,emails.length?"Nenhum e-mail com esses filtros":"Nenhum e-mail lançado ainda"),
+      el("span",null,emails.length?"Troque o filtro de empresa ou tipo para ver os demais.":"Clique em “+ Novo e-mail” ou no + de um dia do calendário para lançar o primeiro envio do mês."));
+  }
+
+  function renderLegend(){
+    const l=$("legend"); l.textContent="";
+    TIPOS.forEach(t=>l.append(el("span",{style:vars(t.c,t.b)},el("i"),t.n)));
+    l.append(el("span",null,"★ segunda e quarta tiveram o melhor CTR no semestre"));
+  }
+
+  function render(){
+    $("monthTitle").textContent=`${MESES[MONTH]} ${YEAR}`;
+    renderFilters(); renderSummary();
+    [...$("viewSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
+    $("calView").hidden=view!=="cal"; $("listView").hidden=view!=="list";
+    if(view==="cal")renderCal(); else renderList();
+    $("newBtn").disabled=!canWrite;
+  }
+
+  $("prevM").onclick=()=>{MONTH--;if(MONTH<0){MONTH=11;YEAR--;}render();};
+  $("nextM").onclick=()=>{MONTH++;if(MONTH>11){MONTH=0;YEAR++;}render();};
+  $("todayBtn").onclick=()=>{const n=new Date();YEAR=n.getFullYear();MONTH=n.getMonth();render();};
+  // formulário
+  function buildOpts(host,items,name,type){host.textContent="";items.forEach(it=>{const k=typeof it==="string"?it:it.k, n=typeof it==="string"?it:it.n;const style=it.c?vars(it.c,it.b):null;host.append(el("label",{class:"opt",style},el("input",{type,name,value:k,id:`${name}-${k}`}),el("span",null,n)));});}
+  buildOpts($("oEmpresa"),EMPRESAS,"empresa","radio");
+  buildOpts($("oTipo"),TIPOS,"tipo","radio");
+  buildOpts($("oSeg"),SEGS,"seg","checkbox");
+  buildOpts($("oUF"),UFS,"uf","checkbox");
+  $("oUF").append(el("label",{class:"opt all"},el("input",{type:"checkbox",id:"uf-all"}),el("span",null,"Todos")));
+  $("uf-all").addEventListener("change",ev=>{document.querySelectorAll("input[name=uf]").forEach(i=>i.checked=ev.target.checked);});
+  $("oUF").addEventListener("change",ev=>{if(ev.target.name==="uf")syncAll();});
+  buildOpts($("oExec"),EXEC,"exec","radio");
+  buildOpts($("oRepDias"),DOW.map((d,i)=>({k:String(i),n:d})),"rdow","checkbox");
+  ["fRep","fRepAte","fData"].forEach(id=>$(id).addEventListener("input",syncRepeat));
+  $("oRepDias").addEventListener("change",syncRepeat);
+  function repeatDates(){
+    const mode=$("fRep").value, start=$("fData").value; if(mode==="nao"||!start)return {dates:[],skipped:[]};
+    const ate=$("fRepAte").value||endOfMonth(start);
+    const dias=new Set(checked("rdow").map(Number)); const dates=[], skipped=[];
+    for(let diff=1; diff<=400&&dates.length<120; diff++){const s=addDays(start,diff); if(s>ate)break; const di=dowIdx(s); let ok=false;
+      if(mode==="semana")ok=diff%7===0; else if(mode==="quinzena")ok=diff%14===0; else if(mode==="uteis")ok=di<5; else if(mode==="dias")ok=dias.has(di);
+      if(!ok)continue; if(HOLIDAYS[s]){skipped.push(s);continue;} dates.push(s);}
+    return {dates,skipped};
+  }
+  function syncRepeat(){
+    const mode=$("fRep").value; $("repDiasField").hidden=mode!=="dias"; $("repAteField").hidden=mode==="nao";
+    if(mode!=="nao"&&!$("fRepAte").value&&$("fData").value)$("fRepAte").value=endOfMonth($("fData").value);
+    const {dates,skipped}=repeatDates(); const p=$("repPreview"); p.className="hint";
+    if(mode==="nao"){p.textContent="";return;}
+    if(mode==="dias"&&!checked("rdow").length){p.textContent="Marque os dias da semana.";return;}
+    if(!dates.length){p.className="hint warn";p.textContent="Nenhuma data de repetição até o fim do período escolhido.";return;}
+    p.textContent=`Serão criadas mais ${dates.length} cópia(s): ${dates.map(fmtDate).join(", ")}`+(skipped.length?` · feriado pulado: ${skipped.map(fmtDate).join(", ")}`:"");
+  }
+  $("fData").addEventListener("input",dayHint);
+  function syncAll(){const all=[...document.querySelectorAll("input[name=uf]")];$("uf-all").checked=all.every(i=>i.checked);}
+  const checked=n=>[...document.querySelectorAll(`input[name=${n}]:checked`)].map(i=>i.value);
+  function dayHint(){const v=$("fData").value; const h=$("dayHint"); h.className="hint"; h.textContent="";
+    if(!v)return; const di=dowIdx(v); const others=emails.filter(e=>e.data===v&&e.id!==editingId).length;
+    const parts=[]; if(HOLIDAYS[v]){parts.push(HOLIDAYS[v]+": tráfego do site cai bastante");h.className="hint warn";}
+    else if(di>=5){parts.push("Fim de semana: sábado teve o pior CTR do semestre (0,17%)");h.className="hint warn";}
+    else if(BEST.has(di))parts.push(`${DOW[di]}: um dos dias com melhor CTR no semestre`);
+    if(others)parts.push(`já há ${others} e-mail(s) neste dia`);
+    h.textContent=parts.join(" · ");}
+
+  function setRadio(name,val){document.querySelectorAll(`input[name=${name}]`).forEach(i=>i.checked=i.value===val);}
+  function openForm(e,date,asCopy){
+    if(!canWrite&&!e)return;
+    editingId=e&&!asCopy?e.id:null; $("formTitle").textContent=asCopy?"Duplicar e-mail":e?"Editar e-mail":"Novo e-mail"; $("formErr").hidden=true;
+    $("fData").value=date||(e?e.data:iso(Math.min(31,Math.max(1,new Date().getMonth()===MONTH?new Date().getDate():1))));
+    $("fHora").value=e?(e.hora||""):"06:00";
+    setRadio("empresa",e?e.empresa:"lopes"); setRadio("tipo",e?e.tipo:"ofertas"); const sg=e?segsOf(e):["engajados"], uf=e?ufsOf(e):[];
+    document.querySelectorAll("input[name=seg]").forEach(i=>i.checked=sg.includes(i.value));
+    document.querySelectorAll("input[name=uf]").forEach(i=>i.checked=uf.includes(i.value));
+    $("fNome").value=e?(e.nome||""):""; $("fAssunto").value=e?(e.assunto||""):""; $("fNotas").value=e?(e.notas||""):""; setRadio("exec",e&&!asCopy?execOf(e):"nao_enviado");
+    $("fRep").value="nao"; $("fRepAte").value=""; document.querySelectorAll("input[name=rdow]").forEach(i=>i.checked=false);
+    $("repLabel").textContent=editingId?"Repetir a partir desta data":"Repetir este e-mail";
+    syncAll(); dayHint(); syncRepeat(); renderDel();
+    [...$("form").elements].forEach(x=>{if(x.id!=="closeBtn"&&x.id!=="cancelBtn")x.disabled=!canWrite;});
+    $("overlay").hidden=false; setTimeout(()=>$("fData").focus(),30);
+  }
+  function closeForm(){$("overlay").hidden=true; editingId=null;}
+  function renderDel(confirming){const a=$("delArea"); a.textContent=""; if(!editingId||!canWrite)return;
+    if(!confirming){const cur=emails.find(x=>x.id===editingId);
+      a.append(el("div",{class:"confirm"},el("button",{class:"btn danger",type:"button",onclick:()=>renderDel(true)},"Excluir"),
+        el("button",{class:"btn",type:"button",title:"Abre uma cópia deste e-mail para você escolher outra data",onclick:()=>{openForm(cur,cur?addDays(cur.data,7):null,true);}},"Duplicar")));return;}
+    a.append(el("div",{class:"confirm"},"Excluir este e-mail?",el("button",{class:"btn danger",type:"button",onclick:doDelete},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
+  async function doDelete(){try{await col.doc(editingId).delete();closeForm();toast("E-mail excluído");}catch(err){showErr(err);}}
+  $("closeBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm;
+  $("overlay").addEventListener("click",ev=>{if(ev.target===$("overlay"))closeForm();});
+  document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("overlay").hidden)closeForm();});
+  $("newBtn").onclick=()=>openForm(null);
+
+  function showErr(err){const p=$("formErr");p.hidden=false;
+    const c=err&&err.code; p.textContent=c==="invalid_argument"?"Você não tem permissão para editar este planejamento.":c==="quota_exceeded"?"Limite de armazenamento atingido. Exclua e-mails antigos e tente de novo.":"Não foi possível salvar agora. Tente de novo em alguns segundos.";
+    if(c==="invalid_argument"){canWrite=false;render();}}
+
+  $("form").addEventListener("submit",async ev=>{
+    ev.preventDefault(); if(!col)return;
+    const data=$("fData").value; const get=n=>(document.querySelector(`input[name=${n}]:checked`)||{}).value;
+    const segs=checked("seg"); const estados=checked("uf");
+    if(!data){$("formErr").hidden=false;$("formErr").textContent="Escolha a data de envio.";return;}
+    if(!estados.length){$("formErr").hidden=false;$("formErr").textContent="Marque pelo menos um estado.";return;}
+    if(!segs.length){$("formErr").hidden=false;$("formErr").textContent="Marque pelo menos uma segmentação.";return;}
+    const body={data,hora:$("fHora").value||"",empresa:get("empresa"),tipo:get("tipo"),segs,estados,
+      nome:$("fNome").value.trim(),assunto:$("fAssunto").value.trim(),notas:$("fNotas").value.trim(),execucao:get("exec")||"nao_enviado",atualizadoEm:new Date().toISOString()};
+    const btn=$("saveBtn"); btn.disabled=true; const wasEdit=!!editingId;
+    try{ if(editingId){const prev=emails.find(e=>e.id===editingId);body.criadoEm=(prev&&prev.criadoEm)||body.atualizadoEm;await col.doc(editingId).set(body);}
+         else{body.criadoEm=body.atualizadoEm;await col.add(body);}
+         const {dates}=repeatDates(); let made=0;
+         if(dates.length){const serie="s"+Date.now().toString(36);
+           for(const d of dates){const copy=Object.assign({},body,{data:d,serie,execucao:body.execucao==="enviado"?"nao_enviado":body.execucao});await col.add(copy);made++;}}
+         const[yy,mm]=data.split("-").map(Number); YEAR=yy; MONTH=mm-1; closeForm(); render(); toast((wasEdit?"E-mail atualizado":"E-mail salvo")+(made?` + ${made} repetição(ões)`:"")); }
+    catch(err){showErr(err);} finally{btn.disabled=false;}
+  });
+
+  // copiar tabela (cola direto no Excel / Sheets)
+  $("copyBtn").onclick=async()=>{
+    const rows=[["Data","Dia","Hora","Empresa","Tipo","Estados","Segmentações","Campanha","Assunto","Execução","Observações"]];
+    sorted(filtered()).forEach(e=>rows.push([fmtDate(e.data)+"/"+e.data.slice(0,4),DOW[dowIdx(e.data)],e.hora||"",(by(EMPRESAS,e.empresa)||{}).n||"",(by(TIPOS,e.tipo)||{}).n||"",ufLabel(e),segsOf(e).map(k=>(by(SEGS,k)||{n:k}).n).join(", "),e.nome||"",e.assunto||"",by(EXEC,execOf(e)).n,(e.notas||"").replace(/\s+/g," ")]));
+    const tsv=rows.map(r=>r.map(c=>String(c).replace(/\t/g," ")).join("\t")).join("\n");
+    try{await navigator.clipboard.writeText(tsv);toast(`${rows.length-1} e-mails copiados. Cole no Excel ou Sheets`);}
+    catch(_){const ta=el("textarea",{style:"position:fixed;top:10px;left:10px;width:80vw;height:40vh;z-index:40"});ta.value=tsv;document.body.append(ta);ta.select();toast("Pressione Ctrl+C para copiar");ta.addEventListener("blur",()=>ta.remove());}
+  };
+
+  let tt; function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600);}
+  function notice(m){const n=$("notice");n.textContent=m;n.hidden=!m;}
+
+  renderLegend(); render();
+
+  Central.boot("emails",user=>{
+    col=Store.collection("emails"); canWrite=true;
+    col.onSnapshot(snap=>{emails=snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));render(); if(!$("overlay").hidden)dayHint();},
+      ()=>notice("Não foi possível carregar os e-mails. Recarregue a página."));
+  });
+})();
+</script>
+</body>
+</html>

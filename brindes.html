@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Controle de brindes · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+/* Layout: estoque em tempo real (indicadores + cartões por brinde) → lançar movimentação → histórico de movimentações */
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{font-size:16px;margin:0}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+input[type=text],input[type=date],input[type=search],input[type=number],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;color:var(--fg);width:100%;min-width:0}
+textarea{min-height:64px;resize:vertical}
+.lab{font-size:12.5px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px}
+.money{font-family:var(--mono);text-align:right}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.live i{animation:none}}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--bg);border-radius:10px;padding:12px 14px;min-width:0}
+.kpi small{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.kpi b{display:block;font-family:var(--mono);font-weight:500;font-size:22px;margin-top:3px}
+.kpi.bad b{color:var(--bad)}
+.stock{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.bx{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface);min-width:0}
+.bx.low{border-color:var(--warn)}.bx.zero{border-color:var(--bad)}
+.bx .nm{font-weight:700;font-size:14.5px;overflow-wrap:anywhere}
+.bx .cat{font-size:12px;color:var(--muted)}
+.bx .q{display:flex;align-items:baseline;gap:6px}
+.bx .q b{font-family:var(--mono);font-weight:500;font-size:28px;line-height:1}
+.bx .q span{font-size:12.5px;color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c,var(--ok))}
+.bx .st{font-size:11.5px;font-weight:800;border-radius:4px;padding:1px 7px;align-self:flex-start}
+.st.ok{background:var(--ok-bg);color:var(--ok)}.st.low{background:var(--warn-bg);color:var(--warn)}.st.zero{background:var(--bad-bg);color:var(--bad)}
+.bx .acts{display:flex;gap:6px;flex-wrap:wrap}
+.sbtn{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:5px 10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--fg)}
+.sbtn:hover{border-color:var(--muted)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:24px;color:var(--muted);text-align:center}
+.empty strong{color:var(--fg);display:block;font-size:16px;margin-bottom:4px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;border-radius:6px;padding:7px 13px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end;margin-top:12px}
+.mf .w2{grid-column:span 2}.mf .full{grid-column:1/-1}
+.buy{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+.buy p{grid-column:1/-1;margin:0;font-size:12.5px;color:var(--muted)}
+.saldo-hint{font-size:12.5px;color:var(--muted);margin-top:5px;min-height:16px}
+.saldo-hint.bad{color:var(--bad);font-weight:700}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.r,th.r{text-align:right}
+.mono{font-family:var(--mono);white-space:nowrap}
+.tp{font-size:11.5px;font-weight:800;border-radius:4px;padding:2px 7px;white-space:nowrap}
+.tp.entrada{background:var(--ok-bg);color:var(--ok)}.tp.saida{background:var(--info-bg);color:var(--info)}.tp.ajuste{background:var(--surface-2);color:var(--muted)}.tp.estorno{background:var(--warn-bg);color:var(--warn)}
+.plus{color:var(--ok)}.minus{color:var(--bad)}
+.hfilt{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hfilt select,.hfilt input{width:auto}
+.overlay{position:fixed;inset:0;background:rgba(10,16,28,.45);display:flex;justify-content:flex-end;z-index:20}
+.panel{background:var(--surface);width:min(520px,100%);height:100%;overflow-y:auto;display:flex;flex-direction:column}
+.ph{position:sticky;top:0;background:var(--surface);padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;z-index:2}
+.ph h2{font-size:19px;margin:0}
+.x{border:0;background:var(--surface-2);border-radius:7px;width:32px;height:32px;font-size:18px;cursor:pointer}
+.pb{padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pb .full{grid-column:1/-1}
+.pf{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:auto}
+.err{color:var(--bad);font-size:13px;font-weight:600}
+@media (max-width:900px){.kpis{grid-template-columns:1fr 1fr}.mf{grid-template-columns:1fr 1fr}.buy{grid-template-columns:1fr}}
+@media (max-width:560px){.mf{grid-template-columns:1fr}.mf .w2{grid-column:auto}.pb{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow">Estoque e entregas</div><h1>Controle <span>de brindes</span></h1></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="csvBtn">Baixar histórico (CSV)</button><button class="btn primary" type="button" id="newB">+ Novo brinde</button></div>
+  </div>
+
+  <section class="card">
+    <div class="ch"><h2>Estoque em tempo real</h2><span class="live" id="live"><i></i> atualizado agora</span></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="stock" id="stock"></div>
+  </section>
+
+  <section class="card" id="movCard">
+    <div class="ch"><h2>Lançar movimentação</h2>
+      <div class="seg" id="tipoSeg" role="group" aria-label="Tipo de movimentação">
+        <button type="button" data-t="saida" aria-pressed="true">Entrega (saída)</button>
+        <button type="button" data-t="entrada" aria-pressed="false">Entrada no estoque</button>
+        <button type="button" data-t="ajuste" aria-pressed="false">Ajuste de inventário</button>
+      </div></div>
+    <form class="mf" id="movForm" novalidate>
+      <div class="w2"><label class="lab" for="mBrinde">Brinde</label><select id="mBrinde"></select><div class="saldo-hint" id="mSaldo"></div></div>
+      <div><label class="lab" for="mQtd" id="mQtdLab">Quantidade entregue</label><input type="number" id="mQtd" min="1" step="1" inputmode="numeric"></div>
+      <div><label class="lab" for="mData">Data</label><input type="date" id="mData"></div>
+      <div class="w2" id="destBox"><label class="lab" for="mDest">Entregue para</label><input type="text" id="mDest" maxlength="140" placeholder="Cliente, colaborador, parceiro..."></div>
+      <div><label class="lab" for="mEvento">Evento (opcional)</label><select id="mEvento"></select></div>
+      <div><label class="lab" for="mResp">Responsável</label><select id="mResp"></select></div>
+      <div class="buy" id="buyBox" hidden>
+        <p>Compra? Preencha para o valor ir para aprovação e entrar no centro de custo <b>Brindes</b> em Metas e custos.</p>
+        <div><label class="lab" for="mValor">Valor total da compra (R$)</label><input type="text" id="mValor" inputmode="decimal" class="money" placeholder="0,00"></div>
+        <div><label class="lab" for="mForn">Fornecedor</label><input type="text" id="mForn" maxlength="100"></div>
+        <div><label class="lab" for="mNF">Nº da NF</label><input type="text" id="mNF" maxlength="30"></div>
+      </div>
+      <div class="full"><label class="lab" for="mObs">Observação</label><input type="text" id="mObs" maxlength="200"></div>
+      <div class="full" style="display:flex;justify-content:flex-end"><button class="btn primary" type="submit" id="mBtn">Registrar entrega</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="ch"><h2>Histórico de movimentações</h2>
+      <div class="hfilt"><select id="hB" aria-label="Filtrar brinde"></select><select id="hT" aria-label="Filtrar tipo"><option value="">Todos os tipos</option><option value="saida">Entregas</option><option value="entrada">Entradas</option><option value="ajuste">Ajustes</option><option value="estorno">Estornos</option></select><input type="month" id="hM" aria-label="Mês"></div></div>
+    <p class="hint" style="margin:0 0 8px">Cada movimentação fica gravada e não pode ser apagada. Para corrigir um lançamento, use “Estornar”.</p>
+    <div class="tw" id="hist"></div>
+  </section>
+</div>
+
+<datalist id="dlCat"><option value="Vestuário"><option value="Copos e garrafas"><option value="Papelaria"><option value="Tecnologia"><option value="Kits"><option value="Ferramentas"><option value="Bonés e chapéus"></datalist>
+
+<div class="overlay" id="overlay" hidden>
+  <form class="panel" id="bForm" novalidate>
+    <div class="ph"><h2 id="bTitle">Novo brinde</h2><button class="x" type="button" id="bClose" aria-label="Fechar">×</button></div>
+    <div class="pb">
+      <div class="full"><label class="lab" for="bNome">Nome do brinde</label><input type="text" id="bNome" maxlength="100" placeholder="Ex.: Boné Lopes azul"></div>
+      <div><label class="lab" for="bCat">Categoria</label><input type="text" id="bCat" list="dlCat" maxlength="60"></div>
+      <div><label class="lab" for="bUn">Unidade</label><input type="text" id="bUn" maxlength="20" placeholder="un, kit, caixa"></div>
+      <div><label class="lab" for="bMin">Estoque mínimo (alerta)</label><input type="number" id="bMin" min="0" step="1"></div>
+      <div><label class="lab" for="bCusto">Custo unitário de referência (R$)</label><input type="text" id="bCusto" inputmode="decimal" class="money" placeholder="0,00"></div>
+      <div id="iniBox"><label class="lab" for="bIni">Quantidade inicial em estoque</label><input type="number" id="bIni" min="0" step="1" placeholder="0"></div>
+      <div><label class="lab" for="bEmp">Marca / empresa</label><select id="bEmp"><option value="">—</option><option>Distribuidora Lopes</option><option>Opta Suprimentos</option><option>A2J</option><option>Grupo Lopes</option></select></div>
+      <div class="full"><label class="lab" for="bObs">Observações</label><textarea id="bObs" maxlength="500"></textarea></div>
+      <div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="bAtivo" checked> Brinde ativo (aparece para entregas)</label></div>
+      <p class="err full" id="bErr" hidden></p>
+    </div>
+    <div class="pf"><span class="hint" id="bInfo"></span><div style="display:flex;gap:8px"><button class="btn" type="button" id="bCancel">Cancelar</button><button class="btn primary" type="submit" id="bSave">Salvar</button></div></div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/custos.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const pad=n=>String(n).padStart(2,"0");
+  const hoje=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+  const fd=s=>s?`${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`:"—";
+  const fdt=s=>{if(!s)return"";const d=new Date(s);return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});};
+  const brl=Custos.brl,parseBR=Custos.parseBR,num=Custos.num;
+  const int=v=>(+v||0).toLocaleString("pt-BR");
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(k==="value")e.value=v;else if(v!=null&&v!==false)e.setAttribute(k,v===true?"":v);}kids.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
+  let tt;const toast=m=>{const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600);};
+  const TIPOS={saida:"Entrega",entrada:"Entrada",ajuste:"Ajuste",estorno:"Estorno"};
+
+  let me=null,brindes=[],movs=[],users=[],eventos=[],tipo="saida",editing=null,lastSync=Date.now();
+  const colB=()=>Store.collection("brindes"),colM=()=>Store.collection("brindes_mov");
+  const userName=e=>{const u=users.find(x=>x.email===e);return u?(u.nome||u.email):(e||"");};
+  const saldoOf=id=>movs.filter(m=>m.brindeId===id).reduce((s,m)=>s+(+m.delta||0),0);
+  const bById=id=>brindes.find(b=>b.id===id);
+  const nivel=b=>{const s=saldoOf(b.id),mn=+b.estoqueMin||0;return s<=0?"zero":(mn&&s<=mn?"low":"ok");};
+
+  // ESTOQUE
+  function renderStock(){
+    const ativos=brindes.filter(b=>b.ativo!==false);const mk=hoje().slice(0,7);
+    const totalUn=ativos.reduce((s,b)=>s+Math.max(0,saldoOf(b.id)),0);
+    const entMes=movs.filter(m=>m.tipo==="saida"&&(m.data||"").slice(0,7)===mk).reduce((s,m)=>s-(+m.delta||0),0);
+    const baixo=ativos.filter(b=>nivel(b)!=="ok").length;
+    const valor=ativos.reduce((s,b)=>s+Math.max(0,saldoOf(b.id))*(+b.custoUnit||0),0);
+    const k=$("kpis");k.textContent="";
+    k.append(el("div",{class:"kpi"},el("small",null,"Brindes cadastrados"),el("b",null,ativos.length)),
+      el("div",{class:"kpi"},el("small",null,"Unidades em estoque"),el("b",null,int(totalUn)),valor?el("span",{class:"hint"},"≈ "+brl(valor)+" (custo ref.)"):null),
+      el("div",{class:"kpi"},el("small",null,"Entregues neste mês"),el("b",null,int(entMes))),
+      el("div",{class:"kpi"+(baixo?" bad":"")},el("small",null,"Abaixo do mínimo ou zerados"),el("b",null,baixo)));
+    const g=$("stock");g.textContent="";
+    if(!brindes.length){g.append(el("div",{class:"empty",style:"grid-column:1/-1"},el("strong",null,"Nenhum brinde cadastrado"),"Clique em “+ Novo brinde” para começar."));return;}
+    brindes.slice().sort((a,b)=>(a.ativo===false)-(b.ativo===false)||{zero:0,low:1,ok:2}[nivel(a)]-{zero:0,low:1,ok:2}[nivel(b)]||(a.nome||"").localeCompare(b.nome||"")).forEach(b=>{
+      const s=saldoOf(b.id),mn=+b.estoqueMin||0,nv=nivel(b),ref=Math.max(mn*3,s,1);
+      g.append(el("div",{class:"bx "+(b.ativo===false?"":nv),style:b.ativo===false?"opacity:.55":""},
+        el("div",null,el("div",{class:"nm"},b.nome),el("div",{class:"cat"},[b.categoria,b.empresa].filter(Boolean).join(" · ")||" ")),
+        el("div",{class:"q"},el("b",null,int(s)),el("span",null,(b.unidade||"un")+(mn?` · mín. ${int(mn)}`:""))),
+        el("div",{class:"bar"},el("i",{style:`width:${Math.min(100,Math.max(0,s)/ref*100)}%;--c:var(${nv==="zero"?"--bad":nv==="low"?"--warn":"--ok"})`})),
+        el("span",{class:"st "+nv},b.ativo===false?"Inativo":nv==="zero"?"Sem estoque":nv==="low"?"Estoque baixo":"Em estoque"),
+        el("div",{class:"acts"},b.ativo!==false?el("button",{type:"button",class:"sbtn",onclick:()=>prep("saida",b.id)},"Entregar"):null,b.ativo!==false?el("button",{type:"button",class:"sbtn",onclick:()=>prep("entrada",b.id)},"Entrada"):null,el("button",{type:"button",class:"sbtn",onclick:()=>openForm(b)},"Editar"))));});
+  }
+  setInterval(()=>{const s=Math.round((Date.now()-lastSync)/1000);$("live").lastChild.textContent=s<10?" atualizado agora":` atualizado há ${s<60?s+" s":Math.round(s/60)+" min"}`;},5000);
+
+  // MOVIMENTAÇÃO
+  function prep(t,id){setTipo(t);if(id)$("mBrinde").value=id;updSaldo();$("movCard").scrollIntoView({behavior:"smooth",block:"start"});setTimeout(()=>$("mQtd").focus(),300);}
+  function setTipo(t){tipo=t;[...$("tipoSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.t===t)));
+    $("mQtdLab").textContent=t==="saida"?"Quantidade entregue":t==="entrada"?"Quantidade recebida":"Quantidade contada no estoque";
+    $("destBox").querySelector("label").textContent=t==="saida"?"Entregue para":t==="entrada"?"Origem (compra, doação, fornecedor)":"Motivo do ajuste";
+    $("mDest").placeholder=t==="saida"?"Cliente, colaborador, parceiro...":t==="entrada"?"Ex.: compra de 200 un.":"Ex.: contagem mensal, avaria";
+    $("buyBox").hidden=t!=="entrada";$("mBtn").textContent=t==="saida"?"Registrar entrega":t==="entrada"?"Registrar entrada":"Registrar ajuste";
+    $("mQtd").min=t==="ajuste"?"0":"1";updSaldo();}
+  $("tipoSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setTipo(b.dataset.t);});
+  function updSaldo(){const b=bById($("mBrinde").value),h=$("mSaldo");h.className="saldo-hint";if(!b){h.textContent="";return;}
+    const s=saldoOf(b.id),q=parseInt($("mQtd").value,10)||0;
+    if(tipo==="saida"){h.textContent=`Em estoque: ${int(s)} ${b.unidade||"un"}`+(q?` · depois da entrega: ${int(s-q)}`:"");if(q>s){h.className="saldo-hint bad";h.textContent=`Só há ${int(s)} em estoque — não dá para entregar ${int(q)}.`;}}
+    else if(tipo==="entrada")h.textContent=`Em estoque: ${int(s)} · depois da entrada: ${int(s+q)}`+(b.custoUnit&&q?` · custo ref. ${brl(q*b.custoUnit)}`:"");
+    else h.textContent=`No sistema: ${int(s)} · diferença: ${$("mQtd").value===""?"—":(q-s>0?"+":"")+int(q-s)}`;}
+  $("mBrinde").addEventListener("change",updSaldo);$("mQtd").addEventListener("input",updSaldo);
+  $("mValor").addEventListener("blur",e=>{const v=parseBR(e.target.value);e.target.value=v?num(v):"";});
+
+  function fillSelects(){const mb=$("mBrinde"),cur=mb.value;mb.textContent="";const at=brindes.filter(b=>b.ativo!==false).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
+    if(!at.length)mb.append(el("option",{value:""},"Cadastre um brinde primeiro"));at.forEach(b=>mb.append(el("option",{value:b.id},`${b.nome} (${int(saldoOf(b.id))})`)));if(cur&&at.some(b=>b.id===cur))mb.value=cur;
+    const me2=$("mEvento"),ce=me2.value;me2.textContent="";me2.append(el("option",{value:""},"—"));eventos.slice().sort((a,b)=>(b.inicio||"").localeCompare(a.inicio||"")).forEach(e=>me2.append(el("option",{value:e.id},`${e.nome} (${fd(e.inicio).slice(0,5)})`)));me2.value=ce;
+    const r=$("mResp"),cr=r.value;r.textContent="";users.forEach(u=>r.append(el("option",{value:u.email},u.nome||u.email)));r.value=cr||(me?me.email:"");
+    const hb=$("hB"),ch=hb.value;hb.textContent="";hb.append(el("option",{value:""},"Todos os brindes"));brindes.slice().sort((a,b)=>(a.nome||"").localeCompare(b.nome||"")).forEach(b=>hb.append(el("option",{value:b.id},b.nome)));hb.value=ch;}
+
+  $("movForm").addEventListener("submit",async ev=>{ev.preventDefault();const b=bById($("mBrinde").value);if(!b)return toast("Escolha o brinde.");
+    const qRaw=$("mQtd").value,q=parseInt(qRaw,10),s=saldoOf(b.id);
+    if(qRaw===""||isNaN(q)||q<0||(tipo!=="ajuste"&&q<1)){$("mQtd").focus();return toast("Informe a quantidade.");}
+    let delta=tipo==="saida"?-q:tipo==="entrada"?q:q-s;
+    if(tipo==="saida"&&q>s){$("mQtd").focus();return toast(`Estoque insuficiente: há ${int(s)}.`);}
+    if(tipo==="saida"&&!$("mDest").value.trim()){$("mDest").focus();return toast("Informe para quem foi entregue.");}
+    if(tipo==="ajuste"&&delta===0)return toast("A quantidade contada é igual à do sistema.");
+    const evSel=eventos.find(e=>e.id===$("mEvento").value);
+    const m={brindeId:b.id,brindeNome:b.nome,tipo,delta,qtd:Math.abs(delta),data:$("mData").value||hoje(),destino:$("mDest").value.trim(),eventoId:evSel?evSel.id:"",eventoNome:evSel?evSel.nome:"",
+      responsavel:$("mResp").value,obs:$("mObs").value.trim(),por:me.email,em:new Date().toISOString(),saldoAntes:s,saldoApos:s+delta,unidade:b.unidade||"un"};
+    const valor=tipo==="entrada"?parseBR($("mValor").value):0;
+    $("mBtn").disabled=true;
+    try{
+      if(valor>0){const r=await Store.collection("custos").add({origem:"brindes",tipo:"compra",centro:"brindes",descricao:`Compra de ${int(q)} ${b.unidade||"un"} · ${b.nome}`,fornecedor:$("mForn").value.trim(),nf:$("mNF").value.trim(),valor,data:m.data,status:"pendente",solicitadoPor:me.email,refId:b.id,refNome:b.nome});
+        Object.assign(m,{valorCompra:valor,fornecedor:$("mForn").value.trim(),nf:$("mNF").value.trim(),custoId:r.id});}
+      await colM().add(m);
+      toast(tipo==="saida"?`Entrega registrada · restam ${int(s+delta)}`:tipo==="entrada"?(valor>0?"Entrada registrada · compra enviada para aprovação":"Entrada registrada"):"Ajuste registrado");
+      ["mQtd","mDest","mObs","mValor","mForn","mNF"].forEach(id=>$(id).value="");updSaldo();
+    }catch(_){toast("Não foi possível registrar. Tente de novo.");}finally{$("mBtn").disabled=false;}});
+
+  // HISTÓRICO
+  ["hB","hT","hM"].forEach(id=>$(id).addEventListener("change",renderHist));
+  const filtered=()=>movs.filter(m=>(!$("hB").value||m.brindeId===$("hB").value)&&(!$("hT").value||m.tipo===$("hT").value)&&(!$("hM").value||(m.data||"").slice(0,7)===$("hM").value))
+    .sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.em||"").localeCompare(a.em||""));
+  function renderHist(){const h=$("hist");h.textContent="";const L=filtered();
+    if(!L.length){h.append(el("p",{class:"hint"},movs.length?"Nenhuma movimentação neste filtro.":"Nenhuma movimentação ainda."));return;}
+    const estornados=new Set(movs.filter(m=>m.estornoDe).map(m=>m.estornoDe));
+    const tb=el("tbody");L.slice(0,300).forEach(m=>{const b=bById(m.brindeId);
+      tb.append(el("tr",null,el("td",{class:"mono"},fd(m.data)),el("td",null,el("b",null,m.brindeNome||(b&&b.nome)||"—")),el("td",null,el("span",{class:"tp "+m.tipo},TIPOS[m.tipo]||m.tipo)),
+        el("td",{class:"r mono "+(m.delta>0?"plus":"minus")},(m.delta>0?"+":"")+int(m.delta)),el("td",{class:"r mono"},int(m.saldoApos)),
+        el("td",null,m.destino||"—",m.eventoNome?el("div",{class:"hint"},"Evento: "+m.eventoNome):null,m.valorCompra?el("div",{class:"hint"},`Compra ${brl(m.valorCompra)}${m.nf?" · NF "+m.nf:""}`):null,m.obs?el("div",{class:"hint"},m.obs):null),
+        el("td",null,userName(m.responsavel)||"—"),el("td",{class:"hint"},userName(m.por),el("br"),fdt(m.em)),
+        el("td",null,m.tipo!=="estorno"&&!estornados.has(m.id)?el("button",{type:"button",class:"sbtn",onclick:ev=>{const b=ev.currentTarget;if(b.dataset.ok){estornar(m);return;}b.dataset.ok="1";b.textContent="Confirmar estorno";b.style.color="var(--bad)";setTimeout(()=>{if(b.isConnected){delete b.dataset.ok;b.textContent="Estornar";b.style.color="";}},4000);}},"Estornar"):(estornados.has(m.id)?el("span",{class:"hint"},"estornado"):""))));});
+    h.append(el("table",{style:"min-width:900px"},el("thead",null,el("tr",null,...["Data","Brinde","Tipo"].map(x=>el("th",null,x)),el("th",{class:"r"},"Qtd."),el("th",{class:"r"},"Saldo após"),...["Destino / origem","Responsável","Registrado por",""].map(x=>el("th",null,x)))),tb));
+    if(L.length>300)h.append(el("p",{class:"hint"},`Mostrando 300 de ${L.length}. Use os filtros ou baixe o CSV.`));}
+  async function estornar(m){
+    const s=saldoOf(m.brindeId);await colM().add({brindeId:m.brindeId,brindeNome:m.brindeNome,tipo:"estorno",delta:-m.delta,qtd:Math.abs(m.delta),data:hoje(),destino:`Estorno de ${TIPOS[m.tipo]||m.tipo} de ${fd(m.data)}`,estornoDe:m.id,responsavel:me.email,obs:"",por:me.email,em:new Date().toISOString(),saldoAntes:s,saldoApos:s-m.delta,unidade:m.unidade});
+    toast("Movimentação estornada");}
+  $("csvBtn").onclick=()=>{const L=filtered();if(!L.length)return toast("Nada para baixar neste filtro.");
+    const rows=[["Data","Brinde","Tipo","Quantidade","Saldo após","Destino/origem","Evento","Responsável","Registrado por","Registrado em","Valor compra","NF","Observação"]].concat(L.map(m=>[fd(m.data),m.brindeNome,TIPOS[m.tipo]||m.tipo,m.delta,m.saldoApos,m.destino,m.eventoNome,userName(m.responsavel),userName(m.por),fdt(m.em),m.valorCompra?num(m.valorCompra):"",m.nf||"",m.obs||""]));
+    const csv="﻿"+rows.map(r=>r.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(";")).join("\r\n");
+    const a=el("a",{href:URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),download:`movimentacoes-brindes-${hoje()}.csv`});document.body.append(a);a.click();a.remove();};
+
+  // CADASTRO
+  function openForm(b){editing=b?b.id:null;$("bTitle").textContent=b?"Editar brinde":"Novo brinde";$("bErr").hidden=true;
+    $("bNome").value=b?b.nome||"":"";$("bCat").value=b?b.categoria||"":"";$("bUn").value=b?b.unidade||"":"un";$("bMin").value=b&&b.estoqueMin!=null?b.estoqueMin:"";
+    $("bCusto").value=b&&b.custoUnit?num(b.custoUnit):"";$("bEmp").value=b?b.empresa||"":"";$("bObs").value=b?b.obs||"":"";$("bAtivo").checked=b?b.ativo!==false:true;$("bIni").value="";
+    $("iniBox").hidden=!!b;$("bInfo").textContent=b?`Em estoque: ${int(saldoOf(b.id))} · use Ajuste de inventário para corrigir a quantidade`:"";
+    $("overlay").hidden=false;setTimeout(()=>$("bNome").focus(),40);}
+  const closeForm=()=>{$("overlay").hidden=true;editing=null;};
+  $("newB").onclick=()=>openForm(null);$("bClose").onclick=closeForm;$("bCancel").onclick=closeForm;
+  $("overlay").addEventListener("click",e=>{if(e.target===$("overlay"))closeForm();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeForm();});
+  $("bCusto").addEventListener("blur",e=>{const v=parseBR(e.target.value);e.target.value=v?num(v):"";});
+  $("bForm").addEventListener("submit",async ev=>{ev.preventDefault();const nome=$("bNome").value.trim();if(!nome){$("bErr").textContent="Dê um nome para o brinde.";$("bErr").hidden=false;return;}
+    if(!editing&&brindes.some(b=>(b.nome||"").trim().toLowerCase()===nome.toLowerCase())){$("bErr").textContent="Já existe um brinde com esse nome.";$("bErr").hidden=false;return;}
+    const body={nome,categoria:$("bCat").value.trim(),unidade:$("bUn").value.trim()||"un",estoqueMin:parseInt($("bMin").value,10)||0,custoUnit:parseBR($("bCusto").value),empresa:$("bEmp").value,obs:$("bObs").value.trim(),ativo:$("bAtivo").checked};
+    $("bSave").disabled=true;
+    try{if(editing){await colB().doc(editing).update(body);toast("Brinde salvo");}
+      else{const r=await colB().add(body);const ini=parseInt($("bIni").value,10)||0;
+        if(ini>0)await colM().add({brindeId:r.id,brindeNome:nome,tipo:"entrada",delta:ini,qtd:ini,data:hoje(),destino:"Saldo inicial",responsavel:me.email,obs:"",por:me.email,em:new Date().toISOString(),saldoAntes:0,saldoApos:ini,unidade:body.unidade});
+        toast("Brinde cadastrado");}
+      closeForm();}catch(_){$("bErr").textContent="Não foi possível salvar.";$("bErr").hidden=false;}finally{$("bSave").disabled=false;}});
+
+  function render(){lastSync=Date.now();$("live").lastChild.textContent=" atualizado agora";renderStock();fillSelects();updSaldo();renderHist();}
+  Central.boot("brindes",user=>{me=user;$("mData").value=hoje();
+    Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));render();});
+    Store.collection("eventos").onSnapshot(sn=>{eventos=sn.docs.map(d=>Object.assign({id:d.id},d.data()));fillSelects();});
+    colB().onSnapshot(sn=>{brindes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
+    colM().onSnapshot(sn=>{movs=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
+    setTipo("saida");render();});
+})();
+</script>
+</body>
+</html>

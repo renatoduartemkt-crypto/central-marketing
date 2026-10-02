@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Aprovações · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+/* Layout: resumo das pendências → filtros por origem → fila de aprovação (com aprovar em lote) → decididas recentemente */
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{font-size:16px;margin:0}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.kpi small{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.kpi b{display:block;font-family:var(--mono);font-weight:500;font-size:24px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi span{font-size:12px;color:var(--muted)}
+.kpi.warn{border-color:var(--warn)}.kpi.warn b{color:var(--warn)}.kpi.bad b{color:var(--bad)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;border-radius:7px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg .n{font-family:var(--mono);font-size:11px;background:var(--warn-bg);color:var(--warn);border-radius:9px;padding:0 6px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:1000px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right}
+td.mono{font-family:var(--mono);white-space:nowrap}
+tr.sel td{background:var(--accent-soft)}
+.org{display:inline-block;font-size:11px;font-weight:800;border-radius:4px;padding:2px 7px;background:var(--surface-2);color:var(--fg);white-space:nowrap}
+.age{font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--muted)}
+.age.old{color:var(--bad);font-weight:600}
+.open{font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none;white-space:nowrap}
+.det{font-size:12px;color:var(--muted);margin-top:3px}
+.det b{color:var(--fg);font-weight:600}
+.bulk{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.bulk b{font-family:var(--mono)}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:26px;color:var(--muted);text-align:center}
+.empty strong{color:var(--fg);display:block;font-size:16px;margin-bottom:4px}
+.note{background:var(--info-bg);color:var(--info);border-radius:10px;padding:10px 14px;font-size:13.5px;font-weight:600}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:pointer}
+@media (max-width:900px){.kpis{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow">Custos, notas, aditivos e pedidos de produção</div><h1>Central de <span>aprovações</span></h1></div>
+  </div>
+  <p class="note" id="roleNote" hidden></p>
+  <div class="kpis" id="kpis"></div>
+
+  <section class="card">
+    <div class="ch"><h2>Aguardando aprovação</h2><div class="seg" id="fOrig" role="group" aria-label="Filtrar origem"></div></div>
+    <div id="bulk"></div>
+    <div class="tw" id="queue"></div>
+  </section>
+
+  <section class="card">
+    <div class="ch"><h2>Decididas recentemente</h2><span class="hint">últimos 30 dias</span></div>
+    <div class="tw" id="hist"></div>
+  </section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/custos.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const brl=Custos.brl,fd=Custos.fd;
+  const fdt=s=>{if(!s)return"";const d=new Date(s);return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});};
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(k==="value")e.value=v;else if(v!=null&&v!==false)e.setAttribute(k,v===true?"":v);}kids.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
+  let tt;const toast=m=>{const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600);};
+  const PAG={redes:"redes.html",trafego:"trafego.html",brindes:"brindes.html",eventos:"eventos.html",aditivo:"eventos.html",producao:"producao.html",manual:"metas.html"};
+  const FIL=[["","Todas"],["redes","Redes sociais"],["trafego","Tráfego pago"],["brindes","Brindes"],["eventos","NFs de eventos"],["aditivo","Aditivos"],["producao","Produção"],["manual","Lançamento manual"]];
+  let state={itens:[],centros:Custos.centros([]),raw:{}},fo="",sel=new Set(),bulkArmed=false;
+  const dias=s=>{if(!s)return 0;return Math.max(0,Math.floor((Date.now()-new Date(s.length<=10?s+"T12:00:00":s))/864e5));};
+  const quando=i=>i.raw&&(i.raw.criadoEm||i.raw.em)||i.data;
+  const all=()=>Custos.pendencias(state.raw);
+
+  function detalhe(i){
+    if(i.src==="producao"){const p=i.raw,os=(p.orcamentos||[]).filter(o=>o.fornecedor&&+o.valor>0);if(!os.length)return null;
+      const min=Math.min(...os.map(o=>+o.valor)),esc=(p.orcamentos||[])[p.escolhido];
+      return el("div",{class:"det"},`${os.length} orçamentos: `,...os.map((o,k)=>[k?" · ":"",el(o===esc?"b":"span",null,`${o.fornecedor} ${brl(o.valor)}`)]),
+        esc&&+esc.valor>min?el("div",null,"⚠ Não é o mais barato"+(p.justificativa?" — “"+p.justificativa+"”":"")):el("div",null,"✓ Mais barato dos orçamentos"));}
+    if(i.src==="aditivo")return el("div",{class:"det"},`Contrato original ${brl(i.contratoValor)} · aditivo de ${i.contratoValor?((Math.abs(i.valor)/i.contratoValor*100).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%"):"—"}`);
+    return null;}
+
+  function render(){const P=all().filter(i=>i.status==="pendente");
+    const total=P.reduce((s,i)=>s+i.valor,0),old=P.filter(i=>dias(quando(i))>=3).length;
+    const byO=k=>P.filter(i=>i.origem===k);
+    const k=$("kpis");k.textContent="";
+    k.append(el("div",{class:"kpi"+(P.length?" warn":"")},el("small",null,"Aguardando aprovação"),el("b",null,P.length),el("span",null,P.length?"itens de todas as páginas":"tudo em dia")),
+      el("div",{class:"kpi"},el("small",null,"Valor pendente"),el("b",null,brl(total))),
+      el("div",{class:"kpi"+(old?" bad":"")},el("small",null,"Esperando há 3 dias ou mais"),el("b",null,old)),
+      el("div",{class:"kpi"},el("small",null,"Maior pendência"),el("b",null,P.length?brl(Math.max(...P.map(i=>i.valor))):"—")));
+    const f=$("fOrig");f.textContent="";
+    FIL.forEach(([kk,n])=>{const c=kk?byO(kk).length:P.length;if(kk&&!c&&fo!==kk)return;f.append(el("button",{type:"button","aria-pressed":String(fo===kk),onclick:()=>{fo=kk;sel.clear();render();}},n,c?el("span",{class:"n"},c):null));});
+    const L=P.filter(i=>!fo||i.origem===fo).sort((a,b)=>(quando(a)||"").localeCompare(quando(b)||""));
+    [...sel].forEach(x=>{if(!L.some(i=>i.key===x))sel.delete(x);});
+    const admin=Custos.isAdmin();
+    // aprovar em lote
+    const b=$("bulk");b.textContent="";
+    if(admin&&L.length){const S=L.filter(i=>sel.has(i.key)),st=S.reduce((s,i)=>s+i.valor,0);
+      b.append(el("div",{class:"bulk"},el("label",{style:"display:flex;gap:8px;align-items:center;font-weight:700;font-size:13.5px"},el("input",{type:"checkbox",checked:S.length===L.length&&L.length?true:null,onchange:e=>{sel=new Set(e.target.checked?L.map(i=>i.key):[]);bulkArmed=false;render();}}),"Selecionar todos"),
+        el("span",{class:"hint"},S.length?["Selecionados: ",el("b",null,S.length)," · ",el("b",null,brl(st))]:"Marque os itens para aprovar vários de uma vez."),
+        S.length?el("button",{class:"btn primary",type:"button",onclick:async ev=>{if(!bulkArmed){bulkArmed=true;ev.currentTarget.textContent=`Confirmar aprovação de ${S.length} itens`;return;}
+          ev.currentTarget.disabled=true;let ok=0,err=0;for(const i of S){try{await Custos.decidir(i,"aprovado");ok++;}catch(_){err++;}}
+          sel.clear();bulkArmed=false;toast(`${ok} aprovado(s)`+(err?` · ${err} com erro`:""));}},bulkArmed?`Confirmar aprovação de ${S.length} itens`:`Aprovar ${S.length} selecionado(s)`):null));}
+    const q=$("queue");q.textContent="";
+    if(!L.length){q.append(el("div",{class:"empty"},el("strong",null,P.length?"Nada nesta origem":"Nenhuma aprovação pendente"),P.length?"Escolha outra origem acima.":"Quando alguém lançar um custo, NF, aditivo ou pedido de produção, ele aparece aqui."));}
+    else{const tb=el("tbody");
+      L.forEach(i=>{const d=dias(quando(i));
+        tb.append(el("tr",{class:sel.has(i.key)?"sel":""},
+          admin?el("td",null,el("input",{type:"checkbox","aria-label":"Selecionar",checked:sel.has(i.key)?true:null,onchange:e=>{e.target.checked?sel.add(i.key):sel.delete(i.key);bulkArmed=false;render();}})):null,
+          el("td",{class:"mono"},fd(i.data)),el("td",null,el("span",{class:"org"},Custos.ORIGENS[i.origem]||i.origem)),
+          el("td",null,el("b",null,i.descricao),i.refNome&&i.src!=="producao"?el("div",{class:"det"},i.refNome):null,detalhe(i)),
+          el("td",null,Custos.centroRotulo(i.centro,state.centros)),
+          el("td",null,i.fornecedor||"—",i.nf?el("div",{class:"det"},"NF "+i.nf):null),
+          el("td",null,Custos.userName(i.solicitadoPor)||"—"),
+          el("td",{class:"r mono"},brl(i.valor)),
+          el("td",null,el("span",{class:"age"+(d>=3?" old":"")},d?`${d} dia${d===1?"":"s"}`:"hoje")),
+          el("td",null,Custos.acoes(i,m=>toast(m)),el("a",{class:"open",href:PAG[i.origem]||"index.html"},"Abrir ›"))));});
+      q.append(el("table",null,el("thead",null,el("tr",null,admin?el("th",null,""):null,...["Data","Origem","O que","Centro de custo","Fornecedor","Solicitante"].map(h=>el("th",null,h)),el("th",{class:"r"},"Valor"),el("th",null,"Aguardando"),el("th",null,"Decisão"))),tb,
+        el("tfoot",null,el("tr",null,el("td",{colspan:admin?"7":"6",style:"font-weight:800;border-top:2px solid var(--line)"},"Total pendente"+(fo?" nesta origem":"")),el("td",{class:"r mono",style:"font-weight:800;border-top:2px solid var(--line)"},brl(L.reduce((s,i)=>s+i.valor,0))),el("td",{colspan:"2",style:"border-top:2px solid var(--line)"},"")))));}
+    // histórico
+    const lim=Date.now()-30*864e5;
+    const H=all().filter(i=>i.status!=="pendente"&&i.aprovadoEm&&new Date(i.aprovadoEm).getTime()>=lim).sort((a,b)=>(b.aprovadoEm||"").localeCompare(a.aprovadoEm||""));
+    const h=$("hist");h.textContent="";
+    if(!H.length){h.append(el("p",{class:"hint",style:"margin:0"},"Nenhuma decisão nos últimos 30 dias."));return;}
+    const tb=el("tbody");H.slice(0,100).forEach(i=>tb.append(el("tr",null,el("td",{class:"mono"},fdt(i.aprovadoEm)),el("td",null,el("span",{class:"org"},Custos.ORIGENS[i.origem]||i.origem)),
+      el("td",null,el("b",null,i.descricao),i.refNome&&i.src!=="producao"?el("div",{class:"det"},i.refNome):null),el("td",{class:"r mono"},brl(i.valor)),el("td",null,Custos.pill(i.status),i.motivoRecusa?el("div",{class:"det"},"“"+i.motivoRecusa+"”"):null),el("td",null,Custos.userName(i.aprovadoPor)))));
+    h.append(el("table",{style:"min-width:760px"},el("thead",null,el("tr",null,...["Decidido em","Origem","O que"].map(x=>el("th",null,x)),el("th",{class:"r"},"Valor"),el("th",null,"Decisão"),el("th",null,"Por"))),tb));}
+
+  Central.boot("aprovacoes",user=>{
+    // página exclusiva do administrador (gerente do setor)
+    if(!Custos.isAdmin()){document.querySelector(".wrap").innerHTML="";document.querySelector(".wrap").append(el("div",{class:"empty",style:"margin-top:30px"},el("strong",null,"Página restrita ao administrador"),"A Central de aprovações é usada só pelo gerente do setor. Seus lançamentos aparecem para ele aprovar automaticamente.",el("div",{style:"margin-top:14px"},el("a",{class:"btn",href:"index.html"},"Voltar ao painel"))));return;}
+    const n=$("roleNote");n.hidden=false;
+    n.textContent="Você é administrador: aprove ou recuse cada item, ou vários de uma vez. Tudo o que for aprovado entra em Metas e custos.";
+    Custos.watch(s=>{state=s;render();});
+    render();});
+})();
+</script>
+</body>
+</html>

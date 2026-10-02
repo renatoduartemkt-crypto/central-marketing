@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Redes sociais · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+/* Layout: cabeçalho + navegação de mês + resumo; área principal alterna calendário mensal (seg→dom) e kanban por status; painel lateral de edição */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E9EDF4; --line:#D3DAE5;
+  --fg:#16233A; --muted:#5C6B82; --navy:#1B2D49; --accent:#E84826; --accent-fg:#FFFFFF; --accent-soft:#FDE6DF;
+  --p-lopes:#1B2D49; --p-lopes-bg:#E3E9F2; --p-opta:#0F7A6C; --p-opta-bg:#DDF1EC;
+  --p-a2j:#6B3FA0; --p-a2j-bg:#EEE6F8; --p-grupo:#B4561A; --p-grupo-bg:#FBE9DC;
+  --s-ideia:#8592A6; --s-prod:#D99A12; --s-prog:#2F7FD0; --s-post:#1E9E6A; --s-derr:#C23A1C;
+  --display:"Schibsted Grotesk","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1522; --surface:#152033; --surface-2:#1C2942; --line:#2A3A55;
+  --fg:#E7ECF4; --muted:#9AA8BE; --navy:#C9D6EA; --accent:#FF6A45; --accent-fg:#1A0E08; --accent-soft:#3D1F17;
+  --p-lopes:#C9D6EA; --p-lopes-bg:#22324E; --p-opta:#5FD3C0; --p-opta-bg:#123A35;
+  --p-a2j:#C4A6F2; --p-a2j-bg:#2E2348; --p-grupo:#F2A46A; --p-grupo-bg:#3D2616;
+  --s-ideia:#8F9CB2; --s-prod:#F2C46A; --s-prog:#6DB0F2; --s-post:#5FD39A; --s-derr:#FF8A6E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1522; --surface:#152033; --surface-2:#1C2942; --line:#2A3A55;
+  --fg:#E7ECF4; --muted:#9AA8BE; --navy:#C9D6EA; --accent:#FF6A45; --accent-fg:#1A0E08; --accent-soft:#3D1F17;
+  --p-lopes:#C9D6EA; --p-lopes-bg:#22324E; --p-opta:#5FD3C0; --p-opta-bg:#123A35;
+  --p-a2j:#C4A6F2; --p-a2j-bg:#2E2348; --p-grupo:#F2A46A; --p-grupo-bg:#3D2616;
+  --s-ideia:#8F9CB2; --s-prod:#F2C46A; --s-prog:#6DB0F2; --s-post:#5FD39A; --s-derr:#FF8A6E; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);font-size:15px;line-height:1.45}
+.wrap{max-width:1240px;margin:0 auto;padding-block:26px 60px;padding-inline:20px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+h1{font-size:clamp(26px,4vw,38px);font-weight:800;letter-spacing:-.02em;color:var(--navy);line-height:1.05}
+h1 span{color:var(--accent)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.danger{color:var(--s-derr);border-color:var(--s-derr)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.notice{background:var(--accent-soft);color:var(--accent);border-radius:8px;padding:10px 14px;font-size:14px}
+
+.monthbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.monthbar h2{font-size:22px;font-weight:800;min-width:190px;text-transform:capitalize}
+.icon{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:36px;height:36px;font-size:18px;line-height:1}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;justify-content:space-between}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px;width:auto;max-width:100%}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:8px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.stat h3{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.stat .big{font-size:28px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.cnt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;background:var(--surface-2);border-radius:999px;padding:3px 9px}
+.cnt b{font-family:var(--mono);font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none;display:inline-block}
+
+/* calendário */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.dow,.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.dow div{padding:8px 10px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.day{min-height:122px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.grid .day:nth-child(7n){border-right:0}
+.day.out{background:var(--bg)}
+.day.out .num{opacity:.4}
+.day.weekend{background:color-mix(in srgb,var(--surface-2) 40%,var(--surface))}
+.day.drop{outline:2px dashed var(--accent);outline-offset:-3px}
+.dh{display:flex;justify-content:space-between;align-items:center}
+.num{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.day.today .num{background:var(--accent);color:var(--accent-fg);border-radius:5px;padding:0 5px}
+.add{border:0;background:transparent;color:var(--muted);width:24px;height:24px;border-radius:5px;font-size:18px;line-height:1;opacity:0}
+.day:hover .add,.add:focus-visible{opacity:1}
+.add:hover{background:var(--surface-2);color:var(--fg)}
+
+.post{display:flex;flex-direction:column;gap:2px;text-align:left;border:0;border-left:3px solid var(--pc);background:var(--pbg);border-radius:5px;padding:4px 6px;font-size:12px;line-height:1.25;width:100%;min-width:0;color:var(--fg)}
+.post .l1{display:flex;gap:5px;align-items:center;font-size:10.5px;font-weight:700;color:var(--pc);min-width:0}
+.post .l1 .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.post .l2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.post .l3{display:flex;gap:4px;flex-wrap:wrap}
+.net{font-family:var(--mono);font-size:9.5px;font-weight:500;background:var(--surface);border-radius:3px;padding:0 4px;color:var(--muted)}
+.pm{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.04em;background:var(--accent);color:var(--accent-fg);border-radius:3px;padding:0 4px}
+.tema{font-size:11px;font-weight:600;color:var(--muted)}
+.pmbox{border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.pmbox.on{border-color:var(--accent);background:var(--accent-soft)}
+.switch{display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch .tr{width:40px;height:22px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.switch .tr::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);transition:left .15s}
+.switch input:checked+.tr{background:var(--accent)}
+.switch input:checked+.tr::after{left:21px}
+.switch input:focus-visible+.tr{outline:2px solid var(--accent);outline-offset:2px}
+.repeat{display:flex;flex-direction:column;gap:12px;background:var(--surface-2);border-radius:10px;padding:12px}
+.repeat .opt span{background:var(--surface)}
+.stf{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:800;letter-spacing:.02em;border-radius:3px;padding:0 5px;color:var(--surface);background:var(--c)}
+.stsel{border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:12px;font-weight:700;background:var(--bg);color:var(--c)}
+.post.derrubado{opacity:.55}
+.post.derrubado .l2{text-decoration:line-through}
+.post[draggable="true"]{cursor:grab}
+
+/* kanban */
+.kanban{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
+.colk{background:var(--surface-2);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:320px;min-width:0}
+.colk.drop{outline:2px dashed var(--accent);outline-offset:-3px}
+.colk header{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:2px 4px 4px;border-bottom:3px solid var(--c)}
+.colk header b{font-size:14px}
+.colk header span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--pc);border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:6px;text-align:left;width:100%;cursor:grab}
+.card:hover{border-color:var(--muted);border-left-color:var(--pc)}
+.card .t{font-weight:700;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.card .m{display:flex;flex-wrap:wrap;gap:5px;align-items:center;font-size:12px;color:var(--muted)}
+.card .d{font-family:var(--mono);font-size:12px;color:var(--fg)}
+.tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;color:var(--pc);background:var(--pbg);white-space:nowrap}
+.card .mv{display:flex;justify-content:space-between;gap:6px}
+.card .mv button{border:1px solid var(--line);background:var(--bg);border-radius:6px;font-size:11.5px;padding:3px 7px;color:var(--muted)}
+.card .mv button:hover{color:var(--fg)}
+.emptycol{font-size:12.5px;color:var(--muted);text-align:center;padding:14px 6px;border:1px dashed var(--line);border-radius:8px}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:16px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;color:var(--muted)}
+.empty strong{color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--c);margin-right:5px;vertical-align:-1px}
+
+/* painel */
+.overlay{position:fixed;inset:0;background:rgba(10,16,28,.45);display:flex;justify-content:flex-end;z-index:20}
+.panel{background:var(--surface);width:min(470px,100%);height:100%;overflow-y:auto;padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.panel header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.panel h2{font-size:20px;color:var(--navy)}
+.x{border:0;background:var(--surface-2);border-radius:7px;width:32px;height:32px;font-size:18px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>label,.lab{font-size:12.5px;font-weight:700;color:var(--muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+input[type=text],input[type=date],input[type=time],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+textarea{min-height:76px;resize:vertical}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.opt span{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;padding:7px 11px;font-size:13.5px;font-weight:600;background:var(--surface)}
+.opt input:checked+span{border-color:var(--c,var(--accent));background:var(--cbg,var(--accent-soft));color:var(--c,var(--accent))}
+.opt input[type=checkbox]:checked+span::before{content:"✓";font-weight:800}
+.opt input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:12.5px;color:var(--muted)}
+.err{font-size:13px;color:var(--s-derr);font-weight:600}
+.panel footer{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px;margin-top:auto}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;z-index:30}
+
+@media (max-width:760px){
+  .dow{display:none}
+  .grid{grid-template-columns:1fr}
+  .day{min-height:0;border-right:0}
+  .day.out,.day.blank:not(.today){display:none}
+  .add{opacity:1}
+  .num::after{content:attr(data-dow);margin-left:8px;color:var(--muted);font-size:11px;text-transform:uppercase}
+  .kanban{grid-template-columns:repeat(5,minmax(240px,82vw))}
+  .row2{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Distribuidora Lopes · Opta Suprimentos · A2J · Grupo Lopes</div>
+      <h1>Redes <span>sociais</span></h1>
+    </div>
+    <button class="btn primary" type="button" id="newBtn">+ Novo post</button>
+  </header>
+
+  <div class="notice" id="notice" hidden></div>
+
+  <div class="toolbar">
+    <div class="monthbar">
+      <button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button>
+      <h2 id="monthTitle"></h2>
+      <button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button>
+      <button class="btn" type="button" id="todayBtn">Hoje</button>
+    </div>
+    <div class="seg" id="viewSeg" role="group" aria-label="Visualização">
+      <button type="button" data-v="cal" aria-pressed="true">Calendário</button>
+      <button type="button" data-v="kan" aria-pressed="false">Kanban</button>
+    </div>
+  </div>
+
+  <section class="summary" id="summary" aria-label="Resumo do mês"></section>
+
+  <div class="filters" aria-label="Filtros">
+    <span class="eyebrow">Filtrar</span>
+    <select id="fRede" aria-label="Rede social"></select>
+    <select id="fPerfil" aria-label="Perfil"></select>
+    <select id="fTipo" aria-label="Tipo de post"></select>
+    <select id="fStatus" aria-label="Status"></select>
+    <select id="fTema" aria-label="Tema do conteúdo"></select>
+    <select id="fPM" aria-label="Plano de marketing"><option value="">Plano de marketing: todos</option><option value="sim">Só Plano de marketing</option><option value="nao">Fora do Plano de marketing</option></select>
+  </div>
+
+  <div class="empty" id="emptyBox" hidden>
+    <div><strong>Nenhum post neste mês.</strong> Clique em “+ Novo post” ou no + de um dia do calendário para planejar o primeiro.</div>
+  </div>
+
+  <section id="calView"><div class="cal"><div class="dow" id="dow"></div><div class="grid" id="grid"></div></div></section>
+  <section id="kanView" hidden><div class="kanban" id="kanban"></div></section>
+
+  <div class="legend" id="legend"></div>
+  <section id="custosPanel" aria-label="Custos"></section>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <form class="panel" id="form" novalidate>
+    <header><h2 id="formTitle">Novo post</h2><button class="x" type="button" id="closeBtn" aria-label="Fechar">×</button></header>
+    <div class="field"><label for="iTitulo">Título do post</label><input type="text" id="iTitulo" maxlength="100" placeholder="Ex.: Oferta de cimento CP-II"></div>
+    <div class="field"><span class="lab">Rede social <span class="hint">(uma ou mais)</span></span><div class="opts" id="oRede"></div></div>
+    <div class="field"><span class="lab">Perfil <span class="hint">(um ou mais)</span></span><div class="opts" id="oPerfil"></div><p class="hint" id="perfilHint"></p></div>
+    <div class="field"><span class="lab">Tipo de post <span class="hint">(um ou mais)</span></span><div class="opts" id="oTipo"></div></div>
+    <div class="field"><span class="lab">Tema do conteúdo <span class="hint">(um ou mais)</span></span><div class="opts" id="oTema"></div></div>
+    <div class="pmbox" id="pmBox">
+      <label class="switch" for="iPM"><input type="checkbox" id="iPM"><span class="tr" aria-hidden="true"></span>Plano de marketing</label>
+      <div class="field" id="pmMarcasF" hidden><label for="iMarcas">Marcas que participaram do conteúdo</label>
+        <textarea id="iMarcas" maxlength="500" placeholder="Ex.: Votorantim, Quartzolit, Tigre"></textarea></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="iData">Data de postagem</label><input type="date" id="iData"></div>
+      <div class="field"><label for="iHora">Horário (opcional)</label><input type="time" id="iHora"></div>
+    </div>
+    <div class="field"><span class="lab">Status</span><div class="opts" id="oStatus"></div></div>
+    <div class="repeat">
+      <div class="field"><label for="iRep" id="repLabel">Repetir este post</label>
+        <select id="iRep">
+          <option value="nao">Não repetir</option>
+          <option value="semana">Toda semana, no mesmo dia</option>
+          <option value="quinzena">A cada 2 semanas, no mesmo dia</option>
+          <option value="mes">Todo mês, no mesmo dia</option>
+          <option value="uteis">Todo dia útil (seg a sex)</option>
+          <option value="dias">Em dias da semana que eu escolher</option>
+        </select></div>
+      <div class="field" id="repDiasF" hidden><span class="lab">Dias da semana</span><div class="opts" id="oRepDias"></div></div>
+      <div class="field" id="repAteF" hidden><label for="iRepAte">Repetir até</label><input type="date" id="iRepAte"></div>
+      <p class="hint" id="repPrev"></p>
+    </div>
+    <div class="field"><label for="iLegenda">Legenda / copy (opcional)</label><textarea id="iLegenda" maxlength="2200" placeholder="Texto que vai no post"></textarea></div>
+    <div class="field"><label for="iNotas">Observações (opcional)</label><textarea id="iNotas" maxlength="800" placeholder="Link da arte, responsável, referências..."></textarea></div>
+    <p class="err" id="formErr" hidden></p>
+    <footer>
+      <div id="delArea"></div>
+      <div style="display:flex;gap:8px"><button class="btn" type="button" id="cancelBtn">Cancelar</button><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div>
+    </footer>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/custos.js" charset="utf-8"></script>
+<script>
+(function(){
+  const REDES=[{k:"instagram",n:"Instagram",ab:"IG"},{k:"facebook",n:"Facebook",ab:"FB"},{k:"whatsapp",n:"WhatsApp",ab:"WA"},{k:"linkedin",n:"LinkedIn",ab:"IN"}];
+  const PERFIS=[{k:"lopes",n:"Distribuidora Lopes",ab:"Lopes",c:"--p-lopes",b:"--p-lopes-bg"},{k:"opta",n:"Opta Suprimentos",ab:"Opta",c:"--p-opta",b:"--p-opta-bg"},{k:"a2j",n:"A2J",ab:"A2J",c:"--p-a2j",b:"--p-a2j-bg"},{k:"grupo",n:"Grupo Lopes",ab:"Grupo",c:"--p-grupo",b:"--p-grupo-bg"}];
+  const TIPOS=[{k:"feed",n:"Feed"},{k:"stories",n:"Stories"},{k:"reels",n:"Reels"},{k:"estatico",n:"Estático"},{k:"carrossel",n:"Carrossel"}];
+  const temasOf=p=>Array.isArray(p.temas)?p.temas:(p.tema?[p.tema]:[]);
+  const temasLabel=p=>temasOf(p).map(k=>(by(TEMAS,k)||{n:k}).n).join(" · ");
+  const tiposOf=p=>Array.isArray(p.tipos)?p.tipos:(p.tipo?[p.tipo]:[]);
+  const tiposLabel=p=>tiposOf(p).map(k=>(by(TIPOS,k)||{n:k}).n).join(" + ");
+  const TEMAS=[{k:"institucional",n:"Institucional"},{k:"engajamento",n:"Engajamento"},{k:"video_tecnico",n:"Vídeo Técnico"},{k:"colab",n:"Colab"},{k:"visita_tecnica",n:"Visita técnica"},{k:"review",n:"Review"},{k:"cobertura_evento",n:"Cobertura de evento"},{k:"evento",n:"Evento"},{k:"data_comemorativa",n:"Data comemorativa"},{k:"informativo",n:"Informativo"}];
+  const STATUS=[{k:"ideia",n:"Ideia",c:"--s-ideia"},{k:"producao",n:"Em produção",c:"--s-prod"},{k:"programado",n:"Programado",c:"--s-prog"},{k:"postado",n:"Postado",c:"--s-post"},{k:"derrubado",n:"Derrubado",c:"--s-derr"}];
+  const DOW=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+  const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const $=id=>document.getElementById(id);
+  const by=(a,k)=>a.find(x=>x.k===k);
+  const pad=n=>String(n).padStart(2,"0");
+  const isoD=(y,m,d)=>`${y}-${pad(m+1)}-${pad(d)}`;
+  const fd=s=>s?`${s.slice(8)}/${s.slice(5,7)}`:"sem data";
+  const dowOf=s=>(new Date(s+"T12:00").getDay()+6)%7;
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==false&&v!=null)e.setAttribute(k,v===true?"":v);}for(const c of kids){if(c==null||c===false)continue;e.append(c.nodeType?c:document.createTextNode(String(c)));}return e;}
+
+  const now=new Date(); let Y=now.getFullYear(), M=now.getMonth();
+  let posts=[], col=null, canWrite=false, view="cal", editingId=null;
+  const F={rede:"",perfil:"",tipo:"",status:"",tema:"",pm:""};
+  try{const v=localStorage.getItem("rs-view");if(v==="cal"||v==="kan")view=v;}catch(_){}
+
+  const pcol=p=>{const pf=by(PERFIS,(p.perfis||[])[0])||PERFIS[0];return `--pc:var(${pf.c});--pbg:var(${pf.b})`;};
+  const monthKey=()=>`${Y}-${pad(M+1)}`;
+  const inMonth=p=>(p.data||"").slice(0,7)===monthKey();
+  const passF=p=>(!F.rede||(p.redes||[]).includes(F.rede))&&(!F.perfil||(p.perfis||[]).includes(F.perfil))&&(!F.tipo||tiposOf(p).includes(F.tipo))&&(!F.status||p.status===F.status)&&(!F.tema||temasOf(p).includes(F.tema))&&(!F.pm||(F.pm==="sim")===!!p.planoMarketing);
+  const sortP=a=>a.slice().sort((x,y)=>((x.data||"9")+(x.hora||"99")).localeCompare((y.data||"9")+(y.hora||"99")));
+  const monthPosts=()=>sortP(posts.filter(p=>inMonth(p)&&passF(p)));
+
+  // filtros
+  function fillSel(id,label,items){const s=$(id);s.textContent="";s.append(el("option",{value:""},label));items.forEach(i=>s.append(el("option",{value:i.k},i.n)));}
+  fillSel("fRede","Todas as redes",REDES); fillSel("fPerfil","Todos os perfis",PERFIS); fillSel("fTipo","Todos os tipos",TIPOS); fillSel("fStatus","Todos os status",STATUS); fillSel("fTema","Todos os temas",TEMAS);
+  [["fRede","rede"],["fPerfil","perfil"],["fTipo","tipo"],["fStatus","status"],["fTema","tema"],["fPM","pm"]].forEach(([id,k])=>$(id).addEventListener("change",e=>{F[k]=e.target.value;render();}));
+
+  function renderSummary(){
+    const list=monthPosts(); const s=$("summary"); s.textContent="";
+    const st=el("div",{class:"stat"},el("h3",null,"Posts no mês"),el("div",{class:"big"},list.length));
+    st.append(el("div",{class:"pills"},...STATUS.map(x=>el("span",{class:"cnt",style:`--c:var(${x.c})`},el("i",{class:"dot"}),x.n,el("b",null,list.filter(p=>p.status===x.k).length)))));
+    s.append(st);
+    const block=(title,items,fn,style)=>el("div",{class:"stat"},el("h3",null,title),el("div",{class:"pills"},...items.map(i=>el("span",{class:"cnt",style:style?style(i):null},style?el("i",{class:"dot"}):null,i.ab||i.n,el("b",null,list.filter(p=>fn(p,i)).length)))));
+    s.append(block("Por perfil",PERFIS,(p,i)=>(p.perfis||[]).includes(i.k),i=>`--c:var(${i.c})`));
+    s.append(block("Por rede",REDES.map(r=>({k:r.k,n:r.n})),(p,i)=>(p.redes||[]).includes(i.k)));
+    s.append(block("Por tipo",TIPOS,(p,i)=>tiposOf(p).includes(i.k)));
+    s.append(block("Por tema",TEMAS,(p,i)=>temasOf(p).includes(i.k)));
+    const pm=list.filter(p=>p.planoMarketing);
+    s.append(el("div",{class:"stat"},el("h3",null,"Plano de marketing"),el("div",{class:"big"},pm.length),
+      el("span",{class:"hint"},pm.length?`de ${list.length} posts do mês`:"Nenhum post marcado neste mês")));
+  }
+
+  // calendário
+  function postChip(p){
+    const t=tiposLabel(p); const pf=(p.perfis||[]).map(k=>(by(PERFIS,k)||{ab:k}).ab).join(" + ")||"Sem perfil"; const st=by(STATUS,p.status)||STATUS[0];
+    return el("button",{type:"button",class:"post "+(p.status||""),style:pcol(p),draggable:canWrite?"true":null,title:`${p.titulo||"Sem tema"} · ${st.n}`,
+      onclick:ev=>{ev.stopPropagation();openForm(p);},ondragstart:ev=>{ev.dataTransfer.setData("text/plain",p.id);ev.dataTransfer.effectAllowed="move";}},
+      el("span",{class:"l1"},el("i",{class:"dot",style:`--c:var(${st.c})`,title:st.n}),el("span",{class:"t"},`${p.hora?p.hora+" · ":""}${pf}`)),
+      el("span",{class:"l2"},p.titulo||"Sem título"),
+      temasOf(p).length?el("span",{class:"tema"},temasLabel(p)):null,
+      el("span",{class:"l3"},el("span",{class:"stf",style:`--c:var(${st.c})`},st.n.toUpperCase()),p.planoMarketing?el("span",{class:"pm",title:"Plano de marketing"+(p.marcas?": "+p.marcas:"")},"PM"):null,t?el("span",{class:"net"},t):null,...(p.redes||[]).map(r=>el("span",{class:"net",title:(by(REDES,r)||{}).n},(by(REDES,r)||{ab:r}).ab))));
+  }
+  function dropZone(node,onDrop){
+    node.addEventListener("dragover",ev=>{if(!canWrite)return;ev.preventDefault();node.classList.add("drop");});
+    node.addEventListener("dragleave",()=>node.classList.remove("drop"));
+    node.addEventListener("drop",ev=>{ev.preventDefault();node.classList.remove("drop");const id=ev.dataTransfer.getData("text/plain");if(id)onDrop(id);});
+  }
+  function renderCal(){
+    const dow=$("dow"); dow.textContent=""; DOW.forEach(d=>dow.append(el("div",null,d)));
+    const g=$("grid"); g.textContent="";
+    const lead=(new Date(Y,M,1).getDay()+6)%7, days=new Date(Y,M+1,0).getDate(), prev=new Date(Y,M,0).getDate();
+    for(let i=lead;i>0;i--)g.append(el("div",{class:"day out"},el("div",{class:"dh"},el("span",{class:"num"},prev-i+1))));
+    const list=monthPosts(); const today=isoD(now.getFullYear(),now.getMonth(),now.getDate());
+    for(let d=1;d<=days;d++){const s=isoD(Y,M,d), di=(lead+d-1)%7, items=list.filter(p=>p.data===s);
+      const cell=el("div",{class:"day"+(di>=5?" weekend":"")+(s===today?" today":"")+(items.length?"":" blank")},
+        el("div",{class:"dh"},el("span",{class:"num","data-dow":DOW[di]},pad(d)),canWrite?el("button",{type:"button",class:"add","aria-label":`Novo post em ${pad(d)}/${pad(M+1)}`,onclick:()=>openForm(null,s)},"+"):null));
+      items.forEach(p=>cell.append(postChip(p)));
+      dropZone(cell,id=>move(id,{data:s}));
+      g.append(cell);}
+    const tail=(7-(lead+days)%7)%7; for(let i=1;i<=tail;i++)g.append(el("div",{class:"day out"},el("div",{class:"dh"},el("span",{class:"num"},i))));
+  }
+
+  // kanban
+  function renderKan(){
+    const k=$("kanban"); k.textContent=""; const list=monthPosts();
+    STATUS.forEach((st,si)=>{const items=list.filter(p=>(p.status||"ideia")===st.k);
+      const colEl=el("div",{class:"colk",style:`--c:var(${st.c})`},el("header",null,el("b",null,st.n),el("span",null,items.length)));
+      if(!items.length)colEl.append(el("div",{class:"emptycol"},canWrite?"Arraste um post para cá":"Nenhum post"));
+      items.forEach(p=>{const t=tiposLabel(p);
+        const card=el("div",{class:"card",style:pcol(p),draggable:canWrite?"true":null,tabindex:"0",role:"button","aria-label":`${p.titulo||"Sem tema"}, ${fd(p.data)}`,
+          onclick:()=>openForm(p),onkeydown:ev=>{if(ev.key==="Enter")openForm(p);},ondragstart:ev=>{ev.dataTransfer.setData("text/plain",p.id);}},
+          el("span",{class:"t"},p.titulo||"Sem título"),
+          (temasOf(p).length||p.planoMarketing)?el("span",{class:"m"},p.planoMarketing?el("span",{class:"pm"},"PLANO DE MARKETING"):null,temasOf(p).length?el("span",{class:"tema"},temasLabel(p)):null):null,
+          p.planoMarketing&&p.marcas?el("span",{class:"m"},"Marcas: "+p.marcas):null,
+          el("span",{class:"m"},el("span",{class:"d"},`${fd(p.data)} ${p.data?DOW[dowOf(p.data)]:""}${p.hora?" · "+p.hora:""}`),t?el("span",null,"· "+t):null),
+          el("span",{class:"m"},...(p.perfis||[]).map(x=>{const pf=by(PERFIS,x)||{ab:x,c:"--muted",b:"--surface-2"};return el("span",{class:"tag",style:`--pc:var(${pf.c});--pbg:var(${pf.b})`},pf.ab);}),
+            ...(p.redes||[]).map(r=>el("span",{class:"net"},(by(REDES,r)||{n:r}).n))));
+        const ss=el("select",{class:"stsel",style:`--c:var(${st.c})`,"aria-label":"Status do post",onclick:ev=>ev.stopPropagation(),onkeydown:ev=>ev.stopPropagation(),onchange:ev=>move(p.id,{status:ev.target.value})},...STATUS.map(x=>el("option",{value:x.k},x.n)));
+        ss.value=st.k; if(!canWrite)ss.disabled=true;
+        card.append(el("div",{class:"mv"},el("span",{class:"hint"},"Status"),ss));
+        colEl.append(card);});
+      dropZone(colEl,id=>move(id,{status:st.k}));
+      k.append(colEl);});
+  }
+
+  async function move(id,patch){const p=posts.find(x=>x.id===id);if(!p||!col)return;
+    if(Object.keys(patch).every(k=>p[k]===patch[k]))return;
+    try{await col.doc(id).update(Object.assign({},patch,{atualizadoEm:new Date().toISOString()}));
+      toast(patch.status?`Movido para ${by(STATUS,patch.status).n}`:`Remarcado para ${fd(patch.data)}`);}catch(e){toast("Não foi possível mover o post.");}}
+
+  function renderLegend(){const l=$("legend");l.textContent="";
+    PERFIS.forEach(p=>l.append(el("span",{style:`--c:var(${p.c})`},el("i"),p.n)));
+    l.append(el("span",null,"IG Instagram · FB Facebook · WA WhatsApp · IN LinkedIn"));
+    if(canWrite)l.append(el("span",null,"Arraste os posts para trocar a data (calendário) ou o status (kanban)."));}
+
+  function render(){
+    $("monthTitle").textContent=`${MESES[M]} ${Y}`;
+    [...$("viewSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
+    $("calView").hidden=view!=="cal"; $("kanView").hidden=view!=="kan";
+    renderSummary(); if(view==="cal")renderCal(); else renderKan();
+    $("emptyBox").hidden=!!posts.filter(inMonth).length||!col;
+    $("newBtn").disabled=!canWrite; renderLegend();
+  }
+  $("viewSeg").addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;view=b.dataset.v;try{localStorage.setItem("rs-view",view)}catch(_){}render();});
+  $("prevM").onclick=()=>{M--;if(M<0){M=11;Y--;}render();};
+  $("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}render();};
+  $("todayBtn").onclick=()=>{Y=now.getFullYear();M=now.getMonth();render();};
+
+  // formulário
+  function buildOpts(host,items,name,type){host.textContent="";items.forEach(it=>host.append(el("label",{class:"opt",style:it.c?`--c:var(${it.c});--cbg:var(${it.b||"--surface-2"})`:null},el("input",{type,name,value:it.k,id:`${name}-${it.k}`}),el("span",null,it.n))));}
+  buildOpts($("oRede"),REDES,"rede","checkbox"); buildOpts($("oPerfil"),PERFIS,"perfil","checkbox"); buildOpts($("oTipo"),TIPOS,"tipo","checkbox"); buildOpts($("oTema"),TEMAS,"tema","checkbox");
+  const syncPM=()=>{const on=$("iPM").checked;$("pmMarcasF").hidden=!on;$("pmBox").classList.toggle("on",on);};
+  $("iPM").addEventListener("change",syncPM);
+  buildOpts($("oStatus"),STATUS.map(s=>({k:s.k,n:s.n,c:s.c,b:"--surface-2"})),"status","radio");
+  const radio=n=>(document.querySelector(`input[name=${n}]:checked`)||{}).value||"";
+  const checks=n=>[...document.querySelectorAll(`input[name=${n}]:checked`)].map(i=>i.value);
+  const setR=(n,v)=>document.querySelectorAll(`input[name=${n}]`).forEach(i=>i.checked=i.value===v);
+  const setC=(n,a)=>document.querySelectorAll(`input[name=${n}]`).forEach(i=>i.checked=(a||[]).includes(i.value));
+
+  buildOpts($("oRepDias"),DOW.map((d,i)=>({k:String(i),n:d})),"rdow","checkbox");
+  ["iRep","iRepAte","iData"].forEach(id=>$(id).addEventListener("input",syncRep)); $("oRepDias").addEventListener("change",syncRep);
+  const addDays=(s,n)=>{const d=new Date(s+"T12:00");d.setDate(d.getDate()+n);return isoD(d.getFullYear(),d.getMonth(),d.getDate());};
+  const endOfMonth=s=>{const [y,m]=s.split("-").map(Number);return isoD(y,m-1,new Date(y,m,0).getDate());};
+  function repDates(){const mode=$("iRep").value,start=$("iData").value;if(mode==="nao"||!start)return [];
+    const ate=$("iRepAte").value||endOfMonth(start); const dias=new Set(checks("rdow").map(Number)); const out=[]; const sd=+start.slice(8);
+    for(let i=1;i<=400;i++){const s=addDays(start,i);if(s>ate||out.length>=60)break;const di=dowOf(s);let ok=false;
+      if(mode==="semana")ok=i%7===0;else if(mode==="quinzena")ok=i%14===0;else if(mode==="uteis")ok=di<5;else if(mode==="dias")ok=dias.has(di);else if(mode==="mes")ok=+s.slice(8)===sd;
+      if(ok)out.push(s);}
+    return out;}
+  function syncRep(){const mode=$("iRep").value;$("repDiasF").hidden=mode!=="dias";$("repAteF").hidden=mode==="nao";
+    const st=$("iData").value; if(mode!=="nao"&&!$("iRepAte").value&&st)$("iRepAte").value=mode==="mes"?addDays(st,182):endOfMonth(st);
+    const p=$("repPrev"); if(mode==="nao"){p.textContent="";return;}
+    if(mode==="dias"&&!checks("rdow").length){p.textContent="Marque os dias da semana.";return;}
+    const d=repDates(); const np=Math.max(1,checks("perfil").length); p.textContent=d.length?`Serão criadas mais ${d.length*np} cópia(s)${np>1?` (${d.length} datas × ${np} perfis)`:""}: ${d.slice(0,12).map(fd).join(", ")}${d.length>12?"…":""}`:"Nenhuma data de repetição no período escolhido.";}
+  function syncPerfilHint(){const n=checks("perfil").length;$("perfilHint").textContent=n>1?`Serão criados ${n} cards, um para cada perfil.`:"";syncRep&&syncRep();}
+  $("oPerfil").addEventListener("change",syncPerfilHint);
+  function openForm(p,date,asCopy){
+    if(!canWrite&&!p)return;
+    editingId=p&&!asCopy?p.id:null; $("formTitle").textContent=asCopy?"Duplicar post":p?"Editar post":"Novo post"; $("formErr").hidden=true;
+    $("iTitulo").value=p?(p.titulo||""):""; setC("rede",p?p.redes:["instagram"]); setC("perfil",p?p.perfis:["lopes"]); setC("tipo",p?tiposOf(p):["feed"]); setC("tema",p?temasOf(p):[]);
+    $("iPM").checked=!!(p&&p.planoMarketing); $("iMarcas").value=p?(p.marcas||""):""; syncPM();
+    $("iData").value=date||(p?p.data||"":isoD(Y,M,(Y===now.getFullYear()&&M===now.getMonth())?now.getDate():1)); $("iHora").value=p?(p.hora||""):"";
+    setR("status",p&&!asCopy?(p.status||"ideia"):"ideia"); $("iLegenda").value=p?(p.legenda||""):""; $("iNotas").value=p?(p.notas||""):"";
+    $("iRep").value="nao"; $("iRepAte").value=""; setC("rdow",[]); $("repLabel").textContent=editingId?"Repetir a partir desta data":"Repetir este post"; syncRep(); syncPerfilHint();
+    renderDel();
+    [...$("form").elements].forEach(x=>{if(x.id!=="closeBtn"&&x.id!=="cancelBtn")x.disabled=!canWrite;});
+    $("overlay").hidden=false; setTimeout(()=>$("iTitulo").focus(),40);
+  }
+  function closeForm(){$("overlay").hidden=true;editingId=null;}
+  function renderDel(confirm){const a=$("delArea");a.textContent="";if(!editingId||!canWrite)return;const cur=posts.find(x=>x.id===editingId);
+    if(!confirm){a.append(el("div",{class:"confirm"},el("button",{class:"btn danger",type:"button",onclick:()=>renderDel(true)},"Excluir"),el("button",{class:"btn",type:"button",onclick:()=>openForm(cur,null,true)},"Duplicar")));return;}
+    a.append(el("div",{class:"confirm"},"Excluir este post?",el("button",{class:"btn danger",type:"button",onclick:doDelete},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
+  async function doDelete(){try{await col.doc(editingId).delete();closeForm();toast("Post excluído");}catch(e){showErr(e);}}
+  $("closeBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm; $("newBtn").onclick=()=>openForm(null);
+  $("overlay").addEventListener("click",ev=>{if(ev.target===$("overlay"))closeForm();});
+  document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("overlay").hidden)closeForm();});
+  function showErr(e){const p=$("formErr");p.hidden=false;const c=e&&e.code;
+    p.textContent=c==="invalid_argument"?"Você não tem permissão para editar este planejamento.":c==="quota_exceeded"?"Limite de armazenamento atingido.":"Não foi possível salvar agora. Tente de novo em alguns segundos.";
+    if(c==="invalid_argument"){canWrite=false;render();}}
+
+  $("form").addEventListener("submit",async ev=>{ev.preventDefault();if(!col)return;
+    const err=m=>{$("formErr").hidden=false;$("formErr").textContent=m;};
+    const redes=checks("rede"), perfis=checks("perfil"), data=$("iData").value;
+    if(!$("iTitulo").value.trim())return err("Dê um título para o post.");
+    if(!redes.length)return err("Marque pelo menos uma rede social.");
+    if(!perfis.length)return err("Marque pelo menos um perfil.");
+    if(!checks("tipo").length)return err("Marque pelo menos um tipo de post.");
+    if(!data)return err("Escolha a data de postagem.");
+    const now2=new Date().toISOString(); const prev=posts.find(x=>x.id===editingId);
+    const body={titulo:$("iTitulo").value.trim(),redes,perfis,tipos:checks("tipo"),temas:checks("tema"),planoMarketing:$("iPM").checked,marcas:$("iPM").checked?$("iMarcas").value.trim():"",data,hora:$("iHora").value||"",status:radio("status")||"ideia",
+      legenda:$("iLegenda").value.trim(),notas:$("iNotas").value.trim(),criadoEm:prev&&prev.criadoEm||now2,atualizadoEm:now2};
+    const btn=$("saveBtn");btn.disabled=true;const wasEdit=!!editingId;
+    try{
+      // regra: 2 ou mais perfis = um card para cada perfil
+      const grupo=perfis.length>1?"g"+Date.now().toString(36):(prev&&prev.grupo)||"";
+      const bodyFor=pf=>Object.assign({},body,{perfis:[pf]},grupo?{grupo}:{});
+      let cards=0;
+      if(editingId)await col.doc(editingId).set(bodyFor(perfis[0])); else await col.add(bodyFor(perfis[0]));
+      cards++;
+      for(const pf of perfis.slice(1)){await col.add(bodyFor(pf));cards++;}
+      const dates=repDates(); let made=0;
+      if(dates.length){const serie="s"+Date.now().toString(36); const st=["postado","derrubado"].includes(body.status)?"ideia":body.status;
+        for(const d of dates)for(const pf of perfis){await col.add(Object.assign(bodyFor(pf),{data:d,status:st,serie}));made++;}}
+      const [y,m]=data.split("-").map(Number); Y=y; M=m-1; closeForm();
+      toast((wasEdit?"Post atualizado":"Post salvo")+(cards>1?` · ${cards} cards, um por perfil`:"")+(made?` + ${made} repetição(ões)`:"")); render();}
+    catch(e){showErr(e);}finally{btn.disabled=false;}
+  });
+
+  let tt;function toast(m){const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600);}
+  function notice(m){$("notice").textContent=m;$("notice").hidden=!m;}
+
+  render();
+  Central.boot("redes",user=>{
+    Custos.painel(document.getElementById("custosPanel"),{origem:"redes",titulo:"Custos com produção e impulsionamento",centroPadrao:"propaganda",tipos:[{k:"producao",n:"Produção"},{k:"impulsionamento",n:"Impulsionamento"}],refLabel:"Post (opcional)",refs:()=>posts.slice().sort((a,b)=>(b.data||"").localeCompare(a.data||"")).slice(0,80).map(p=>({id:p.id,nome:`${(p.data||"").slice(8,10)}/${(p.data||"").slice(5,7)} · ${p.titulo||"Post"}`}))});
+    col=Store.collection("posts"); canWrite=true;
+    col.onSnapshot(sn=>{posts=sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));render();},()=>notice("Não foi possível carregar os posts. Recarregue a página."));
+    render();
+  });
+})();
+</script>
+</body>
+</html>
