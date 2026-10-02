@@ -146,3 +146,12 @@ h1 span{background:var(--grad);-webkit-background-clip:text;background-clip:text
 .lgi-f .btn.primary{justify-content:center;padding:11px 14px;font-size:15px}
 .lgi-f .err{color:var(--bad);font-size:13.5px;font-weight:600;margin:0}
 .lgi-msg:empty{display:none}
+
+/* aviso de gravação */
+.sync-pill{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--bar-bg);color:#fff;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;box-shadow:0 6px 18px -8px rgba(0,0,0,.4);opacity:0;transform:translateY(8px);transition:opacity .2s,transform .2s;pointer-events:none;max-width:min(420px,calc(100vw - 32px))}
+.sync-pill.on{opacity:1;transform:none}
+.sync-pill.ok{background:#1E8A5C}
+.sync-pill.bad{background:#C23A1C}
+@media (prefers-reduced-motion:reduce){.sync-pill{transition:none}}
+.inp[readonly],.pin[readonly]{background:var(--surface-2);color:var(--muted);cursor:not-allowed}
+.lock-note{font-size:12px;color:var(--muted)}
