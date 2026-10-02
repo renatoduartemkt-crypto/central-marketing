@@ -133,7 +133,7 @@ table.cc{min-width:760px}
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h2>Metas do e-commerce <small id="metaInfo"></small></h2>
         <div class="tabs sites" id="siteSeg" role="group" aria-label="Site"><button type="button" data-s="lopes" aria-pressed="true"><i style="--c:#1B2D49"></i>Site Lopes</button><button type="button" data-s="opta" aria-pressed="false"><i style="--c:#EE3B2D"></i>Site Opta</button><button type="button" data-s="total" aria-pressed="false">Lopes + Opta</button></div></div>
       <div class="metas">
-        <div class="field"><label for="mVendas">Meta de vendas do mês (R$)</label><input class="inp" type="text" id="mVendas" inputmode="decimal" placeholder="0,00" autocomplete="off" readonly></div>
+        <div class="field"><label for="mVendas">Meta de vendas do mês (R$)</label><input class="inp money" type="text" id="mVendas" inputmode="decimal" placeholder="0,00" autocomplete="off" readonly></div>
         <div class="field"><label for="mPos">Meta de positivações do mês</label><input class="inp" type="text" id="mPos" inputmode="numeric" placeholder="0" autocomplete="off" readonly></div>
         <p class="lock-note" id="metaLock" hidden>🔒 As metas são definidas pelo gerente do setor.</p>
       </div>
@@ -175,7 +175,7 @@ table.cc{min-width:760px}
   const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const DOW=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const pad=n=>String(n).padStart(2,"0");
-  const brl=(v,d=0)=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:d,maximumFractionDigits:d});
+  const brl=(v,d=2)=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:d,maximumFractionDigits:d});
   const num=v=>(+v||0).toLocaleString("pt-BR");
   const pct=v=>(isFinite(v)?v:0).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%";
   // campos de número no padrão brasileiro: aceita "16.857,81", "16857,81" ou "16857.81"
@@ -244,7 +244,7 @@ table.cc{min-width:760px}
     const tb=$("rows");
     if(tb.dataset.month!==mk()+site){tb.textContent="";tb.dataset.month=mk()+site;
       rows.forEach(r=>{
-        const iv=el("input",{type:"text",inputmode:"decimal",placeholder:"0,00",autocomplete:"off","aria-label":`Vendido em ${pad(r.d)}`,"data-k":"vendido"});
+        const iv=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00",autocomplete:"off","aria-label":`Vendido em ${pad(r.d)}`,"data-k":"vendido"});
         const ip=el("input",{type:"text",inputmode:"numeric",placeholder:"0",autocomplete:"off",class:"sm","aria-label":`Positivações em ${pad(r.d)}`,"data-k":"positivacoes"});
         if(site==="total"){iv.disabled=true;ip.disabled=true;}
         const save=()=>{if(site==="total")return;const k=dayKey(r.s),patch={data:r.s,site,vendido:iv.value.trim()===""?null:lerN(iv.value),positivacoes:ip.value.trim()===""?null:Math.round(lerN(ip.value))};dias[k]=Object.assign({},dias[k],patch);renderEcom();saveDoc(colD,k,patch,true);};
