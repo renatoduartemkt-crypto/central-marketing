@@ -132,7 +132,7 @@ h1 span{color:var(--accent)}
 .vt td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 .vt tfoot td{font-weight:800;border-bottom:0}
 .vt .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
-.vt input{width:110px!important;text-align:right;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-family:var(--mono)}
+.vt input{width:130px!important;text-align:right;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-family:var(--mono)}
 .vt select{width:auto!important;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-size:12.5px}
 .ub{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;min-width:90px}
 .ub i{display:block;height:100%;background:var(--ok)}
@@ -260,8 +260,8 @@ textarea{min-height:64px;resize:vertical}
 
     <fieldset class="fs" id="fs-verba"><legend><span class="pr">5</span>Verba projetada da campanha</legend>
       <div class="row2">
-        <div class="field"><label for="fVerba">Verba projetada (R$)</label><input type="number" id="fVerba" min="0" step="50" inputmode="decimal" placeholder="0"></div>
-        <div class="field"><label for="fInv">Verba investida até agora (R$)</label><input type="number" id="fInv" min="0" step="10" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label for="fVerba">Verba projetada (R$)</label><input type="text" id="fVerba" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
+        <div class="field"><label for="fInv">Verba investida até agora (R$)</label><input type="text" id="fInv" class="money" inputmode="decimal" placeholder="0,00" autocomplete="off"></div>
       </div>
       <p class="hint" id="verbaHint"></p>
     </fieldset>
@@ -325,7 +325,8 @@ textarea{min-height:64px;resize:vertical}
   const linkShort=u=>u.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/$/,"");
   const by=(a,k)=>a.find(x=>x.k===k);
   const $=id=>document.getElementById(id);
-  const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:v%1?2:0});
+  const brl=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
+  const lerR=s=>Central.lerDinheiro(s), mostraR=v=>+v?Central.mostraDinheiro(v):"";
   const fd=s=>s?s.slice(8)+"/"+s.slice(5,7)+"/"+s.slice(2,4):"";
   const days=c=>c.inicio&&c.fim&&c.fim>=c.inicio?Math.round((new Date(c.fim+"T12:00")-new Date(c.inicio+"T12:00"))/864e5)+1:0;
   const TYPES=[["estatico","Estático","estático"],["video","Vídeo","vídeo"],["carrossel","Carrossel","carrossel"]];
@@ -423,8 +424,8 @@ textarea{min-height:64px;resize:vertical}
     const box=el("div",{class:"vwrap"}); const tb=el("tbody"); let tp=0, ti=0;
     const save=async(c,patch)=>{try{await col.doc(c.id).update(patch);toast("Verba atualizada");}catch(_){toast("Não foi possível salvar.");}};
     sortCamps().forEach(c=>{const p=+c.verba||0, i=+c.verbaInvestida||0; tp+=p; ti+=i; const pct=p?i/p*100:0; const e=by(EMP,c.empresa);
-      const inP=el("input",{type:"number",min:"0",step:"50","aria-label":"Verba projetada",value:p||""}); inP.onchange=()=>save(c,{verba:+inP.value||0});
-      const inI=el("input",{type:"number",min:"0",step:"10","aria-label":"Verba investida",value:i||""}); inI.onchange=()=>save(c,{verbaInvestida:+inI.value||0});
+      const inP=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00","aria-label":"Verba projetada",value:mostraR(p)}); inP.onchange=()=>save(c,{verba:lerR(inP.value)});
+      const inI=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00","aria-label":"Verba investida",value:mostraR(i)}); inI.onchange=()=>save(c,{verbaInvestida:lerR(inI.value)});
       const sc=el("select",{"aria-label":"Status da campanha"},...STC.map(x=>el("option",{value:x.k},x.n))); sc.value=stcOf(c).k; sc.onchange=()=>save(c,{statusCampanha:sc.value});
       if(!canWrite)[inP,inI,sc].forEach(x=>x.disabled=true);
       const per=val(c,"per");
@@ -475,7 +476,7 @@ textarea{min-height:64px;resize:vertical}
   const checks=n=>[...document.querySelectorAll(`input[name=${n}]:checked`)].map(i=>i.value);
   const setR=(n,v)=>document.querySelectorAll(`input[name=${n}]`).forEach(i=>i.checked=i.value===v);
   const setC=(n,arr)=>document.querySelectorAll(`input[name=${n}]`).forEach(i=>i.checked=(arr||[]).includes(i.value));
-  function draft(){return {inicio:$("fIni").value,fim:$("fFim").value,verba:+$("fVerba").value||0,verbaInvestida:+$("fInv").value||0,conjuntos:readConjs()};}
+  function draft(){return {inicio:$("fIni").value,fim:$("fFim").value,verba:lerR($("fVerba").value),verbaInvestida:lerR($("fInv").value),conjuntos:readConjs()};}
   function readConjs(){return [...document.querySelectorAll("#conjList .conj")].map(card=>{const q=s=>card.querySelector(s);const k={};
     TYPES.forEach(([x])=>{k[x]=+q(`[data-q="${x}"]`).value||0;k[x+"Desc"]=q(`[data-d="${x}"]`).value.trim();});
     return {nome:q("[data-nome]").value.trim(),criativos:k};});}
@@ -508,7 +509,7 @@ textarea{min-height:64px;resize:vertical}
     editingId=c?c.id:null; $("formTitle").textContent=c?"Editar campanha":"Nova campanha"; $("formErr").hidden=true;
     $("fNome").value=c?(c.nome||""):""; setR("emp",c?c.empresa:"lopes"); setR("stc",c?stcOf(c).k:"planejamento"); setR("tipo",c?c.tipo:""); $("fTipoOutro").value=c?(c.tipoOutro||""):"";
     setR("obj",c?c.objetivo:""); setC("pub",c?c.publicos:[]); setC("uf",c?c.regioes:[]); $("fPubDet").value=c?(c.publicoDet||""):"";
-    $("fIni").value=c?(c.inicio||""):""; $("fFim").value=c?(c.fim||""):""; $("fVerba").value=c&&+c.verba?c.verba:""; $("fInv").value=c&&+c.verbaInvestida?c.verbaInvestida:"";
+    $("fIni").value=c?(c.inicio||""):""; $("fFim").value=c?(c.fim||""):""; $("fVerba").value=c?mostraR(c.verba):""; $("fInv").value=c?mostraR(c.verbaInvestida):"";
     const cj=c?conjsOf(c):[]; renderConjs(cj.length?JSON.parse(JSON.stringify(cj)):[{nome:"",criativos:{}}]);
     $("fCta").value=c?(c.cta||""):""; $("fFrase").value=c?(c.frase||""):""; $("fLink").value=c?(c.link||""):"";
     hints(); renderDel();
