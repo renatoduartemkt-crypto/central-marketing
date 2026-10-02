@@ -253,7 +253,7 @@ td.tt{font-weight:600;max-width:340px}
   const prefKey=()=>"tarefas-visao:"+(me?me.email:"");
   function loadPref(){const p=me&&me.preferencias&&me.preferencias.tarefasVisao;let v=p;try{v=localStorage.getItem(prefKey())||p;}catch(_){}if(["kanban","lista","cal"].includes(v))view=v;}
   function savePref(){try{localStorage.setItem(prefKey(),view);}catch(_){}
-    if(me)Store.collection("usuarios").doc(Auth.docId(me.email)).update({preferencias:Object.assign({},me.preferencias,{tarefasVisao:view})}).catch(()=>{});}
+    if(me&&Store.modo()!=="gas")Store.collection("usuarios").doc(Auth.docId(me.email)).update({preferencias:Object.assign({},me.preferencias,{tarefasVisao:view})}).catch(()=>{});}
 
   function filtered(){const q=F.q.trim().toLowerCase();
     return tasks.filter(t=>(!F.resp||(F.resp==="__eu"?(t.responsaveis||[]).includes(me.email):F.resp==="__sem"?!(t.responsaveis||[]).length:(t.responsaveis||[]).includes(F.resp)))
