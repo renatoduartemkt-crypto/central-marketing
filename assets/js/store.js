@@ -90,10 +90,15 @@
   // Por isso: (1) os pedidos vão em fila, um por vez; (2) falha passageira é repetida; (3) a página pede
   // todas as coleções de uma vez; (4) o que já foi carregado fica guardado nesta aba (sessionStorage)
   // e aparece na hora ao trocar de página, enquanto a versão nova chega.
-  let fila = Promise.resolve();
+  // leituras e gravações têm filas separadas: uma gravação nunca espera uma leitura lenta
+  const filas = { leitura: Promise.resolve(), escrita: Promise.resolve() };
   const espera = ms => new Promise(r => setTimeout(r, ms));
+  const ehEscrita = (fn, args) => fn === "salvarRelatorio" || (fn === "api" && args[0] && !/^(listar|listarVarias|me)$/.test(args[0].acao));
   function viaFetch(fn, args){
-    const uma = () => fetch(CFG.backendUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ fn, args }), redirect: "follow" })
+    const corpo = JSON.stringify({ fn, args });
+    const qual = ehEscrita(fn, args) ? "escrita" : "leitura";
+    // keepalive: a gravação termina mesmo se a pessoa trocar de página logo depois de salvar
+    const uma = () => fetch(CFG.backendUrl, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: corpo, redirect: "follow", keepalive: qual === "escrita" && corpo.length < 60000 })
       .then(r => { if (!r.ok) throw { passageira: true, message: "HTTP " + r.status }; return r.json().catch(() => { throw { passageira: true, message: "Resposta inválida do servidor." }; }); })
       .then(j => {
         if (j && j.erro) throw { code: "invalid_argument", message: j.erro };
@@ -101,12 +106,22 @@
         return j.result;
       }, e => { if (e && e.passageira) throw e; throw { passageira: true, message: (e && e.message) || "Sem conexão com o servidor." }; });
     const tentar = n => uma().catch(e => { if (!e.passageira || n <= 0) throw e; return espera(1500).then(() => tentar(n - 1)); });
-    const p = fila.then(() => tentar(2));
-    fila = p.catch(() => {});
-    GAS.ocupado++; const fim = () => { GAS.ocupado--; };
+    const p = filas[qual].then(() => tentar(2));
+    filas[qual] = p.catch(() => {});
+    GAS.ocupado++; if (qual === "escrita") Sync.inc();
+    const fim = () => { GAS.ocupado--; if (qual === "escrita") Sync.dec(); };
     p.then(fim, fim);
     return p.catch(e => { throw { code: e.code || "unavailable", message: e.message || "Sem conexão com o servidor." }; });
   }
+  // aviso discreto "Salvando…" enquanto houver gravação a caminho do servidor
+  const Sync = {
+    n: 0, el: null,
+    pill(){ if (!this.el) { this.el = document.createElement("div"); this.el.className = "sync-pill"; this.el.setAttribute("role", "status"); document.body.append(this.el); } return this.el; },
+    inc(){ this.n++; const e = this.pill(); e.textContent = "Salvando…"; e.className = "sync-pill on"; clearTimeout(this.t); },
+    dec(){ this.n = Math.max(0, this.n - 1); if (this.n) return; const e = this.pill(); e.textContent = "Salvo"; e.className = "sync-pill on ok"; clearTimeout(this.t); this.t = setTimeout(() => { e.className = "sync-pill"; }, 1800); },
+    erro(msg){ const e = this.pill(); e.textContent = msg; e.className = "sync-pill on bad"; clearTimeout(this.t); this.t = setTimeout(() => { e.className = "sync-pill"; }, 7000); }
+  };
+  window.addEventListener("beforeunload", ev => { if (Sync.n) { ev.preventDefault(); ev.returnValue = ""; } });
   const GAS = {
     ocupado: 0,
     call(fn, ...args){
@@ -134,15 +149,21 @@
   };
   const TOKEN_KEY = "central-mkt:token"; let memToken = "";
   const SS = "central-mkt:c:";
-  window.GAS = GAS;
+  window.GAS = GAS; window.Sync = Sync;
   const toMap = arr => { const map = {}; (arr || []).forEach(r => { const id = r.id; const d = Object.assign({}, r); delete d.id; map[id] = d; }); return map; };
   const ultimo = {}, fresco = {};
+  // gravações ainda não confirmadas: a lista que chega do servidor não desfaz o que a pessoa acabou de mudar
+  const pend = {};   // nome -> { id: { n: gravações em andamento, v: valor local (null = excluído) } }
+  const marcar = (n, id, v) => { const p = (pend[n] = pend[n] || {}); p[id] = { n: ((p[id] && p[id].n) || 0) + 1, v }; };
+  const desmarcar = (n, id) => { const p = pend[n] && pend[n][id]; if (p && --p.n <= 0) delete pend[n][id]; };
   const lerGuardado = n => { try { const s = sessionStorage.getItem(SS + n); return s ? JSON.parse(s) : null; } catch (_) { return null; } };
   const guardar = n => { try { sessionStorage.setItem(SS + n, JSON.stringify(cache[n] || {})); } catch (_) {} };
   // aplica a lista que veio do servidor; só redesenha a tela se algo mudou
   function aplicar(n, arr){
     if (!Array.isArray(arr)) return;
-    const m = toMap(arr), j = JSON.stringify(m);
+    const m = toMap(arr);
+    Object.keys(pend[n] || {}).forEach(id => { const p = pend[n][id]; if (p.v === null) delete m[id]; else m[id] = p.v; });
+    const j = JSON.stringify(m);
     fresco[n] = true;
     if (ultimo[n] === j && cache[n]) return;
     ultimo[n] = j; cache[n] = m; guardar(n); emit(n);
@@ -172,10 +193,30 @@
       return p;
     },
     refresh(name){ fresco[name] = false; return buscar(name); },
-    async create(name, data){ const r = await GAS.api({ acao: "criar", colecao: name, dados: data }); applyGas(name, r); return { id: r.id }; },
-    async put(name, id, data){ const r = await GAS.api({ acao: "gravar", colecao: name, id, dados: data }); applyGas(name, r); },
-    async patch(name, id, data){ const r = await GAS.api({ acao: "mesclar", colecao: name, id, dados: data }); applyGas(name, r); },
-    async remove(name, id){ await GAS.api({ acao: "excluir", colecao: name, id }); if (cache[name]) delete cache[name][id]; ultimo[name] = JSON.stringify(cache[name] || {}); guardar(name); emit(name); }
+    // gravações: a tela muda na hora e o servidor confirma em segundo plano; se ele recusar, a mudança é desfeita e aparece o aviso
+    async create(name, data){ const id = newId(); Gas.local(name, id, data, "gravar", data); return { id }; },
+    async put(name, id, data){ Gas.local(name, id, data, "gravar", data); },
+    async patch(name, id, data){ const atual = (cache[name] || {})[id]; Gas.local(name, id, Object.assign({}, atual || {}, data), "mesclar", data); },
+    async remove(name, id){ Gas.local(name, id, null, "excluir"); },
+    local(name, id, valor, acao, dados){
+      cache[name] = cache[name] || {};
+      const antes = Object.prototype.hasOwnProperty.call(cache[name], id) ? cache[name][id] : undefined;
+      if (valor === null) delete cache[name][id]; else cache[name][id] = valor;
+      marcar(name, id, valor);
+      ultimo[name] = JSON.stringify(cache[name]); guardar(name); emit(name);
+      const req = { acao, colecao: name, id }; if (acao !== "excluir") req.dados = dados;
+      GAS.api(req).then(r => {
+        desmarcar(name, id);
+        if (r && r.item && !(pend[name] && pend[name][id])) applyGas(name, r);
+      }, e => {
+        desmarcar(name, id);
+        if (!(pend[name] && pend[name][id])) {          // desfaz só se não houver outra gravação mais nova do mesmo registro
+          if (antes === undefined) delete cache[name][id]; else cache[name][id] = antes;
+          ultimo[name] = JSON.stringify(cache[name]); guardar(name); emit(name);
+        }
+        Sync.erro("Não foi salvo: " + ((e && e.message) || "erro no servidor"));
+      });
+    }
   };
   function applyGas(name, r){ if (r && r.item) { cache[name] = cache[name] || {}; const d = Object.assign({}, r.item); delete d.id; cache[name][r.item.id] = d; ultimo[name] = JSON.stringify(cache[name]); guardar(name); emit(name); } }
   // de tempos em tempos, um único pedido atualiza todas as coleções abertas na página
