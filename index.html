@@ -89,7 +89,7 @@
   const DOW=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
   const pad=n=>String(n).padStart(2,"0");
   const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const brl=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+  const brl=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
   const now=new Date(); let Y=now.getFullYear(), M=now.getMonth();
   const D={emails:[],camps:[],posts:[],dias:{},mensais:{}};
   function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(v!=null)e.setAttribute(k,v);}kids.forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
