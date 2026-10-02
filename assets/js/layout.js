@@ -69,5 +69,20 @@
     try { start(user); } catch (e) { console.error(e); }
   }
 
-  window.Central = { boot, mount, PAGES };
+  /* Dinheiro no padrão brasileiro: todo campo com a classe "money" ou "cx-money" aceita 21000, 21.000,00 ou 21000,5
+     e, ao sair do campo, mostra 21.000,00. Quem grava lê o valor com Central.lerDinheiro(). */
+  function lerDinheiro(s){
+    if (s == null) return 0; s = String(s).replace(/[R$\s\u00a0]/g, ""); if (!s) return 0;
+    if (s.includes(",")) s = s.replace(/\./g, "").replace(",", "."); else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+    const n = parseFloat(s); return isFinite(n) ? Math.round(n * 100) / 100 : 0;
+  }
+  const mostraDinheiro = v => v == null || v === "" ? "" : (+v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  document.addEventListener("focusout", e => {
+    const t = e.target;
+    if (!t || t.tagName !== "INPUT" || t.readOnly || !(t.classList.contains("money") || t.classList.contains("cx-money"))) return;
+    if (t.value.trim() === "") return;
+    t.value = mostraDinheiro(lerDinheiro(t.value));
+  });
+
+  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro };
 })();
