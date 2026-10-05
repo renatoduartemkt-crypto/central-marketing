@@ -157,6 +157,9 @@ textarea{min-height:76px;resize:vertical}
 .err{font-size:13px;color:var(--s-derr);font-weight:600}
 .panel footer{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px;margin-top:auto}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
+.anobox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.anobox h3{margin:0;font-size:16px}.anobox ul{margin:0;padding-left:18px;max-height:220px;overflow:auto;font-size:13.5px}
+.anobox .acts{display:flex;gap:8px;flex-wrap:wrap}.anobox label{font-size:13.5px;display:flex;gap:6px;align-items:center}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;z-index:30}
 
 @media (max-width:760px){
@@ -191,12 +194,14 @@ textarea{min-height:76px;resize:vertical}
       <h2 id="monthTitle"></h2>
       <button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button>
       <button class="btn" type="button" id="todayBtn">Hoje</button>
+      <button class="btn" type="button" id="anoBtn" title="Copia os posts deste mês para as mesmas datas do próximo ano">Repetir este mês no próximo ano</button>
     </div>
     <div class="seg" id="viewSeg" role="group" aria-label="Visualização">
       <button type="button" data-v="cal" aria-pressed="true">Calendário</button>
       <button type="button" data-v="kan" aria-pressed="false">Kanban</button>
     </div>
   </div>
+  <div id="anoBox" hidden></div>
 
   <section class="summary" id="summary" aria-label="Resumo do mês"></section>
 
@@ -246,6 +251,7 @@ textarea{min-height:76px;resize:vertical}
           <option value="semana">Toda semana, no mesmo dia</option>
           <option value="quinzena">A cada 2 semanas, no mesmo dia</option>
           <option value="mes">Todo mês, no mesmo dia</option>
+          <option value="ano">Todo ano, na mesma data (datas comemorativas)</option>
           <option value="uteis">Todo dia útil (seg a sex)</option>
           <option value="dias">Em dias da semana que eu escolher</option>
         </select></div>
@@ -271,9 +277,9 @@ textarea{min-height:76px;resize:vertical}
 <script src="assets/js/custos.js" charset="utf-8"></script>
 <script>
 (function(){
-  const REDES=[{k:"instagram",n:"Instagram",ab:"IG"},{k:"facebook",n:"Facebook",ab:"FB"},{k:"whatsapp",n:"WhatsApp",ab:"WA"},{k:"linkedin",n:"LinkedIn",ab:"IN"}];
+  const REDES=[{k:"instagram",n:"Instagram",ab:"IG"},{k:"facebook",n:"Facebook",ab:"FB"},{k:"whatsapp",n:"WhatsApp",ab:"WA"},{k:"linkedin",n:"LinkedIn",ab:"IN"},{k:"blog",n:"Blog",ab:"BL"}];
   const PERFIS=[{k:"lopes",n:"Distribuidora Lopes",ab:"Lopes",c:"--p-lopes",b:"--p-lopes-bg"},{k:"opta",n:"Opta Suprimentos",ab:"Opta",c:"--p-opta",b:"--p-opta-bg"},{k:"a2j",n:"A2J",ab:"A2J",c:"--p-a2j",b:"--p-a2j-bg"},{k:"grupo",n:"Grupo Lopes",ab:"Grupo",c:"--p-grupo",b:"--p-grupo-bg"}];
-  const TIPOS=[{k:"feed",n:"Feed"},{k:"stories",n:"Stories"},{k:"reels",n:"Reels"},{k:"estatico",n:"Estático"},{k:"carrossel",n:"Carrossel"}];
+  const TIPOS=[{k:"feed",n:"Feed"},{k:"stories",n:"Stories"},{k:"reels",n:"Reels"},{k:"estatico",n:"Estático"},{k:"carrossel",n:"Carrossel"},{k:"artigo",n:"Artigo (blog)"}];
   const temasOf=p=>Array.isArray(p.temas)?p.temas:(p.tema?[p.tema]:[]);
   const temasLabel=p=>temasOf(p).map(k=>(by(TEMAS,k)||{n:k}).n).join(" · ");
   const tiposOf=p=>Array.isArray(p.tipos)?p.tipos:(p.tipo?[p.tipo]:[]);
@@ -413,14 +419,17 @@ textarea{min-height:76px;resize:vertical}
   ["iRep","iRepAte","iData"].forEach(id=>$(id).addEventListener("input",syncRep)); $("oRepDias").addEventListener("change",syncRep);
   const addDays=(s,n)=>{const d=new Date(s+"T12:00");d.setDate(d.getDate()+n);return isoD(d.getFullYear(),d.getMonth(),d.getDate());};
   const endOfMonth=s=>{const [y,m]=s.split("-").map(Number);return isoD(y,m-1,new Date(y,m,0).getDate());};
+  // mesma data no ano seguinte (29/02 vira 28/02)
+  const proxAno=(s,n=1)=>{const [y,m,d]=s.split("-").map(Number);const ult=new Date(y+n,m,0).getDate();return isoD(y+n,m-1,Math.min(d,ult));};
   function repDates(){const mode=$("iRep").value,start=$("iData").value;if(mode==="nao"||!start)return [];
+    if(mode==="ano"){const ate=$("iRepAte").value||proxAno(start);const out=[];for(let n=1;n<=10;n++){const s=proxAno(start,n);if(s>ate)break;out.push(s);}return out;}
     const ate=$("iRepAte").value||endOfMonth(start); const dias=new Set(checks("rdow").map(Number)); const out=[]; const sd=+start.slice(8);
     for(let i=1;i<=400;i++){const s=addDays(start,i);if(s>ate||out.length>=60)break;const di=dowOf(s);let ok=false;
       if(mode==="semana")ok=i%7===0;else if(mode==="quinzena")ok=i%14===0;else if(mode==="uteis")ok=di<5;else if(mode==="dias")ok=dias.has(di);else if(mode==="mes")ok=+s.slice(8)===sd;
       if(ok)out.push(s);}
     return out;}
   function syncRep(){const mode=$("iRep").value;$("repDiasF").hidden=mode!=="dias";$("repAteF").hidden=mode==="nao";
-    const st=$("iData").value; if(mode!=="nao"&&!$("iRepAte").value&&st)$("iRepAte").value=mode==="mes"?addDays(st,182):endOfMonth(st);
+    const st=$("iData").value; if(mode!=="nao"&&!$("iRepAte").value&&st)$("iRepAte").value=mode==="ano"?proxAno(st):mode==="mes"?addDays(st,182):endOfMonth(st);
     const p=$("repPrev"); if(mode==="nao"){p.textContent="";return;}
     if(mode==="dias"&&!checks("rdow").length){p.textContent="Marque os dias da semana.";return;}
     const d=repDates(); const np=Math.max(1,checks("perfil").length); p.textContent=d.length?`Serão criadas mais ${d.length*np} cópia(s)${np>1?` (${d.length} datas × ${np} perfis)`:""}: ${d.slice(0,12).map(fd).join(", ")}${d.length>12?"…":""}`:"Nenhuma data de repetição no período escolhido.";}
@@ -439,8 +448,38 @@ textarea{min-height:76px;resize:vertical}
     $("overlay").hidden=false; setTimeout(()=>$("iTitulo").focus(),40);
   }
   function closeForm(){$("overlay").hidden=true;editingId=null;}
+  // copia posts para a mesma data do ano seguinte (status volta para "Ideia"; não duplica o que já foi repetido)
+  const camposCopia=["titulo","redes","perfis","tipos","temas","planoMarketing","marcas","hora","legenda","notas"];
+  const nt=t=>String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  const jaRepetido=p=>{const d=proxAno(p.data),pf=(p.perfis||[])[0];return posts.some(x=>x.id!==p.id&&x.data===d&&(x.repetidoDe===p.id||(nt(x.titulo)===nt(p.titulo)&&(x.perfis||[])[0]===pf)));};
+  async function repetirAno(lista){
+    const L=lista.filter(p=>p&&p.data&&!jaRepetido(p)); if(!L.length){toast("Esse(s) post(s) já foram repetidos no próximo ano.");return 0;}
+    let n=0; const agora=new Date().toISOString();
+    try{for(const p of L){const c={};camposCopia.forEach(k=>{if(p[k]!==undefined)c[k]=p[k];});
+        if(p.tipo&&!c.tipos)c.tipos=tiposOf(p); if(p.tema&&!c.temas)c.temas=temasOf(p);
+        Object.assign(c,{data:proxAno(p.data),status:"ideia",repetidoDe:p.id,criadoEm:agora,atualizadoEm:agora});
+        await col.add(c); n++;}
+      toast(`${n} post(s) copiados para ${p0ano(L)} · confira o dia da semana de cada um`);}
+    catch(e){toast("Não foi possível copiar todos os posts. Tente de novo.");}
+    return n;}
+  const p0ano=L=>{const a=[...new Set(L.map(p=>proxAno(p.data).slice(0,4)))];return a.join(", ");};
+  $("anoBtn").onclick=()=>{
+    const L=monthPosts().filter(p=>p.status!=="derrubado"); const novos=L.filter(p=>!jaRepetido(p));
+    const host=$("anoBox"); host.textContent=""; host.hidden=false;
+    const fechar=()=>{host.hidden=true;host.textContent="";};
+    if(!L.length){host.append(el("div",{class:"anobox"},el("h3",null,"Nenhum post neste mês para repetir."),el("div",{class:"acts"},el("button",{class:"btn",type:"button",onclick:fechar},"Fechar"))));return;}
+    const sel=new Set(novos.map(p=>p.id));
+    const ul=el("ul",null,...L.map(p=>{const ja=jaRepetido(p);const ck=el("input",{type:"checkbox",checked:ja?null:true,disabled:ja?true:null,onchange:e=>{e.target.checked?sel.add(p.id):sel.delete(p.id);}});
+      return el("li",{style:"list-style:none;margin-left:-18px"},el("label",null,ck,`${fd(p.data)} → ${fd(proxAno(p.data))}/${proxAno(p.data).slice(0,4)} · ${p.titulo||"Sem título"}`+(ja?" (já repetido)":"")));}));
+    const btn=el("button",{class:"btn primary",type:"button",onclick:async()=>{btn.disabled=true;const n=await repetirAno(L.filter(p=>sel.has(p.id)));btn.disabled=false;if(n)fechar();}},"Copiar para o próximo ano");
+    host.append(el("div",{class:"anobox"},el("h3",null,`Repetir posts de ${MESES[M]} de ${Y} em ${MESES[M]} de ${Y+1}`),
+      el("p",{class:"hint",style:"margin:0"},"As cópias entram como “Ideia”, na mesma data do próximo ano, com título, redes, perfis, tipos, temas, legenda e notas. Desmarque o que não deve se repetir."),
+      ul,el("div",{class:"acts"},btn,el("button",{class:"btn",type:"button",onclick:fechar},"Cancelar"))));
+    if(!canWrite)btn.disabled=true;
+    host.scrollIntoView({behavior:"smooth",block:"nearest"});
+  };
   function renderDel(confirm){const a=$("delArea");a.textContent="";if(!editingId||!canWrite)return;const cur=posts.find(x=>x.id===editingId);
-    if(!confirm){a.append(el("div",{class:"confirm"},el("button",{class:"btn danger",type:"button",onclick:()=>renderDel(true)},"Excluir"),el("button",{class:"btn",type:"button",onclick:()=>openForm(cur,null,true)},"Duplicar")));return;}
+    if(!confirm){a.append(el("div",{class:"confirm"},el("button",{class:"btn danger",type:"button",onclick:()=>renderDel(true)},"Excluir"),el("button",{class:"btn",type:"button",onclick:()=>openForm(cur,null,true)},"Duplicar"),el("button",{class:"btn",type:"button",title:"Cria uma cópia na mesma data do próximo ano",onclick:()=>repetirAno([cur]).then(n=>{if(n){closeForm();}})},"Repetir no próximo ano")));return;}
     a.append(el("div",{class:"confirm"},"Excluir este post?",el("button",{class:"btn danger",type:"button",onclick:doDelete},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
   async function doDelete(){try{await col.doc(editingId).delete();closeForm();toast("Post excluído");}catch(e){showErr(e);}}
   $("closeBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm; $("newBtn").onclick=()=>openForm(null);
