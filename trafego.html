@@ -222,6 +222,7 @@ textarea{min-height:64px;resize:vertical}
     <span><i class="l-todo"></i>A preencher</span>
     <span>Números 1 a 10 = ordem de prioridade de preenchimento. Clique em qualquer item para editar.</span>
   </div>
+  <section id="contasPanel" aria-label="Contas de anúncio e verba"></section>
   <section id="custosPanel" aria-label="Custos"></section>
 </div>
 
@@ -305,6 +306,7 @@ textarea{min-height:64px;resize:vertical}
 <script src="assets/js/auth.js" charset="utf-8"></script>
 <script src="assets/js/layout.js" charset="utf-8"></script>
 <script src="assets/js/custos.js" charset="utf-8"></script>
+<script src="assets/js/contas-meta.js" charset="utf-8"></script>
 <script>
 (function(){
   const EMP=[{k:"lopes",n:"Lopes"},{k:"opta",n:"Opta"}];
@@ -551,6 +553,7 @@ textarea{min-height:64px;resize:vertical}
 
   render();
   Central.boot("trafego",user=>{
+    ContasMeta.painel(document.getElementById("contasPanel"));
     Custos.painel(document.getElementById("custosPanel"),{origem:"trafego",titulo:"Custos com produção e impulsionamento",centroPadrao:"propaganda",tipos:[{k:"producao",n:"Produção"},{k:"impulsionamento",n:"Impulsionamento"}],refLabel:"Campanha (opcional)",refs:()=>camps.map(c=>({id:c.id,nome:c.nome||"Campanha"}))});
     col=Store.collection("trafego_campanhas"); canWrite=true;
     col.onSnapshot(sn=>{camps=sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));render();},()=>notice("Não foi possível carregar as campanhas. Recarregue a página."));
