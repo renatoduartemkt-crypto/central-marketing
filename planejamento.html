@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Planejamento 2027 · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/planejamento.css">
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <header class="pl-top">
+    <div><div class="eyebrow">Planejamento anual de marketing · Distribuidora Lopes</div><h1>Planejamento <span>2027</span></h1></div>
+    <p class="hint pl-regra" id="plRegra"></p>
+  </header>
+  <div class="notice" id="notice" hidden></div>
+  <nav class="pl-tabs" id="plTabs" role="tablist" aria-label="Seções do planejamento">
+    <button type="button" role="tab" data-t="geral">Visão geral</button>
+    <button type="button" role="tab" data-t="cronograma">Cronograma</button>
+    <button type="button" role="tab" data-t="trade">Plano de trade e cotas</button>
+    <button type="button" role="tab" data-t="eventos">Eventos</button>
+    <button type="button" role="tab" data-t="orcamento">Orçamento</button>
+    <button type="button" role="tab" data-t="aprovar">Aguardando aprovação <b id="plPend"></b></button>
+  </nav>
+  <section id="plBody" aria-live="polite"></section>
+</div>
+<div class="pl-ov" id="plOv" hidden><form class="pl-panel" id="plForm" novalidate></form></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/planejamento.js" charset="utf-8"></script>
+</body>
+</html>
