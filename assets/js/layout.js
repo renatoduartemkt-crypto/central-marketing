@@ -13,6 +13,7 @@
     { k: "brindes",  href: "brindes.html",  n: "Brindes" },
     { k: "producao", href: "producao.html", n: "Produção" },
     { k: "metas",    href: "metas.html",    n: "Metas e custos" },
+    { k: "planejamento", href: "planejamento.html", n: "Planejamento 2027" },
     { k: "tarefas",  href: "tarefas.html",  n: "Tarefas" },
     { k: "aprovacoes", href: "aprovacoes.html", n: "Aprovações", admin: true },
     { k: "usuarios", href: "usuarios.html", n: "Usuários" }
