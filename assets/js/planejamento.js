@@ -634,10 +634,11 @@
       const desc = fDesc.value.trim(), valor = lerR(fVal.value);
       if (!desc || !valor) { toast("Preencha a descrição e o valor."); (desc ? fVal : fDesc).focus(); return; }
       F.lfMes = +fMes.value; F.lfCen = fCen.value; F.lfCat = fCat.value; btn.disabled = true;
-      try { await C[col].add({ centro: fCen.value, categoria: fCat.value, descricao: desc, valor, mes: +fMes.value, status: admin ? "aprovado" : "proposto", criadoPor: me && me.email });
-        toast(admin ? "Lançamento salvo e aprovado" : "Lançamento enviado para aprovação"); }
+      try { await C[col].add({ centro: fCen.value, categoria: fCat.value, descricao: desc, valor, mes: +fMes.value, status: "proposto", criadoPor: me && me.email });
+        toast("Lançamento salvo como previsto (aguarda aprovação)"); }
       catch (e) { toast((e && e.message) || "Não foi possível salvar."); }
-      btn.disabled = false; fDesc.value = ""; fVal.value = ""; if (render.pend) render();
+      btn.disabled = false; fDesc.value = ""; fVal.value = "";
+      if (document.activeElement) document.activeElement.blur(); render(); const nd = document.querySelector(".pl-lform input[maxlength='160']"); if (nd) nd.focus();
     };
     btn.addEventListener("click", add);
     fVal.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
@@ -680,7 +681,7 @@
     okB.addEventListener("click", async () => {
       if (!sel.size) { toast("Selecione ao menos um mês."); return; }
       okB.disabled = true; let n = 0;
-      try { const ms = [...sel].sort((a, b) => a - b); for (const m of ms) { okB.textContent = `Criando ${n + 1} de ${ms.length}…`; await C.plan_orcamento.add({ centro: x.centro, categoria: x.categoria, descricao: x.descricao, valor: +x.valor || 0, mes: m, status: admin ? "aprovado" : "proposto", criadoPor: me && me.email, serie: x.serie || x.id }); n++; }
+      try { const ms = [...sel].sort((a, b) => a - b); for (const m of ms) { okB.textContent = `Criando ${n + 1} de ${ms.length}…`; await C.plan_orcamento.add({ centro: x.centro, categoria: x.categoria, descricao: x.descricao, valor: +x.valor || 0, mes: m, status: "proposto", criadoPor: me && me.email, serie: x.serie || x.id }); n++; }
         toast(`${n} cópia${n === 1 ? "" : "s"} criada${n === 1 ? "" : "s"}`); ov.remove(); }
       catch (e) { toast((e && e.message) || "Não foi possível criar as cópias."); okB.disabled = false; okB.textContent = "Criar cópias"; }
     });
@@ -904,11 +905,11 @@
           const rk = REPETE[col];
           const meses = rk && ins._meses ? [...ins._meses.querySelectorAll("input:checked")].map(i => +i.value).filter(m => m !== o[rk]) : [];
           const serie = meses.length ? "s" + Date.now().toString(36) : null;
-          const st = FIRMES[col] ? (FIRMES[col].includes(o.etapa) ? "aprovado" : o.etapa === "cancelado" ? "recusado" : "proposto") : (admin ? "aprovado" : "proposto");
+          const st = FIRMES[col] ? (FIRMES[col].includes(o.etapa) ? "aprovado" : o.etapa === "cancelado" ? "recusado" : "proposto") : (admin && col !== "plan_orcamento" ? "aprovado" : "proposto");
           const base = Object.assign({ status: st, criadoPor: me && me.email }, o, serie ? { serie } : {});
           await C[col].add(base);
           for (const m of meses) await C[col].add(Object.assign({}, base, { [rk]: m }, col === "plan_acoes" ? { inicio: "", fim: "" } : {}));
-          toast(FIRMES[col] ? `Salvo${meses.length ? ` (${meses.length + 1} meses)` : ""}` : admin ? "Salvo e aprovado" : `Enviado para aprovação${meses.length ? ` (${meses.length + 1} meses)` : ""}`);
+          toast(col === "plan_orcamento" ? `Salvo como previsto (aguarda aprovação)${meses.length ? ` · ${meses.length + 1} meses` : ""}` : FIRMES[col] ? `Salvo${meses.length ? ` (${meses.length + 1} meses)` : ""}` : admin ? "Salvo e aprovado" : `Enviado para aprovação${meses.length ? ` (${meses.length + 1} meses)` : ""}`);
         } else { await C[col].doc(x.id).update(o); toast("Salvo"); }
         fechar();
       } catch (e) { err.hidden = false; err.textContent = (e && e.message) || "Não foi possível salvar."; btn.disabled = false; }
