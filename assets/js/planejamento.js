@@ -47,14 +47,23 @@
   // centros de custo do grupo Comercial/Marketing; "id" liga ao centro usado em Metas e custos
   const CENTROS = [
     { c: "200020", n: "Material de venda / propaganda", id: "propaganda" },
-    { c: "200021", n: "Material terceirizado", id: "terceirizado", cats: [["catalogo", "Catálogo de produtos"], ["producao", "Produção de conteúdo terceirizada"], ["plotagem", "Plotagens"], ["merchandising", "Material de merchandising"], ["agencia", "Agência de tráfego pago (fee)"]] },
+    { c: "200021", n: "Material terceirizado", id: "terceirizado" },
     { c: "200022", n: "Eventos", id: "eventos", derivado: "eventos" },
     { c: "200023", n: "Brindes", id: "brindes", derivado: "brindes" },
     { c: "200024", n: "Softwares", id: "softwares" },
     { c: "200018", n: "Feiras / eventos / palestras", id: "" },
     { c: "200310", n: "Folha de marketing (200310–200316)", id: "" }];
   const centroN = c => (CENTROS.find(x => x.c === c) || { n: c }).n;
-  const catN = (c, k) => { const ce = CENTROS.find(x => x.c === c); const f = ce && ce.cats && ce.cats.find(x => x[0] === k); return f ? f[1] : (k || ""); };
+  // categorias de lançamento de cada centro de custo (o 200021 segue o planejamento que já existia)
+  const CATS = {
+    "200020": [["impressos", "Impressos (folders, tabloides, encartes)"], ["pdv", "Material de PDV e displays"], ["midia", "Mídia e propaganda"], ["outros", "Outros"]],
+    "200021": [["catalogo", "Catálogo de produtos"], ["producao", "Produção de conteúdo terceirizada"], ["plotagem", "Plotagens"], ["merchandising", "Material de merchandising"], ["agencia", "Agência de tráfego pago (fee)"], ["outros", "Outros"]],
+    "200022": [["estrutura", "Estrutura e locação"], ["alimentacao", "Alimentação e bebidas"], ["viagem", "Viagens e hospedagem"], ["fornecedores", "Fornecedores e produção"], ["outros", "Outros custos de eventos"]],
+    "200023": [["avulsos", "Brindes avulsos"], ["outros", "Outros"]],
+    "200024": [["assinaturas", "Assinaturas e licenças"], ["ferramentas", "Ferramentas e plataformas"], ["outros", "Outros"]],
+    "200018": [["inscricoes", "Inscrições e cotas de feiras"], ["estande", "Estande e montagem"], ["viagem", "Viagens"], ["outros", "Outros"]],
+    "200310": [["salarios", "Salários"], ["encargos", "Encargos"], ["beneficios", "Benefícios"], ["outros", "Outros"]] };
+  const catN = (c, k) => { const f = (CATS[c] || []).find(x => x[0] === k); return f ? f[1] : (k || ""); };
   // premissas padrão (substituídas pelo documento plan_config/2027 quando existir)
   const CFG0 = {
     cotas: { diamante: { preco: 9500, vagas: 6 }, ouro: { preco: 5000, vagas: 16 }, prata: { preco: 3500, vagas: 3 } },
@@ -79,7 +88,7 @@
 
   const D = { cfg: null, fases: [], cotas: [], eventos: [], brindes: [], orc: [] };
   const C = {}; let me = null, admin = false, tab = "geral";
-  const F = { evMes: null, evSit: "", evUf: "", evVer: "mes", brMes: null, brSit: "", brFin: "", brConta: "", brVer: "mes", fiMes: null, fiModo: "previsto", fiCentro: "" };
+  const F = { evMes: null, evSit: "", evUf: "", evVer: "mes", brMes: null, brSit: "", brFin: "", brConta: "", brVer: "mes", fiMes: null, fiModo: "previsto", fiCentro: "", fiAba: "painel", fiCat: "", fiSit: "", lfMes: null, lfCen: "", lfCat: "" };
   try { tab = sessionStorage.getItem("pl-tab") || "geral"; } catch (_) {}
   const cfg = () => { const c = Object.assign({}, CFG0, D.cfg || {}); c.cotas = Object.assign({}, CFG0.cotas, (D.cfg || {}).cotas || {}); return c; };
   const ok = x => x.status === "aprovado";
@@ -140,7 +149,7 @@
   const btnNovo = (txt, fn) => el("button", { class: "pl-btn pri", type: "button", onclick: fn }, txt);
 
   /* Painel no estilo do calendário de eventos: faixa azul com a régua de meses (clique filtra o mês) */
-  function regua({ marca, titulo, lede, vals, conf, cont, sel, onSel, acoes, legenda }){
+  function regua({ marca, titulo, lede, vals, conf, cont, unid, sel, onSel, acoes, legenda }){
     const max = Math.max(...vals, 1);
     const r = el("div", { class: "pl-ruler", role: "group", "aria-label": titulo });
     vals.forEach((v, i) => {
@@ -148,7 +157,7 @@
       r.append(el("button", { type: "button", class: "m" + (i % 3 === 0 && i ? " q" : ""), "aria-pressed": String(sel === i + 1),
         "aria-label": `${cap(MESES_L[i])}: ${brl0(v)}${conf ? `, ${brl0(conf[i])} confirmado` : ""}`, onclick: onSel ? () => onSel(sel === i + 1 ? null : i + 1) : null },
         el("span", { class: "bar" + (v > 0 ? " has" : ""), style: `height:${h}px` }, hc ? el("i", { style: `height:${hc}px` }) : null),
-        el("span", { class: "ml" }, cap(MESES[i])), el("span", { class: "mv" }, curto(v)), cont ? el("span", { class: "mc" }, `${cont[i]} ${cont[i] === 1 ? "item" : "itens"}`) : null));
+        el("span", { class: "ml" }, cap(MESES[i])), el("span", { class: "mv" }, curto(v)), cont ? el("span", { class: "mc" }, `${cont[i]} ${(unid || ["item", "itens"])[cont[i] === 1 ? 0 : 1]}`) : null));
     });
     return el("header", { class: "pl-hero" }, el("p", { class: "brand" }, marca || "Distribuidora Lopes · planejamento de marketing"), el("h2", null, titulo), lede ? el("p", { class: "lede" }, lede) : null,
       acoes ? el("div", { class: "acts" }, acoes) : null,
@@ -197,7 +206,7 @@
   function tabelaCentros(MP, MC){
     const c = cfg(), tb = el("tbody"); let tp = 0, tc = 0;
     CENTROS.forEach(ce => { const b = c.base2026[ce.c] || [0, 0], p = soma(MP[ce.c] || []), cf = soma(MC[ce.c] || []); tp += p; tc += cf; const v = b[0] ? (p - b[0]) / b[0] * 100 : NaN;
-      tb.append(el("tr", { class: "click", onclick: () => { if (ce.derivado) irPara(ce.derivado); else { F.fiCentro = ce.c; irPara("financeiro"); } } },
+      tb.append(el("tr", { class: "click", onclick: () => { F.fiCentro = ce.c; F.fiCat = ""; F.fiAba = "cat"; irPara("financeiro"); } },
         el("td", null, el("b", null, ce.c), " ", ce.n), el("td", { class: "r m" }, brl0(b[0])), el("td", { class: "r m" }, brl0(b[1])), el("td", { class: "r m" }, el("b", null, brl0(p))), el("td", { class: "r m" }, cf ? brl0(cf) : "—"),
         el("td", { class: "r m " + (!p ? "mut" : v > 0 ? "neg" : v < 0 ? "pos" : "") }, !p && b[0] ? "a planejar" : isFinite(v) ? (v > 0 ? "+" : "") + pct(v) : (p ? "novo" : "—")))); });
     return card(`Orçamento por centro de custo · ${ANO} × ${ANO - 1}`, el("span", { class: "pl-who" }, "clique numa linha para abrir"),
@@ -296,93 +305,356 @@
         el("ul", { class: "pl-rows" }, ...evs.map(linha)))); });
   }
 
-  /* ---------- brindes ---------- */
+  /* ---------- brindes (como no calendário de eventos: cada item tem uma ou mais compras) ---------- */
+  const ICPS = [["001", "001 Dono"], ["002", "002 Gerente/Comprador"], ["003", "003 Vendedor de loja"], ["004", "004 Especificador"], ["interno", "Time interno"]];
+  const icpN = k => (ICPS.find(i => i[0] === k) || [k, k])[1];
+  const bid = x => x.itemId || x.id;
+  const gruposBr = L => { const m = new Map(); L.forEach(x => { const k = bid(x); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }); m.forEach(a => a.sort((p, q) => mesBr(p) - mesBr(q) || (+p.ordem || 0) - (+q.ordem || 0))); return m; };
+  const seriesEv = () => { const m = new Map(); D.eventos.forEach(e => { const k = String(e.nome || "").trim(); if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(e); }); return m; };
+  const lbl = (t, i, cls, extra) => el("label", { class: cls || "" }, t, i, extra || null);
+
   function brindes(B){
     const c = cfg(), col = "plan_brindes";
     const vals = Array(12).fill(0), conf = Array(12).fill(0), cont = Array(12).fill(0);
     D.brindes.filter(ativo).filter(em23).forEach(x => { const m = mesBr(x); if (m) { vals[m - 1] += totBr(x); cont[m - 1]++; if (firme(col)(x)) conf[m - 1] += totBr(x); } });
-    B.append(regua({ titulo: `Brindes ${ANO}`, lede: "Quanto a conta 200023 precisa em cada mês, pelo mês de pagamento (não o de uso). Lance cada compra com quantidade e custo; a situação de cada item fica no menu da linha e só o gerente aprova a compra.",
-      vals, conf, cont, legenda: true, sel: F.brMes, onSel: m => { F.brMes = m; render(); }, acoes: [btnNovo("+ Lançar brinde", () => form(col, null))] }));
+    B.append(regua({ titulo: `Brindes ${ANO}`, lede: "Lance cada brinde que pretende comprar, com quantidade, custo e o mês em que será pago. A régua mostra quanto a conta 200023 precisa em cada mês; a parte laranja já foi aprovada pelo gerente.",
+      vals, conf, cont, unid: ["compra", "compras"], legenda: true, sel: F.brMes, onSel: m => { F.brMes = m; render(); }, acoes: [btnNovo("Lançar brinde", () => formBrinde(null))] }));
     const A = D.brindes.filter(ativo), A23 = A.filter(em23), bruto = soma(A23.map(totBr)), verba = soma(A23.map(x => x.verba)), dez = soma(A23.filter(x => mesBr(x) === 12).map(totBr));
     const fora = soma(A.filter(x => !em23(x)).map(totBr)), K = soma(A23.filter(firme(col)).map(totBr)), base = c.base2026["200023"] || [0, 0];
-    B.append(totais([[curto(bruto), "a orçar na 200023", "net"], [curto(K), "já aprovado"], [curto(verba), "verba de indústria"], [curto(Math.max(0, bruto - verba)), "líquido 200023"],
-      [bruto ? Math.round(dez / bruto * 100) + "%" : "—", "pago em dezembro"], [curto(fora), "fora da 200023"]]));
-    B.append(el("p", { class: "pl-ref" }, `Referência ${ANO - 1}: ${brl0(base[0])} planejados na 200023 e ${brl0(base[1])} realizados até setembro, com 70% concentrados em dezembro. Brindes já incluídos no custo de um evento aparecem na lista, mas não somam na 200023.`));
+    B.append(totais([[`${gruposBr(A).size} / ${A.length}`, "itens / compras"], [curto(bruto), "a orçar na 200023"], [curto(verba), "verba de indústria"], [curto(Math.max(0, bruto - verba)), "líquido 200023", "net"],
+      [curto(K), "já aprovado"], [bruto ? Math.round(dez / bruto * 100) + "%" : "—", "pago em dezembro"], [curto(fora), "fora da 200023"]]));
+    B.append(el("p", { class: "pl-ref" }, el("b", null, `Referência ${ANO - 1}: ${brl0(base[0])} planejados`), ` na conta 200023 (${brl0(base[1])} realizados até setembro), com 70% concentrados em dezembro. A régua considera o mês de pagamento, não o de uso. Brindes já incluídos no custo de um evento aparecem na lista, mas não somam na 200023.`));
     const temF = F.brMes || F.brSit || F.brFin || F.brConta;
     B.append(el("div", { class: "pl-filters" }, el("span", { class: "pl-who" }, "Ver"), seg([["mes", "Por mês de pagamento"], ["item", "Por item"]], F.brVer, v => { F.brVer = v; render(); }),
       filtro("Finalidade", FIN.map(f => [f, f]), F.brFin, v => { F.brFin = v; render(); }), filtro("Situação", SITUACOES[col], F.brSit, v => { F.brSit = v; render(); }), filtro("Conta", CONTAS_BR, F.brConta, v => { F.brConta = v; render(); }),
       temF ? el("button", { type: "button", class: "pl-link", onclick: () => { F.brMes = null; F.brSit = F.brFin = F.brConta = ""; render(); } }, "Limpar filtros") : null));
+    if (!D.brindes.length) { B.append(el("div", { class: "pl-empty" }, "Nenhum brinde lançado ainda. Um bom começo são os kits dos eventos do calendário: vincule o evento e use \"Puxar do evento\".", el("br"), el("br"), btnNovo("Lançar o primeiro brinde", () => formBrinde(null)))); return; }
     const L = D.brindes.filter(x => (!F.brMes || mesBr(x) === F.brMes) && (!F.brSit || etapa(x) === F.brSit) && (!F.brFin || x.finalidade === F.brFin) && (!F.brConta || (x.conta || "200023") === F.brConta))
       .sort((a, b) => mesBr(a) - mesBr(b) || String(a.descricao).localeCompare(b.descricao));
-    if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.brindes.length ? "Nenhum brinde com esses filtros." : "Nenhum brinde lançado ainda. Use \"+ Lançar brinde\" para cada compra prevista (quantidade, custo e mês de pagamento).")); return; }
-    const linha = x => el("li", { class: "pl-row" + (etapa(x) === "cancelado" ? " cancel" : ""), tabindex: "0", onclick: () => form(col, x), onkeydown: e => { if (e.key === "Enter") form(col, x); } },
-      el("div", null, el("div", { class: "nm" }, x.descricao), el("div", { class: "sb" }, [x.finalidade, x.evento ? "evento: " + x.evento : ""].filter(Boolean).join(" · "))),
-      el("div", { class: "c2" }, el("div", null, `${(+x.quantidade || 0).toLocaleString("pt-BR")} × ${brl(x.custoUnit)}`), el("div", { class: "sb" }, x.mesUso ? `uso em ${MESES_L[x.mesUso - 1]}` : (x.fornecedor || ""))),
-      el("div", { class: "c3" }, el("div", null, em23(x) ? "200023" : (CONTAS_BR.find(k => k[0] === x.conta) || ["", "Outra"])[1]), em23(x) ? el("div", { class: "sb" }, x.dri || "") : el("div", { class: "pl-out" }, "não soma na 200023")),
-      el("div", { class: "mo" }, el("div", null, brl0(totBr(x))), el("div", { class: "sb" }, x.verba ? "líquido " + brl0(liqBr(x)) : "")), sitSelect(col, x));
+    if (!L.length) { B.append(el("div", { class: "pl-empty" }, "Nenhuma compra com esses filtros.")); return; }
+    const todos = gruposBr(D.brindes);
+    const contaN = x => (CONTAS_BR.find(k => k[0] === (x.conta || "200023")) || ["", "Outra conta"])[1];
+    const linha = x => { const g = todos.get(bid(x)) || [x], n = g.length, pos = g.indexOf(x) + 1;
+      return el("li", { class: "pl-row" + (etapa(x) === "cancelado" ? " cancel" : ""), tabindex: "0", onclick: () => formBrinde(x), onkeydown: e => { if (e.key === "Enter") formBrinde(x); } },
+        el("div", null, el("div", { class: "nm" }, x.descricao), el("div", { class: "sb" }, [x.finalidade, x.evento].filter(Boolean).join(", ")),
+          el("div", { class: "pl-chips" }, n > 1 ? el("span", { class: "pl-chip serie" }, `${pos} de ${n}`) : null, x.mesUso ? el("span", { class: "pl-chip" }, `uso em ${MESES[x.mesUso - 1]}`) : null, ...(x.icps || []).map(i => el("span", { class: "pl-chip" }, icpN(i))))),
+        el("div", { class: "c2" }, el("div", null, `${x.quantidade != null ? (+x.quantidade).toLocaleString("pt-BR") : "—"} × ${brl(x.custoUnit)}`), el("div", { class: "sb" }, x.fornecedor || "Fornecedor a definir")),
+        el("div", { class: "c3" }, el("div", null, contaN(x)), em23(x) ? null : el("div", { class: "pl-out" }, "não soma na 200023")),
+        el("div", { class: "mo" }, el("div", null, brl(totBr(x))), el("div", { class: "sb" }, x.verba ? "líquido " + brl(liqBr(x)) : "")), sitSelect(col, x)); };
     if (F.brVer === "item") {
-      const G = new Map(); L.forEach(x => { const k = String(x.descricao || "").trim().toLowerCase(); if (!G.has(k)) G.set(k, []); G.get(k).push(x); });
-      const byF = {}; [...G.values()].forEach(g => { const f = g[0].finalidade || "Sem finalidade"; (byF[f] = byF[f] || []).push(g); });
-      Object.keys(byF).sort().forEach(f => { const gs = byF[f];
-        B.append(el("section", { class: "pl-month" }, el("h3", null, f, el("small", null, `${gs.length} ite${gs.length === 1 ? "m" : "ns"}, ${brl0(soma(gs.flat().filter(ativo).filter(em23).map(totBr)))} na 200023`)),
-          el("ul", { class: "pl-rows" }, ...gs.map(g => { const ms = new Set(g.filter(ativo).map(mesBr));
+      const gs = [...gruposBr(L).values()], byF = {};
+      gs.forEach(g => { const f = g[0].finalidade || "Outro"; (byF[f] = byF[f] || []).push(g); });
+      FIN.concat(Object.keys(byF).filter(f => !FIN.includes(f))).filter(f => byF[f]).forEach(f => { const G = byF[f];
+        B.append(el("section", { class: "pl-month" }, el("h3", null, f, el("small", null, `${G.length} ite${G.length === 1 ? "m" : "ns"}, ${brl(soma(G.flat().filter(ativo).filter(em23).map(totBr)))} na 200023`)),
+          el("ul", { class: "pl-rows" }, ...G.map(g => { const at = g.filter(ativo), ms = new Set(at.map(mesBr)), r = g[0];
             return el("li", null, el("details", { class: "pl-grp" }, el("summary", null,
-              el("div", null, el("div", { class: "nm" }, g[0].descricao), el("div", { class: "sb" }, `${g.length} compra${g.length === 1 ? "" : "s"}, ${soma(g.map(x => x.quantidade)).toLocaleString("pt-BR")} unidades`),
-                el("div", { class: "pl-strip" }, ...MESES.map((m, i) => el("span", { class: ms.has(i + 1) ? "on" : "", title: m })))),
-              el("div", { class: "c2" }, el("div", null, g[0].fornecedor || "—"), el("div", { class: "sb" }, "fornecedor")),
-              el("div", { class: "mo" }, el("div", null, brl0(soma(g.filter(ativo).map(totBr)))), el("div", { class: "sb" }, em23(g[0]) ? "200023" : "fora da 200023"))), el("ul", { class: "pl-rows in" }, ...g.map(linha)))); }))));
+              el("div", null, el("div", { class: "nm" }, r.descricao), el("div", { class: "sb" }, `${g.length} compra${g.length === 1 ? "" : "s"}${r.evento ? ", " + r.evento : ""}`),
+                el("div", { class: "pl-strip", "aria-label": "Meses de pagamento" }, ...MESES.map((m, i) => el("span", { class: ms.has(i + 1) ? "on" : "", title: m })))),
+              el("div", { class: "c2" }, el("div", null, `${soma(at.map(x => x.quantidade)).toLocaleString("pt-BR")} unidades`), el("div", { class: "sb" }, r.fornecedor || "Fornecedor a definir")),
+              el("div", { class: "c3" }, el("div", null, r.dri || "Sem responsável"), el("div", { class: "sb" }, "responsável")),
+              el("div", { class: "mo" }, el("div", null, brl(soma(at.map(totBr)))), el("div", { class: "sb" }, em23(r) ? "200023" : "fora da 200023"))), el("ul", { class: "pl-rows in" }, ...g.map(linha)))); }))));
       });
       return;
     }
     const by = {}; L.forEach(x => (by[mesBr(x)] = by[mesBr(x)] || []).push(x));
     Object.keys(by).map(Number).sort((a, b) => a - b).forEach(m => { const rs = by[m];
-      B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês de pagamento", el("small", null, `${rs.length} compra${rs.length === 1 ? "" : "s"}, ${brl0(soma(rs.filter(ativo).filter(em23).map(totBr)))} na 200023`)),
+      B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês de pagamento", el("small", null, `${rs.length} compra${rs.length === 1 ? "" : "s"}, ${brl(soma(rs.filter(ativo).filter(em23).map(totBr)))} na 200023`)),
         el("ul", { class: "pl-rows" }, ...rs.map(linha)))); });
   }
 
-  /* ---------- financeiro ---------- */
+  /* formulário do brinde: dados do item + uma linha por compra */
+  function formBrinde(x){
+    const col = "plan_brindes", Fm = $("plForm"); Fm.textContent = ""; Fm.className = "pl-panel wide";
+    const g = x ? (gruposBr(D.brindes).get(bid(x)) || [x]) : [];
+    const temFirme = g.some(firme(col)), travItem = !admin && temFirme;
+    const v = x ? g[0] : { finalidade: F.brFin || FIN[0], conta: F.brConta || "200023" };
+    const bd = el("div", { class: "bd" });
+    const inp = (k, a) => { const i = el("input", Object.assign({ type: "text", value: v[k] != null ? String(v[k]) : "" }, a || {})); if (travItem) i.readOnly = true; return i; };
+    const sel = (k, opts) => { const s = el("select", null, ...opts.map(([a, b]) => el("option", { value: String(a) }, b))); s.value = v[k] != null ? String(v[k]) : String(opts[0][0]); if (travItem) s.disabled = true; return s; };
+    const evs = [...seriesEv().entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, L]) => [k, `${k} (${L.length} ${L.length === 1 ? "edição" : "edições"})`]);
+    if (v.evento && !evs.some(e => e[0] === v.evento)) evs.push([v.evento, v.evento + " (não está no calendário)"]);
+    const I = { descricao: inp("descricao", { maxlength: "140", placeholder: "Ex.: Kit Feirão (ecobag, squeeze e caneta)" }), finalidade: sel("finalidade", FIN.map(f => [f, f])), conta: sel("conta", CONTAS_BR),
+      evento: sel("evento", [["", "Nenhum"]].concat(evs)), fornecedor: inp("fornecedor", { maxlength: "120" }), prazo: inp("prazo", { inputmode: "numeric", placeholder: "Ex.: 30" }),
+      dri: inp("dri", { maxlength: "80", placeholder: "Um nome só" }), obs: el("textarea", { maxlength: "1500" }, v.obs || "") };
+    const icps = el("div", { class: "pl-checks" }, ...ICPS.map(([k, n]) => { const cb = el("input", { type: "checkbox", value: k }); cb.checked = (v.icps || []).includes(k); if (travItem) cb.disabled = true; return el("label", null, cb, n); }));
+    const evHint = el("span", { class: "pl-evh" });
+    const upHint = () => { const s = seriesEv().get(I.evento.value); if (!s) { evHint.textContent = ""; return; } const at = s.filter(ativo), pub = soma(at.map(e => e.publico));
+      evHint.textContent = `${at.length} ${at.length === 1 ? "edição ativa" : "edições ativas"} em ${[...new Set(at.map(e => MESES[mesEv(e) - 1]))].join(", ")}. Público total informado: ${pub ? pub.toLocaleString("pt-BR") : "não informado"}.`; };
+    I.evento.addEventListener("change", upHint); upHint();
+    const lista = el("div", { class: "pl-compras w2" }), prev = el("p", { class: "pl-prev w2" }), err = el("p", { class: "pl-err", hidden: true });
+    const mOpts = [["", "Escolha"]].concat(mesesOpt);
+    const vv = i => i.value.trim() === "" ? null : lerR(i.value);
+    const offset = () => Math.ceil((Math.round(lerR(I.prazo.value)) || 0) / 30);
+    const ler = n => { const R = n._R; return { mesPagamento: +R.mp.value || null, mesUso: +R.mu.value || null, quantidade: R.qtd.value.trim() === "" ? null : Math.round(lerR(R.qtd.value)), custoUnit: vv(R.unit), adicionais: vv(R.add), verba: vv(R.verba), etapa: R.st.value }; };
+    const rows = () => [...lista.children].map(ler);
+    const renum = () => [...lista.children].forEach((n, i) => n.querySelector(".num").textContent = "Compra " + (i + 1));
+    function upd(){
+      [...lista.children].forEach(n => { n._R.tot.textContent = ""; n._R.tot.append("Total ", el("strong", null, brl(totBr(ler(n))))); });
+      const rs = rows().filter(ativo), t = soma(rs.map(totBr)), vb = soma(rs.map(r => r.verba)), q = soma(rs.map(r => r.quantidade));
+      prev.textContent = `${rs.length} ${rs.length === 1 ? "compra ativa" : "compras ativas"}, ${q.toLocaleString("pt-BR")} unidades. Total ${brl(t)}${vb ? `, verba de indústria ${brl(vb)}, líquido ${brl(Math.max(0, t - vb))}` : ""}.${I.conta.value === "200023" ? "" : " Este item não soma na conta 200023."}`;
+    }
+    function addRow(o, doc){
+      o = o || {};
+      const trav = !admin && doc && firme(col)(doc);
+      const s = (opts, val) => { const e = el("select", null, ...opts.map(([a, b]) => el("option", { value: String(a) }, b))); e.value = val != null ? String(val) : ""; if (trav) e.disabled = true; return e; };
+      const mo = val => { const e = el("input", { type: "text", class: "money", inputmode: "decimal", placeholder: "0,00", value: val != null && val !== "" ? num(val) : "" }); if (trav) e.readOnly = true; return e; };
+      const et = o.etapa || "ideia";
+      const R = { mp: s(mOpts, o.mesPagamento), mu: s(mOpts, o.mesUso), qtd: el("input", { type: "text", inputmode: "numeric", value: o.quantidade != null ? String(o.quantidade) : "" }),
+        unit: mo(o.custoUnit), add: mo(o.adicionais), verba: mo(o.verba), tot: el("span", { class: "pl-ctot" }),
+        st: el("select", null, ...SITUACOES[col].map(([k, n]) => el("option", { value: k, disabled: !admin && FIRMES[col].includes(k) && k !== et ? true : null }, n + (!admin && FIRMES[col].includes(k) ? " (gerente)" : "")))) };
+      R.st.value = et; if (trav) { R.qtd.readOnly = true; R.st.disabled = true; }
+      const n = el("div", { class: "pl-compra" + (trav ? " trav" : "") },
+        el("div", { class: "hd" }, el("b", { class: "num" }), trav ? el("span", { class: "pl-who" }, "🔒 aprovada pelo gerente")
+          : el("button", { type: "button", class: "pl-link", onclick: () => { if (lista.children.length <= 1) { toast("O brinde precisa de pelo menos uma compra."); return; } n.remove(); renum(); upd(); } }, "Remover")),
+        el("div", { class: "g" }, lbl("Mês de pagamento", R.mp), lbl("Mês de uso", R.mu), lbl("Quantidade", R.qtd), lbl("Custo unitário (R$)", R.unit),
+          lbl("Adicionais (R$)", R.add, null, el("small", null, "frete, arte, gravação")), lbl("Verba de indústria (R$)", R.verba), lbl("Situação", R.st), R.tot));
+      R.mu.addEventListener("change", () => { if (!R.mp.value && R.mu.value) R.mp.value = String(Math.max(1, +R.mu.value - offset())); });
+      n._R = R; n._doc = doc || null; lista.append(n); renum(); return n;
+    }
+    const limpaVazias = () => [...lista.children].filter(n => !n._doc && !n._R.mp.value && !n._R.qtd.value.trim()).forEach(n => { if (lista.children.length > 1) n.remove(); });
+    const last = () => { const r = rows(); return r[r.length - 1] || {}; };
+    const tools = el("div", { class: "pl-tools w2" },
+      el("button", { type: "button", class: "pl-btn", onclick: () => { const l = last(); addRow({ ...l, mesPagamento: l.mesPagamento ? Math.min(12, l.mesPagamento + 1) : null, mesUso: l.mesUso ? Math.min(12, l.mesUso + 1) : null, etapa: "ideia" }); upd(); } }, "+ Nova compra"),
+      el("button", { type: "button", class: "pl-btn", onclick: () => {
+        const s = seriesEv().get(I.evento.value); if (!s) { toast("Escolha primeiro o evento vinculado."); I.evento.focus(); return; }
+        const l = last(), off = offset(), at = s.filter(ativo), usados = new Set(rows().map(r => r.mesUso + "|" + r.quantidade));
+        limpaVazias(); if (lista.children.length === 1 && !lista.children[0]._doc && !lista.children[0]._R.mp.value && !lista.children[0]._R.qtd.value.trim()) lista.children[0].remove();
+        let k = 0; at.forEach(e => { const m = mesEv(e), key = m + "|" + (e.publico != null ? e.publico : null); if (usados.has(key)) return;
+          addRow({ mesUso: m, mesPagamento: Math.max(1, m - off), quantidade: e.publico != null ? e.publico : null, custoUnit: l.custoUnit != null ? l.custoUnit : null, etapa: "ideia" }); k++; });
+        if (!lista.children.length) addRow({}); renum(); upd();
+        const sem = at.filter(e => !e.publico).length;
+        toast(k ? `${k} ${k === 1 ? "compra criada" : "compras criadas"}${sem ? `, ${sem} sem público informado` : ""}` : "As edições do evento já estão lançadas");
+        if (off && at.some(e => mesEv(e) - off < 1)) setTimeout(() => toast("Alguma edição precisaria ser paga ainda em 2026. Ajuste o mês de pagamento dela."), 2900);
+      } }, "Puxar do evento"),
+      el("button", { type: "button", class: "pl-btn", onclick: () => { const l = last(), have = new Set(rows().map(r => r.mesPagamento).filter(Boolean)); let k = 0;
+        for (let m = 1; m <= 12; m++) if (!have.has(m)) { addRow({ ...l, mesPagamento: m, mesUso: m, etapa: "ideia" }); k++; }
+        limpaVazias(); renum(); upd(); toast(k ? `${k} ${k === 1 ? "mês adicionado" : "meses adicionados"}` : "Já há compra em todos os meses"); } }, "Repetir todo mês"),
+      el("button", { type: "button", class: "pl-btn", onclick: () => { const ns = [...lista.children]; if (ns.length < 2) return; const u = ns[0]._R.unit.value; ns.slice(1).forEach(n => { if (!n._R.unit.readOnly) n._R.unit.value = u; }); upd(); toast("Custo unitário copiado"); } }, "Copiar custo unitário da 1ª para todas"));
+    if (travItem) bd.append(el("p", { class: "pl-lock" }, "🔒 Este brinde tem compra aprovada pelo gerente: os dados do item e as compras aprovadas ficam travados. Você ainda pode lançar novas compras e alterar as que estão em ideia ou cotação."));
+    else if (!admin) bd.append(el("p", { class: "pl-lock" }, "Você pode lançar e editar o brinde; só o gerente aprova a compra."));
+    bd.append(el("h3", { class: "pl-leg" }, "Item"), el("p", { class: "pl-hint2" }, "Estes campos valem para todas as compras do item."),
+      lbl("Descrição do brinde *", I.descricao, "w2"), lbl("Finalidade", I.finalidade), lbl("Conta contábil", I.conta), lbl("Evento vinculado", I.evento, "w2", evHint),
+      lbl("Fornecedor", I.fornecedor), lbl("Prazo de produção (dias)", I.prazo), lbl("Responsável (DRI)", I.dri), el("div", { class: "w2 pl-fl" }, el("span", null, "Para quem"), icps),
+      el("h3", { class: "pl-leg" }, "Compras"), el("p", { class: "pl-hint2" }, "Uma linha para cada compra. O mês de pagamento é o que entra no orçamento. Com um evento vinculado, \"Puxar do evento\" cria uma compra por edição, com a quantidade igual ao público e o pagamento antecipado pelo prazo de produção."),
+      lista, tools, prev, el("h3", { class: "pl-leg" }, "Observações"), lbl("", I.obs, "w2"), err);
+    if (g.length) g.forEach(d => addRow(d, d)); else addRow({ mesPagamento: F.brMes || null });
+    bd.addEventListener("input", upd); bd.addEventListener("change", upd); upd();
+    const showErr = t => { err.hidden = false; err.textContent = t; err.scrollIntoView({ block: "center" }); };
+    const save = el("button", { class: "pl-btn pri", type: "submit" }, x ? "Salvar alterações" : "Salvar brinde");
+    const pe = el("div", { class: "pl-acts" });
+    if (x && (admin || !temFirme)) pe.append(el("button", { class: "pl-btn bad", type: "button", onclick: async () => {
+      if (!confirm(g.length > 1 ? `Excluir as ${g.length} compras deste brinde?` : "Excluir este brinde?")) return;
+      try { for (const d of g) await C[col].doc(d.id).delete(); toast(g.length > 1 ? `${g.length} compras excluídas` : "Brinde excluído"); fechar(); } catch (e) { showErr((e && e.message) || "Não foi possível excluir."); } } }, g.length > 1 ? `Excluir as ${g.length} compras` : "Excluir brinde"));
+    Fm.append(el("header", null, el("h2", null, x ? "Editar brinde" : "Lançar brinde"), el("button", { class: "x", type: "button", "aria-label": "Fechar", onclick: fechar }, "×")), bd,
+      el("footer", null, pe, el("div", { class: "pl-acts" }, el("button", { class: "pl-btn", type: "button", onclick: fechar }, "Cancelar"), save)));
+    Fm.onsubmit = async ev => {
+      ev.preventDefault(); err.hidden = true;
+      const desc = I.descricao.value.trim(); if (!desc) { showErr("Descreva o brinde para salvar."); return; }
+      const ns = [...lista.children], semMes = ns.findIndex(n => !ler(n).mesPagamento);
+      if (semMes >= 0) { showErr(`Escolha o mês de pagamento da compra ${semMes + 1}.`); return; }
+      const sh = { descricao: desc, finalidade: I.finalidade.value, conta: I.conta.value, evento: I.evento.value, fornecedor: I.fornecedor.value.trim(), dri: I.dri.value.trim(),
+        prazo: I.prazo.value.trim() === "" ? null : Math.round(lerR(I.prazo.value)), icps: [...icps.querySelectorAll("input:checked")].map(cb => cb.value), obs: I.obs.value.trim() };
+      const itemId = x ? bid(x) : "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      const keep = new Set(ns.map(n => n._doc && n._doc.id).filter(Boolean));
+      save.disabled = true;
+      try {
+        for (let j = 0; j < ns.length; j++) {
+          const n = ns[j], d = n._doc, doc = Object.assign({}, sh, ler(n), { itemId, ordem: j + 1 });
+          if (d) {
+            if (!admin && firme(col)(d)) { if ((d.obs || "") !== sh.obs) await C[col].doc(d.id).update({ obs: sh.obs }); continue; }
+            if (Object.keys(doc).some(k => JSON.stringify(doc[k] == null ? null : doc[k]) !== JSON.stringify(d[k] == null ? null : d[k]))) await C[col].doc(d.id).update(doc);
+          } else {
+            doc.status = FIRMES[col].includes(doc.etapa) ? "aprovado" : doc.etapa === "cancelado" ? "recusado" : "proposto"; doc.criadoPor = me && me.email;
+            await C[col].add(doc);
+          }
+        }
+        for (const d of g) if (!keep.has(d.id)) await C[col].doc(d.id).delete();
+        toast(ns.length > 1 ? `${ns.length} compras salvas` : (x ? "Alterações salvas" : "Brinde salvo")); fechar();
+      } catch (e) { showErr((e && e.message) || "Não foi possível salvar tudo. Confira e tente de novo."); save.disabled = false; }
+    };
+    $("plOv").hidden = false; setTimeout(() => { if (!travItem) I.descricao.focus(); }, 40);
+  }
+
+  /* ---------- financeiro: painel + lançamentos de todos os centros de custo ---------- */
+  const catCls = (c, k) => "ch" + Math.max(0, (CATS[c] || []).findIndex(x => x[0] === k)) % 6;
+  // todos os custos de um centro (lançamentos + eventos + brindes), com categoria, para os quadros "por categoria" e "resumo"
+  function custosDe(centro, modo){
+    const conf = modo === "confirmado", out = [];
+    D.orc.filter(conf ? ok : vivo).filter(x => x.centro === centro).forEach(x => out.push({ cat: catN(centro, x.categoria) || "Sem categoria", mes: +x.mes || 0, valor: +x.valor || 0, origem: "lanc" }));
+    if (centro === "200022") D.eventos.filter(conf ? firme("plan_eventos") : ativo).forEach(x => out.push({ cat: "Evento · " + (x.tipo || "sem tipo"), mes: mesEv(x), valor: +x.custo || 0, origem: "evento" }));
+    if (centro === "200023") D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(em23).forEach(x => out.push({ cat: "Brinde · " + (x.finalidade || "Outro"), mes: mesBr(x), valor: totBr(x), origem: "brinde" }));
+    return out;
+  }
   function financeiro(B){
+    const abas = [["painel", "Painel financeiro"], ["lanc", "Lançamentos"], ["resumo", "Resumo mensal"], ["cat", "Por categoria"]];
+    B.append(el("div", { class: "pl-subtabs", role: "tablist", "aria-label": "Planejamento financeiro" }, ...abas.map(([k, n]) => el("button", { type: "button", role: "tab", "aria-selected": String(F.fiAba === k), onclick: () => { F.fiAba = k; render(); } }, n))));
+    ({ painel: finPainel, lanc: finLanc, resumo: finResumo, cat: finCat }[F.fiAba] || finPainel)(B);
+  }
+  const centroSel = () => filtro("Centro de custo", CENTROS.map(x => [x.c, `${x.c} · ${x.n}`]), F.fiCentro, v => { F.fiCentro = v; F.fiCat = ""; render(); });
+  const modoSeg = () => seg([["previsto", "Previsto"], ["confirmado", "Só confirmado"]], F.fiModo, v => { F.fiModo = v; render(); });
+
+  function finPainel(B){
     const c = cfg(), MP = orcPorCentroMes("previsto"), MC = orcPorCentroMes("confirmado"), vp = porMes(MP), vc = porMes(MC);
     const M = F.fiModo === "confirmado" ? MC : MP;
-    const novoC = F.fiCentro && !(CENTROS.find(x => x.c === F.fiCentro) || {}).derivado ? F.fiCentro : "200021";
-    B.append(regua({ titulo: `Planejamento financeiro ${ANO}`, lede: "Orçamento de todos os centros de custo do marketing, mês a mês. Eventos (200022) e brindes (200023) vêm das abas deles; os demais centros são lançados aqui. A parte laranja já está confirmada. Clique num mês para ver só ele.",
+    B.append(regua({ titulo: `Painel do planejamento financeiro ${ANO}`, lede: "Recebe todos os custos de todos os centros de custo, mês a mês: os lançamentos do financeiro, o custo bruto dos eventos (200022) e as compras de brindes (200023). Só custos: patrocínios e cotas não entram aqui. A parte laranja já está confirmada.",
       vals: vp, conf: vc, legenda: true, sel: F.fiMes, onSel: m => { F.fiMes = m; render(); },
-      acoes: [btnNovo("+ Lançamento", () => form("plan_orcamento", null, { centro: novoC, mes: F.fiMes || 1 })),
+      acoes: [btnNovo("+ Lançamento", () => { F.fiAba = "lanc"; render(); }),
         admin ? el("button", { class: "pl-btn ghost", type: "button", onclick: aplicarMetas }, "Enviar o confirmado para Metas e custos") : null] }));
     const totP = soma(vp), totC = soma(vc), mm = F.fiMes;
-    B.append(totais([[curto(mm ? vp[mm - 1] : totP), mm ? `previsto em ${MESES_L[mm - 1]}` : `previsto ${ANO}`, "net"], [curto(mm ? vc[mm - 1] : totC), "confirmado"], [curto(mm ? vp[mm - 1] - vc[mm - 1] : totP - totC), "ainda em planejamento"],
+    B.append(totais([[curto(mm ? vp[mm - 1] : totP), mm ? `custos previstos em ${MESES_L[mm - 1]}` : `custos previstos ${ANO}`, "net"], [curto(mm ? vc[mm - 1] : totC), "confirmado"], [curto(mm ? vp[mm - 1] - vc[mm - 1] : totP - totC), "ainda em planejamento"],
       [curto(c.total2026[0]), `planejado ${ANO - 1}`], [curto(c.total2026[1]), `realizado ${ANO - 1} (jan–set)`], [totP && c.total2026[0] ? (totP >= c.total2026[0] ? "+" : "") + pct((totP - c.total2026[0]) / c.total2026[0] * 100) : "—", `previsto vs. ${ANO - 1}`]]));
+    // de onde vêm os custos
+    const fm = x => !mm || x === mm;
+    const orig = [["Lançamentos do financeiro", D.orc.filter(vivo).filter(x => fm(+x.mes)), D.orc.filter(ok).filter(x => fm(+x.mes)), x => +x.valor || 0, "lanc"],
+      ["Eventos · custo bruto (200022)", D.eventos.filter(ativo).filter(x => fm(mesEv(x))), D.eventos.filter(firme("plan_eventos")).filter(x => fm(mesEv(x))), x => +x.custo || 0, "eventos"],
+      ["Brindes na conta 200023", D.brindes.filter(ativo).filter(em23).filter(x => fm(mesBr(x))), D.brindes.filter(firme("plan_brindes")).filter(em23).filter(x => fm(mesBr(x))), totBr, "brindes"]];
+    const tO = soma(orig.map(o => soma(o[1].map(o[3]))));
+    B.append(card("De onde vêm os custos", el("span", { class: "pl-who" }, mm ? MESES_L[mm - 1] : `ano ${ANO}`),
+      el("div", { class: "pl-tw" }, el("table", { class: "pl-t" }, el("thead", null, el("tr", null, el("th", null, "Origem"), el("th", { class: "r" }, "Registros"), el("th", { class: "r" }, "Previsto"), el("th", { class: "r" }, "Confirmado"), el("th", { class: "r" }, "% do total"), el("th", null, ""))),
+        el("tbody", null, ...orig.map(([n, P, K, f, alvo]) => { const p = soma(P.map(f)); return el("tr", { class: "click", onclick: () => { if (alvo === "lanc") { F.fiAba = "lanc"; render(); } else irPara(alvo); } },
+          el("td", null, el("b", null, n)), el("td", { class: "r m" }, String(P.length)), el("td", { class: "r m" }, brl0(p)), el("td", { class: "r m" }, brl0(soma(K.map(f)))), el("td", { class: "r m" }, tO ? pct(p / tO * 100) : "—"),
+          el("td", { style: "width:22%" }, el("div", { class: "pl-bar" }, el("i", { style: `width:${tO ? p / tO * 100 : 0}%;background:var(--accent)` })))); })),
+        el("tfoot", null, el("tr", null, el("td", null, "Total"), el("td"), el("td", { class: "r m" }, brl0(tO)), el("td", { class: "r m" }, brl0(soma(orig.map(o => soma(o[2].map(o[3])))))), el("td"), el("td")))))));
     // painel por custos: um cartão por centro de custo
     const maxC = Math.max(1, ...CENTROS.map(ce => Math.max(...(MP[ce.c] || [0]).slice(1))));
-    B.append(card("Painel por centro de custo", el("span", { class: "pl-who" }, mm ? `valores de ${MESES_L[mm - 1]}` : `ano ${ANO} · clique num cartão para ver os lançamentos`),
+    B.append(card("Painel por centro de custo", el("span", { class: "pl-who" }, mm ? `valores de ${MESES_L[mm - 1]}` : `ano ${ANO} · clique num cartão para ver as categorias`),
       el("div", { class: "pl-centros" }, ...CENTROS.map(ce => {
         const p = mm ? (MP[ce.c] || [])[mm] || 0 : soma(MP[ce.c] || []), cf = mm ? (MC[ce.c] || [])[mm] || 0 : soma(MC[ce.c] || []), b = c.base2026[ce.c] || [0, 0];
         const ref = mm ? b[0] / 12 : b[0], v = ref ? (p - ref) / ref * 100 : NaN, uso = ref ? Math.min(100, p / ref * 100) : (p ? 100 : 0), acima = ref && p > ref;
-        return el("button", { type: "button", class: "pl-cc" + (F.fiCentro === ce.c ? " on" : ""), onclick: () => { if (ce.derivado) irPara(ce.derivado); else { F.fiCentro = F.fiCentro === ce.c ? "" : ce.c; render(); } } },
+        return el("button", { type: "button", class: "pl-cc" + (F.fiCentro === ce.c ? " on" : ""), onclick: () => { F.fiCentro = ce.c; F.fiCat = ""; F.fiAba = "cat"; render(); } },
           el("div", { class: "hd" }, el("b", null, ce.c), el("span", null, ce.n)),
-          el("strong", null, brl0(p)), el("span", { class: "sb" }, `${brl0(cf)} confirmado${ce.derivado ? ` · vem da aba ${cap(ce.derivado)}` : ""}`),
+          el("strong", null, brl0(p)), el("span", { class: "sb" }, `${brl0(cf)} confirmado${ce.derivado ? ` · inclui a aba ${cap(ce.derivado)}` : ""}`),
           el("div", { class: "pl-bar" }, el("i", { style: `width:${uso}%;background:var(${acima ? "--bad" : "--ok"})` })),
           el("span", { class: "sb" + (acima ? " neg" : "") }, ref ? `${mm ? "média mensal" : "planejado"} ${ANO - 1}: ${brl0(ref)} · ${p ? (v > 0 ? "+" : "") + pct(v) : "a planejar"}` : (p ? `novo em ${ANO}` : `sem orçamento em ${ANO - 1}`)),
-          el("div", { class: "pl-spark", "aria-hidden": "true" }, ...MESES.map((_, i) => { const x = (MP[ce.c] || [])[i + 1] || 0; return el("span", { class: mm === i + 1 ? "sel" : "", style: `height:${x ? Math.max(3, Math.round(x / maxC * 34)) : 1}px`, title: `${MESES[i]}: ${brl0(x)}` }); })));
+          el("div", { class: "pl-spark", "aria-hidden": "true" }, ...MESES.map((_, i) => { const xv = (MP[ce.c] || [])[i + 1] || 0; return el("span", { class: mm === i + 1 ? "sel" : "", style: `height:${xv ? Math.max(3, Math.round(xv / maxC * 34)) : 1}px`, title: `${MESES[i]}: ${brl0(xv)}` }); })));
       }))));
     // matriz centro × mês
     const head = el("tr", null, el("th", null, "Centro de custo"), ...MESES.map((m, i) => el("th", { class: "r" + (mm === i + 1 ? " sel" : "") }, m)), el("th", { class: "r" }, "Ano"), el("th", { class: "r" }, `Plan. ${ANO - 1}`));
     const tb = el("tbody"); const tot = Array(13).fill(0);
     CENTROS.forEach(ce => { const r = M[ce.c] || Array(13).fill(0); r.forEach((v, i) => tot[i] += v);
-      tb.append(el("tr", { class: ce.derivado ? "der" : "" }, el("td", null, el("b", null, ce.c), el("span", null, ce.n)), ...MESES.map((_, i) => el("td", { class: "r m" + (mm === i + 1 ? " sel" : "") }, r[i + 1] ? num(r[i + 1]) : "")), el("td", { class: "r m" }, el("b", null, brl0(soma(r)))), el("td", { class: "r m mut" }, brl0((c.base2026[ce.c] || [0])[0])))); });
-    B.append(card(`Centro de custo × mês`, seg([["previsto", "Previsto"], ["confirmado", "Só confirmado"]], F.fiModo, v => { F.fiModo = v; render(); }),
+      tb.append(el("tr", null, el("td", null, el("b", null, ce.c), el("span", null, ce.n)), ...MESES.map((_, i) => el("td", { class: "r m" + (mm === i + 1 ? " sel" : "") }, r[i + 1] ? num(r[i + 1]) : "")), el("td", { class: "r m" }, el("b", null, brl0(soma(r)))), el("td", { class: "r m mut" }, brl0((c.base2026[ce.c] || [0])[0])))); });
+    B.append(card("Centro de custo × mês", modoSeg(),
       el("div", { class: "pl-tw" }, el("table", { class: "pl-t pl-mx" }, el("thead", null, head), tb,
         el("tfoot", null, el("tr", null, el("td", null, "Total"), ...MESES.map((_, i) => el("td", { class: "r m" + (mm === i + 1 ? " sel" : "") }, tot[i + 1] ? num(tot[i + 1]) : "")), el("td", { class: "r m" }, brl0(soma(tot))), el("td", { class: "r m" }, brl0(c.total2026[0]))))))));
-    // lançamentos
-    const sel = filtro("Centro", CENTROS.filter(x => !x.derivado).map(x => [x.c, `${x.c} · ${x.n}`]), F.fiCentro, v => { F.fiCentro = v; render(); });
-    const L = D.orc.filter(vivo).filter(x => (!F.fiCentro || x.centro === F.fiCentro) && (!mm || +x.mes === mm)).sort((a, b) => (+a.mes - +b.mes) || String(a.centro).localeCompare(b.centro));
-    const tl = el("tbody");
-    L.forEach(x => tl.append(el("tr", { class: "click", onclick: () => form("plan_orcamento", x) }, el("td", null, MESES_L[(+x.mes || 1) - 1]), el("td", null, el("b", null, x.centro), el("div", { class: "pl-who" }, centroN(x.centro))),
-      el("td", null, catN(x.centro, x.categoria)), el("td", null, x.descricao || ""), el("td", { class: "r m" }, brl(x.valor)), el("td", null, pill(x.status)))));
-    B.append(card("Lançamentos do financeiro", el("div", { class: "pl-filters" }, sel, mm ? el("span", { class: "pl-who" }, `só ${MESES_L[mm - 1]}`) : null),
-      L.length ? el("div", { class: "pl-tw" }, el("table", { class: "pl-t", style: "min-width:820px" }, el("thead", null, el("tr", null, ...["Mês", "Centro", "Categoria", "Descrição", "Valor", "Situação"].map((h, i) => el("th", { class: i === 4 ? "r" : "" }, h)))), tl,
-        el("tfoot", null, el("tr", null, el("td", { colspan: "4" }, `${L.length} lançamento(s)`), el("td", { class: "r m" }, brl(soma(L.map(x => x.valor)))), el("td"))))) : el("div", { class: "pl-empty" }, "Nenhum lançamento neste filtro."),
-      el("p", { class: "hint", style: "margin:0" }, "Custos que se repetem (ex.: fee da agência) podem ser lançados de uma vez para vários meses. Eventos e brindes são lançados nas abas deles.")));
+  }
+
+  function finLanc(B){
+    const col = "plan_orcamento";
+    // formulário rápido (como no planejamento do 200021), valendo para qualquer centro de custo
+    const fMes = el("select", null, ...mesesOpt.map(([a, b]) => el("option", { value: String(a) }, b))); fMes.value = String(F.lfMes || F.fiMes || 1);
+    const fCen = el("select", null, ...CENTROS.map(x => el("option", { value: x.c }, `${x.c} · ${x.n}`))); fCen.value = F.lfCen || F.fiCentro || "200021";
+    const fCat = el("select");
+    const fillC = () => { fCat.textContent = ""; (CATS[fCen.value] || [["outros", "Outros"]]).forEach(([k, n]) => fCat.append(el("option", { value: k }, n))); if (F.lfCat && (CATS[fCen.value] || []).some(x => x[0] === F.lfCat)) fCat.value = F.lfCat; };
+    fCen.addEventListener("change", () => { F.lfCen = fCen.value; F.lfCat = ""; fillC(); }); fillC();
+    fMes.addEventListener("change", () => F.lfMes = +fMes.value); fCat.addEventListener("change", () => F.lfCat = fCat.value);
+    const fDesc = el("input", { type: "text", maxlength: "160", placeholder: "Ex.: Impressão catálogo 2027/2028" });
+    const fVal = el("input", { type: "text", class: "money", inputmode: "decimal", placeholder: "0,00" });
+    const btn = el("button", { class: "pl-btn pri", type: "button" }, "Adicionar");
+    const add = async () => {
+      const desc = fDesc.value.trim(), valor = lerR(fVal.value);
+      if (!desc || !valor) { toast("Preencha a descrição e o valor."); (desc ? fVal : fDesc).focus(); return; }
+      F.lfMes = +fMes.value; F.lfCen = fCen.value; F.lfCat = fCat.value; btn.disabled = true;
+      try { await C[col].add({ centro: fCen.value, categoria: fCat.value, descricao: desc, valor, mes: +fMes.value, status: admin ? "aprovado" : "proposto", criadoPor: me && me.email });
+        toast(admin ? "Lançamento salvo e aprovado" : "Lançamento enviado para aprovação"); }
+      catch (e) { toast((e && e.message) || "Não foi possível salvar."); }
+      btn.disabled = false; fDesc.value = ""; fVal.value = ""; if (render.pend) render();
+    };
+    btn.addEventListener("click", add);
+    fVal.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+    B.append(card("Novo lançamento", el("span", { class: "pl-who" }, admin ? "o que você lança já entra aprovado" : "fica aguardando a aprovação do gerente"),
+      el("div", { class: "pl-lform" }, lbl("Mês", fMes, "s"), lbl("Centro de custo", fCen, "l"), lbl("Categoria", fCat, "l"), lbl("Descrição", fDesc, "xl"), lbl("Valor (R$)", fVal, "m"), el("div", { class: "b" }, btn)),
+      el("p", { class: "hint", style: "margin:0" }, "Os eventos do calendário (200022) e as compras de brindes (200023) já entram sozinhos no painel; aqui você lança os demais custos de qualquer centro, inclusive custos extras de eventos e brindes. Use ↻ para repetir um lançamento em outros meses.")));
+    // filtros e tabela
+    const cats = F.fiCentro ? (CATS[F.fiCentro] || []) : [];
+    B.append(el("div", { class: "pl-filters" }, filtro("Mês", mesesOpt.map(([a, b]) => [String(a), b]), F.fiMes ? String(F.fiMes) : "", v => { F.fiMes = +v || null; render(); }), centroSel(),
+      cats.length ? filtro("Categoria", cats, F.fiCat, v => { F.fiCat = v; render(); }) : null,
+      filtro("Situação", [["aprovado", "Aprovado"], ["proposto", "Aguardando aprovação"], ["recusado", "Recusado"]], F.fiSit, v => { F.fiSit = v; render(); }),
+      (F.fiMes || F.fiCentro || F.fiCat || F.fiSit) ? el("button", { type: "button", class: "pl-link", onclick: () => { F.fiMes = null; F.fiCentro = F.fiCat = F.fiSit = ""; render(); } }, "Limpar filtros") : null));
+    const L = D.orc.filter(x => (!F.fiMes || +x.mes === F.fiMes) && (!F.fiCentro || x.centro === F.fiCentro) && (!F.fiCat || x.categoria === F.fiCat) && (F.fiSit ? x.status === F.fiSit : vivo(x)))
+      .sort((a, b) => (+a.mes - +b.mes) || String(a.centro).localeCompare(b.centro) || String(a.descricao).localeCompare(b.descricao));
+    if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.orc.length ? "Nenhum lançamento neste filtro." : "Nenhum lançamento ainda. Use o formulário acima para adicionar.")); return; }
+    const ac = (t, cls, fn, title) => el("button", { type: "button", class: "pl-ic " + cls, title, "aria-label": title, onclick: e => { e.stopPropagation(); fn(); } }, t);
+    const tb = el("tbody");
+    L.forEach(x => { const pode = admin || x.status !== "aprovado";
+      tb.append(el("tr", null, el("td", null, cap(MESES_L[(+x.mes || 1) - 1])), el("td", null, el("b", null, x.centro), el("div", { class: "pl-who" }, centroN(x.centro))),
+        el("td", null, el("span", { class: "pl-cat " + catCls(x.centro, x.categoria) }, catN(x.centro, x.categoria) || "—")), el("td", null, x.descricao || "", x.serie ? el("div", { class: "pl-who" }, "repetido") : null),
+        el("td", { class: "r m" }, brl(x.valor)), el("td", null, pill(x.status)),
+        el("td", null, el("div", { class: "pl-acts nw" }, ac("↻", "rep", () => repetir(x), "Repetir para outros meses"), ac("✎", "", () => form(col, x), pode ? "Editar" : "Ver"),
+          admin && x.status === "proposto" ? ac("✓", "ok", () => decidir([{ col, x }], "aprovado"), "Aprovar") : null,
+          pode ? ac("×", "bad", async () => { if (!confirm("Remover este lançamento?")) return; try { await C[col].doc(x.id).delete(); toast("Lançamento removido"); } catch (e) { toast((e && e.message) || "Não foi possível remover."); } }, "Apagar") : null)))); });
+    const desc = [F.fiMes ? MESES_L[F.fiMes - 1] : "", F.fiCentro ? F.fiCentro : "", F.fiCat ? catN(F.fiCentro, F.fiCat) : ""].filter(Boolean).join(" — ");
+    B.append(el("div", { class: "pl-tw pl-lt" }, el("table", { class: "pl-t", style: "min-width:860px" },
+      el("thead", null, el("tr", null, ...["Mês", "Centro", "Categoria", "Descrição", "Valor", "Situação", "Ações"].map((h, i) => el("th", { class: i === 4 ? "r" : "" }, h)))), tb,
+      el("tfoot", null, el("tr", null, el("td", { colspan: "4" }, `Total ${ANO}${desc ? " — " + desc : ""} (${L.length} lançamento${L.length === 1 ? "" : "s"})`), el("td", { class: "r m" }, brl(soma(L.map(x => x.valor)))), el("td", { colspan: "2" }))))));
+  }
+  // repetir um lançamento em outros meses (meses que já têm o mesmo lançamento ficam marcados ✓)
+  function repetir(x){
+    const ov = el("div", { class: "pl-mov" }); ov.addEventListener("click", e => { if (e.target === ov) ov.remove(); });
+    const exist = new Set(D.orc.filter(y => vivo(y) && y.centro === x.centro && y.categoria === x.categoria && y.descricao === x.descricao).map(y => +y.mes));
+    const sel = new Set();
+    const grid = el("div", { class: "pl-mgrid" }, ...MESES_L.map((m, i) => { const k = i + 1, has = exist.has(k);
+      const b = el("button", { type: "button", class: "pl-mopt" + (has ? " dis" : ""), disabled: has ? true : null, onclick: () => { if (sel.has(k)) { sel.delete(k); b.classList.remove("on"); } else { sel.add(k); b.classList.add("on"); } } }, cap(m).slice(0, 3) + (has ? " ✓" : ""));
+      b.dataset.m = String(k); return b; }));
+    const marca = f => grid.querySelectorAll(".pl-mopt:not(.dis)").forEach(b => { const k = +b.dataset.m, on = f(k); if (on) sel.add(k); else sel.delete(k); b.classList.toggle("on", on); });
+    const okB = el("button", { class: "pl-btn pri", type: "button" }, "Criar cópias");
+    okB.addEventListener("click", async () => {
+      if (!sel.size) { toast("Selecione ao menos um mês."); return; }
+      okB.disabled = true; let n = 0;
+      try { const ms = [...sel].sort((a, b) => a - b); for (const m of ms) { okB.textContent = `Criando ${n + 1} de ${ms.length}…`; await C.plan_orcamento.add({ centro: x.centro, categoria: x.categoria, descricao: x.descricao, valor: +x.valor || 0, mes: m, status: admin ? "aprovado" : "proposto", criadoPor: me && me.email, serie: x.serie || x.id }); n++; }
+        toast(`${n} cópia${n === 1 ? "" : "s"} criada${n === 1 ? "" : "s"}`); ov.remove(); }
+      catch (e) { toast((e && e.message) || "Não foi possível criar as cópias."); okB.disabled = false; okB.textContent = "Criar cópias"; }
+    });
+    ov.append(el("div", { class: "pl-modal", role: "dialog", "aria-modal": "true", "aria-label": "Repetir lançamento" },
+      el("h3", null, "Repetir lançamento"), el("p", { class: "hint" }, "Selecione os meses para criar cópias deste lançamento:"),
+      el("div", { class: "pl-minfo" }, el("b", null, x.descricao), el("br"), `${x.centro} · ${catN(x.centro, x.categoria)} · ${brl(x.valor)} · ${ANO}`),
+      el("div", { class: "pl-acts" }, el("button", { class: "pl-btn", type: "button", onclick: () => marca(() => true) }, "Todos"), el("button", { class: "pl-btn", type: "button", onclick: () => marca(k => k > +x.mes) }, "Restantes do ano"), el("button", { class: "pl-btn", type: "button", onclick: () => marca(() => false) }, "Limpar")),
+      grid, el("div", { class: "pl-acts end" }, el("button", { class: "pl-btn", type: "button", onclick: () => ov.remove() }, "Cancelar"), okB)));
+    document.body.append(ov); const f = grid.querySelector(".pl-mopt:not(.dis)"); if (f) f.focus();
+  }
+
+  function finResumo(B){
+    const c = cfg(), ids = F.fiCentro ? [F.fiCentro] : CENTROS.map(x => x.c), M = orcPorCentroMes(F.fiModo);
+    const por = Array(13).fill(0); ids.forEach(k => (M[k] || []).forEach((v, i) => por[i] += v));
+    const tot = soma(por), itens = ids.reduce((s, k) => s + custosDe(k, F.fiModo).length, 0);
+    const plan = F.fiCentro ? (c.base2026[F.fiCentro] || [0, 0])[0] : c.total2026[0], real = F.fiCentro ? (c.base2026[F.fiCentro] || [0, 0])[1] : c.total2026[1];
+    const p = plan ? Math.round(tot / plan * 100) : 0, cor = p > 100 ? "--bad" : p > 80 ? "--warn" : "--ok";
+    B.append(el("div", { class: "pl-filters" }, centroSel(), modoSeg()));
+    B.append(el("div", { class: "pl-sum" },
+      el("div", null, el("b", null, brl(tot)), el("span", null, `${F.fiModo === "confirmado" ? "Confirmado" : "Previsto"} ${ANO}${F.fiCentro ? " · " + F.fiCentro : " · todos os centros"}`)),
+      el("div", null, el("b", null, String(itens)), el("span", null, "Lançamentos (inclui eventos e compras de brindes)")),
+      el("div", null, el("b", null, plan ? brl(plan) : "—"), el("span", null, plan ? `Planejado ${ANO - 1}` : `Planejado ${ANO - 1} (sem valor)`),
+        plan ? el("div", { class: "pl-bar" }, el("i", { style: `width:${Math.min(p, 100)}%;background:var(${cor})` })) : null, plan ? el("span", null, `${p}% do planejado de ${ANO - 1}`) : null),
+      el("div", null, el("b", null, real ? brl(real) : "—"), el("span", null, `Realizado ${ANO - 1} (jan–set)`))));
+    const tb = el("tbody"), med = plan / 12;
+    for (let m = 1; m <= 12; m++) { const v = por[m], pp = tot ? v / tot * 100 : 0;
+      tb.append(el("tr", { class: "click", onclick: () => { F.fiMes = m; F.fiAba = "lanc"; render(); } }, el("td", null, cap(MESES_L[m - 1])), el("td", { class: "r m" }, v ? brl(v) : "—"), el("td", { class: "r m" }, v ? pct(pp) : "—"),
+        el("td", { class: "r m " + (med && v > med ? "neg" : "") }, med ? (v ? (v >= med ? "+" : "") + pct((v - med) / med * 100) : "—") : "—"),
+        el("td", { style: "width:32%" }, el("div", { class: "pl-bar" }, el("i", { style: `width:${pp}%;background:var(--accent)` }))))); }
+    B.append(card("Resumo mensal", el("span", { class: "pl-who" }, "clique num mês para ver os lançamentos dele"),
+      el("div", { class: "pl-tw" }, el("table", { class: "pl-t", style: "min-width:620px" }, el("thead", null, el("tr", null, el("th", null, "Mês"), el("th", { class: "r" }, "Valor"), el("th", { class: "r" }, "% do ano"), el("th", { class: "r" }, `vs. média mensal ${ANO - 1}`), el("th", null, "Distribuição"))), tb,
+        el("tfoot", null, el("tr", null, el("td", null, "Total"), el("td", { class: "r m" }, brl(tot)), el("td", { class: "r m" }, tot ? "100%" : "—"), el("td", { class: "r m" }, med ? brl(med) + "/mês" : ""), el("td")))))));
+  }
+
+  function finCat(B){
+    const ids = F.fiCentro ? [F.fiCentro] : CENTROS.map(x => x.c);
+    B.append(el("div", { class: "pl-filters" }, centroSel(), modoSeg()));
+    const blocos = ids.map(k => { const L = custosDe(k, F.fiModo), by = {};
+      L.forEach(r => { const b = by[r.cat] || (by[r.cat] = { n: 0, t: 0, origem: r.origem }); b.n++; b.t += r.valor; });
+      return { k, L, tot: soma(L.map(r => r.valor)), cats: Object.entries(by).sort((a, b) => b[1].t - a[1].t) }; });
+    const geral = soma(blocos.map(b => b.tot));
+    const tb = el("tbody");
+    blocos.forEach(b => {
+      if (ids.length > 1) tb.append(el("tr", { class: "grp" }, el("td", null, el("b", null, b.k), " ", centroN(b.k)), el("td", { class: "r m" }, String(b.L.length || "—")), el("td", { class: "r m" }, el("b", null, b.tot ? brl(b.tot) : "—")), el("td", { class: "r m" }, geral && b.tot ? pct(b.tot / geral * 100) : "—"), el("td")));
+      const base = ids.length > 1 ? geral : b.tot;
+      (b.cats.length ? b.cats : (ids.length > 1 ? [] : [["Sem lançamentos", { n: 0, t: 0 }]])).forEach(([n, d]) => { const pp = base ? d.t / base * 100 : 0;
+        tb.append(el("tr", { class: "sub" }, el("td", null, el("span", { class: "pl-cat " + (d.origem === "evento" ? "ch1" : d.origem === "brinde" ? "ch3" : catCls(b.k, ((CATS[b.k] || []).find(x => x[1] === n) || [""])[0])) }, n)),
+          el("td", { class: "r m" }, d.n ? String(d.n) : "—"), el("td", { class: "r m" }, d.t ? brl(d.t) : "—"), el("td", { class: "r m" }, d.t ? pct(pp) : "—"),
+          el("td", { style: "width:28%" }, el("div", { class: "pl-bar" }, el("i", { style: `width:${pp}%;background:var(--accent)` }))))); });
+    });
+    B.append(card(`Por categoria${F.fiCentro ? " · " + F.fiCentro + " " + centroN(F.fiCentro) : " · todos os centros de custo"}`, el("span", { class: "pl-who" }, F.fiModo === "confirmado" ? "só confirmado" : "previsto"),
+      el("div", { class: "pl-tw" }, el("table", { class: "pl-t pl-ct", style: "min-width:640px" }, el("thead", null, el("tr", null, el("th", null, ids.length > 1 ? "Centro / categoria" : "Categoria"), el("th", { class: "r" }, "Lançamentos"), el("th", { class: "r" }, "Total"), el("th", { class: "r" }, ids.length > 1 ? "% do total" : "% do centro"), el("th", null, "Distribuição"))), tb,
+        el("tfoot", null, el("tr", null, el("td", null, "Total"), el("td", { class: "r m" }, String(blocos.reduce((s, b) => s + b.L.length, 0))), el("td", { class: "r m" }, brl(geral)), el("td", { class: "r m" }, geral ? "100%" : "—"), el("td"))))),
+      el("p", { class: "hint", style: "margin:0" }, "No 200022 os eventos aparecem pelo tipo e no 200023 os brindes pela finalidade; os demais vêm dos lançamentos do financeiro.")));
   }
 
   function aprovar(B){
@@ -457,12 +729,13 @@
       ["quantidade", "Quantidade", "number"], ["custoUnit", "Custo unitário (R$)", "money"], ["adicionais", "Adicionais (frete, arte, gravação) (R$)", "money"], ["verba", "Verba de indústria (R$)", "money"],
       ["fornecedor", "Fornecedor", "text"], ["dri", "Responsável", "text"], ["obs", "Observação", "textarea", null, "w2"]] },
     plan_orcamento: { t: "Lançamento do financeiro", f: [
-      ["centro", "Centro de custo", "select", CENTROS.filter(c => !c.derivado).map(c => [c.c, `${c.c} · ${c.n}`])], ["categoria", "Categoria", "text"],
+      ["centro", "Centro de custo", "select", CENTROS.map(c => [c.c, `${c.c} · ${c.n}`])], ["categoria", "Categoria", "text"],
       ["descricao", "Descrição", "text", null, "w2"], ["valor", "Valor (R$)", "money"], ["mes", "Mês", "select", mesesOpt]] } };
   const REPETE = { plan_orcamento: "mes", plan_brindes: "mesPagamento" };
 
   function form(col, x, preset){
-    const sp = SPEC[col], novo = !x, Fm = $("plForm"); Fm.textContent = "";
+    if (col === "plan_brindes") return formBrinde(x);
+    const sp = SPEC[col], novo = !x, Fm = $("plForm"); Fm.textContent = ""; Fm.className = "pl-panel";
     const travado = !novo && !admin && travadoP(col, x);
     const pode = k => !travado || LIVRES[col].includes(k);
     const v = Object.assign({}, preset || {}, x || {}); if (col === "plan_eventos") v.ufsTxt = (v.ufs || []).join("/");
@@ -497,7 +770,7 @@
     }
     if (col === "plan_orcamento") {
       const cat = ins.categoria; const dl = el("datalist", { id: "plCats" }); cat.setAttribute("list", "plCats");
-      const fillCats = () => { dl.textContent = ""; const ce = CENTROS.find(c => c.c === ins.centro.value); (ce && ce.cats || []).forEach(([k, n]) => dl.append(el("option", { value: n }))); };
+      const fillCats = () => { dl.textContent = ""; (CATS[ins.centro.value] || []).forEach(([k, n]) => dl.append(el("option", { value: n }))); };
       ins.centro.addEventListener("change", fillCats); fillCats(); bd.append(dl);
       if (!novo) ins.categoria.value = catN(v.centro, v.categoria);
     }
@@ -520,7 +793,7 @@
       sp.f.forEach(([k, , tipo]) => { const i = ins[k]; if (!pode(k)) return;
         o[k] = tipo === "money" ? lerR(i.value) : tipo === "number" ? (i.value.trim() === "" ? null : Math.round(lerR(i.value))) : tipo === "check" ? i.checked : i.value.trim(); });
       if (col === "plan_fases" && o.fase != null) o.fase = +o.fase;
-      if (col === "plan_orcamento" && o.mes != null) { o.mes = +o.mes; const ce = CENTROS.find(c => c.c === o.centro); const f = ce && ce.cats && ce.cats.find(c => c[1] === o.categoria); if (f) o.categoria = f[0]; }
+      if (col === "plan_orcamento" && o.mes != null) { o.mes = +o.mes; const f = (CATS[o.centro] || []).find(c => c[1] === o.categoria); if (f) o.categoria = f[0]; }
       if (col === "plan_brindes") { if (o.mesPagamento != null) o.mesPagamento = +o.mesPagamento; if ("mesUso" in o) o.mesUso = o.mesUso ? +o.mesUso : null; }
       if (col === "plan_eventos" && "ufsTxt" in o) { o.ufs = o.ufsTxt.split(/[\/,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean); delete o.ufsTxt; if (o.data) o.mes = +o.data.slice(5, 7); }
       return o; };
@@ -549,7 +822,7 @@
       el("footer", null, pe, el("div", { class: "pl-acts" }, el("button", { class: "pl-btn", type: "button", onclick: fechar }, "Cancelar"), el("button", { class: "pl-btn pri", type: "submit", disabled: travado && !LIVRES[col].length ? true : null }, novo && !admin && !FIRMES[col] ? "Enviar para aprovação" : "Salvar"))));
     Fm.onsubmit = salvarF; $("plOv").hidden = false; setTimeout(() => { const f = Fm.querySelector("input:not([readonly]),select:not([disabled]),textarea:not([readonly])"); if (f) f.focus(); }, 40);
   }
-  function fechar(){ $("plOv").hidden = true; $("plForm").textContent = ""; render(); }
+  function fechar(){ $("plOv").hidden = true; $("plForm").textContent = ""; $("plForm").className = "pl-panel"; render(); }
   $("plOv").addEventListener("click", e => { if (e.target === $("plOv")) fechar(); });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("plOv").hidden) fechar(); });
 
