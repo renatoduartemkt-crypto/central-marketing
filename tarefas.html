@@ -116,6 +116,15 @@ td.tt{font-weight:600;max-width:340px}
 .sec h3{font-size:14.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .sec h3 small{font-weight:500;color:var(--muted);font-size:12px}
 .tr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.rp-modos{display:flex;flex-wrap:wrap;gap:6px}
+.rp-modos label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;background:var(--bg)}
+.rp-modos label:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.rp-modos input{margin:0;accent-color:var(--accent)}
+.rp-datas{display:flex;flex-wrap:wrap;gap:6px}
+.rp-datas span{display:inline-flex;align-items:center;gap:4px;background:var(--surface-2);border-radius:999px;padding:3px 4px 3px 10px;font-size:12.5px;font-weight:600}
+.rp-datas button{border:0;background:none;cursor:pointer;font-size:15px;line-height:1;color:var(--muted);padding:0 4px}
+.rp-prev{background:var(--surface-2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--fg);margin:0}
+.rp-tag{font-size:11px;font-weight:700;color:var(--accent);margin-left:4px}
 .comments{display:flex;flex-direction:column;gap:10px}
 .cm{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px}
 .cm .av{margin:0;width:28px;height:28px;font-size:10.5px;border:0}
@@ -187,6 +196,30 @@ td.tt{font-weight:600;max-width:340px}
       </div>
       <div class="field"><label for="iDesc">Descrição</label><textarea id="iDesc" maxlength="2000" placeholder="O que precisa ser feito"></textarea></div>
       <div class="field"><label for="iBrief">Briefing</label><textarea id="iBrief" maxlength="6000" style="min-height:120px" placeholder="Objetivo, público, referências, peças, prazos, links..."></textarea></div>
+
+      <div class="sec" id="secRep">
+        <h3>Repetir tarefa <small>cria cópias desta tarefa em outras datas, com os mesmos responsáveis, prioridade, descrição e briefing</small></h3>
+        <div class="rp-modos" role="radiogroup" aria-label="Como repetir">
+          <label><input type="radio" name="rpModo" value="datas" checked> Datas específicas</label>
+          <label><input type="radio" name="rpModo" value="semanal"> Toda semana</label>
+          <label><input type="radio" name="rpModo" value="quinzenal"> A cada 2 semanas</label>
+          <label><input type="radio" name="rpModo" value="mensal"> Todo mês</label>
+        </div>
+        <div id="rpDatasBox">
+          <div class="tr3">
+            <div class="field"><label for="rpData">Nova data de entrega</label><input type="date" id="rpData"></div>
+            <div class="field" style="justify-content:flex-end"><button class="btn" type="button" id="rpAdd">+ Adicionar data</button></div>
+          </div>
+          <div class="rp-datas" id="rpDatas"></div>
+        </div>
+        <div class="tr3" id="rpFreqBox" hidden>
+          <div class="field"><label for="rpAte">Repetir até</label><input type="date" id="rpAte"></div>
+          <div class="field"><label for="rpVezes">ou quantidade de repetições</label><input type="number" id="rpVezes" min="1" max="52" step="1" inputmode="numeric" placeholder="Ex.: 6"></div>
+        </div>
+        <p class="rp-prev" id="rpPrev"></p>
+        <div><button class="btn primary" type="button" id="rpBtn">Criar repetições</button></div>
+        <p class="hint" id="rpHint"></p>
+      </div>
 
       <div class="sec" id="secTransf">
         <h3>Transferir demanda <small>passa a tarefa de um colaborador para outro e muda a fase</small></h3>
@@ -279,7 +312,7 @@ td.tt{font-weight:600;max-width:340px}
   function card(t){const f=faseOf(t);
     return el("div",{class:"card"+(f.k==="realizado"?" done":""),draggable:"true",tabindex:"0",role:"button","aria-label":t.titulo||"Tarefa",
       onclick:()=>openTask(t),onkeydown:e=>{if(e.key==="Enter")openTask(t);},ondragstart:e=>e.dataTransfer.setData("text/plain",t.id)},
-      el("div",{class:"m"},priTag(t),cmts(t)),el("div",{class:"t"},t.titulo||"Sem nome"),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
+      el("div",{class:"m"},priTag(t),cmts(t)),el("div",{class:"t"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
   function renderKanban(){const k=$("kanban");k.textContent="";const L=sortT(filtered());
     FASES.forEach(f=>{const items=L.filter(t=>faseOf(t).k===f.k);
       const c=el("div",{class:"colk",style:`--c:var(${f.c})`},el("header",null,el("b",null,f.n),el("span",null,items.length)));
@@ -291,7 +324,7 @@ td.tt{font-weight:600;max-width:340px}
       const g=el("div",{class:"lgroup",style:`--c:var(${f.c})`},el("header",null,el("i",{class:"dot",style:`--c:var(${f.c})`}),el("b",null,f.n),el("span",null,items.length),el("button",{type:"button",class:"btn",style:"padding:5px 10px;font-size:12.5px",onclick:()=>openTask(null,{fase:f.k})},"+ Tarefa")));
       if(!items.length)g.append(el("div",{class:"lempty"},"Nenhuma tarefa nesta fase."));
       else{const tb=el("tbody");items.forEach(t=>tb.append(el("tr",{tabindex:"0",onclick:()=>openTask(t),onkeydown:e=>{if(e.key==="Enter")openTask(t);}},
-        el("td",{class:"tt"},t.titulo||"Sem nome"),el("td",null,avs(t)),el("td",null,priTag(t)),el("td",{class:"due"},fd(t.inicio)||"—"),el("td",null,dueEl(t)||el("span",{class:"due"},"—")),el("td",null,cmts(t)||""))));
+        el("td",{class:"tt"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("td",null,avs(t)),el("td",null,priTag(t)),el("td",{class:"due"},fd(t.inicio)||"—"),el("td",null,dueEl(t)||el("span",{class:"due"},"—")),el("td",null,cmts(t)||""))));
         g.append(el("div",{class:"tw"},el("table",null,el("thead",null,el("tr",null,...["Tarefa","Responsáveis","Prioridade","Início","Entrega","Comentários"].map(h=>el("th",null,h)))),tb)));}
       v.append(g);});}
   function renderCal(){$("mTitle").textContent=`${MESES[M]} ${Y}`;const dw=$("dow");dw.textContent="";DOW.forEach(d=>dw.append(el("div",null,d)));
@@ -341,6 +374,7 @@ td.tt{font-weight:600;max-width:340px}
       else if(x.tipo==="fase")txt=["Fase ",el("b",null,(by(FASES,x.faseDe)||{n:"—"}).n)," → ",el("b",null,(by(FASES,x.fasePara)||{n:"—"}).n)];
       else if(x.tipo==="entrega")txt=["Entrega ",el("b",null,fd(x.de)||"—")," → ",el("b",null,fd(x.para))];
       else if(x.tipo==="criada")txt=["Tarefa criada"];
+      else if(x.tipo==="repetida")txt=[x.origem?"Criada como repetição de outra tarefa":`Repetida em ${x.n} data(s): ${(x.datas||[]).map(fd).join(", ")}`];
       else txt=[x.tipo||"Alteração"];
       ul.append(el("li",null,...txt,` · ${userName(x.por)} · ${fdt(x.em)}`));});h.append(ul);}
   function syncTransfer(t){const resp=(t&&t.responsaveis)||[];
@@ -355,7 +389,7 @@ td.tt{font-weight:600;max-width:340px}
     buildPriOpts(); const pk=t?priOf(t).k:"normal"; document.querySelectorAll("input[name=pri]").forEach(i=>i.checked=i.value===pk);
     $("iIni").value=t?t.inicio||"":hoje(); $("iEnt").value=t?t.entrega||"":(preset&&preset.entrega)||"";
     buildRespOpts(t?t.responsaveis:[me.email]); $("iDesc").value=t?t.descricao||"":""; $("iBrief").value=t?t.briefing||"":"";
-    $("cTxt").value=""; $("tNota").value=""; syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
+    $("cTxt").value=""; $("tNota").value=""; rpReset(t); syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
     $("overlay").hidden=false; setTimeout(()=>$("iTitulo").focus(),40);}
   function closeTask(){$("overlay").hidden=true;editingId=null;}
   $("closeBtn").onclick=closeTask;$("cancelBtn").onclick=closeTask;$("newBtn").onclick=()=>openTask(null);
@@ -363,7 +397,11 @@ td.tt{font-weight:600;max-width:340px}
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeTask();});
   function renderDel(confirm){const a=$("delArea");a.textContent="";if(!editingId)return;
     if(!confirm){a.append(el("button",{class:"btn danger",type:"button",onclick:()=>renderDel(true)},"Excluir"));return;}
-    a.append(el("div",{class:"confirm"},"Excluir esta tarefa?",el("button",{class:"btn danger",type:"button",onclick:async()=>{await col.doc(editingId).delete();closeTask();toast("Tarefa excluída");}},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
+    const t=tasks.find(x=>x.id===editingId)||{};const ref=x=>x.entrega||x.inicio||"";
+    const prox=t.serie?tasks.filter(x=>x.serie===t.serie&&x.id!==t.id&&ref(x)>=ref(t)):[];
+    a.append(el("div",{class:"confirm"},"Excluir esta tarefa?",el("button",{class:"btn danger",type:"button",onclick:async()=>{await col.doc(editingId).delete();closeTask();toast("Tarefa excluída");}},prox.length?"Só esta":"Sim, excluir"),
+      prox.length?el("button",{class:"btn danger",type:"button",onclick:async()=>{const ids=[editingId].concat(prox.map(x=>x.id));closeTask();for(const id of ids)await col.doc(id).delete();toast(`${ids.length} tarefas excluídas`);}},`Esta e as próximas ${prox.length} repetições`):null,
+      el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
 
   $("form").addEventListener("submit",async e=>{e.preventDefault();const err=m=>{$("formErr").textContent=m;$("formErr").hidden=false;};
     const titulo=$("iTitulo").value.trim(); if(!titulo)return err("Dê um nome para a tarefa.");
@@ -377,7 +415,7 @@ td.tt{font-weight:600;max-width:340px}
         if(H.length)body.historico=(t.historico||[]).concat(H);
         await col.doc(editingId).update(body);toast("Tarefa salva");}
       else{body.criadoPor=me.email;body.comentarios=[];body.historico=[histItem({tipo:"criada"})];const r=await col.add(body);editingId=r.id;toast("Tarefa criada");
-        const t=Object.assign({id:r.id},body);syncTransfer(t);renderComments(t);renderHist(t);renderMeta(t);renderDel();}}
+        const t=Object.assign({id:r.id},body);rpReset(t);syncTransfer(t);renderComments(t);renderHist(t);renderMeta(t);renderDel();}}
     catch(_){err("Não foi possível salvar. Tente de novo.");}finally{btn.disabled=false;}});
 
   $("cBtn").onclick=async()=>{const txt=$("cTxt").value.trim();if(!txt||!editingId)return;const t=tasks.find(x=>x.id===editingId);
@@ -389,6 +427,45 @@ td.tt{font-weight:600;max-width:340px}
     await patch(t,{responsaveis:resp,fase},{tipo:"transferencia",de,para,faseDe:t.fase,fasePara:fase,nota});
     $("iFase").value=fase;buildRespOpts(resp);$("tNota").value="";toast(`Transferida para ${userName(para)}`);
     const nt=Object.assign({},t,{responsaveis:resp,fase});syncTransfer(nt);};
+
+  /* ---------- repetir tarefa em outras datas ---------- */
+  let rpExtras=[];
+  const addDias=(iso,n)=>{const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return isoD(d.getFullYear(),d.getMonth(),d.getDate());};
+  const addMes=(iso,k)=>{const [y,m,d]=iso.split("-").map(Number);const mm=m-1+k,yy=y+Math.floor(mm/12),m2=((mm%12)+12)%12;const ult=new Date(yy,m2+1,0).getDate();return isoD(yy,m2,Math.min(d,ult));};
+  const rpModo=()=>(document.querySelector("input[name=rpModo]:checked")||{}).value||"datas";
+  const rpBase=()=>$("iEnt").value||$("iIni").value;
+  function rpDatas(){const base=rpBase();if(!base)return[];const modo=rpModo();
+    if(modo==="datas")return rpExtras.filter(d=>d!==base).sort();
+    const ate=$("rpAte").value,vezes=Math.min(52,parseInt($("rpVezes").value,10)||0);if(!ate&&!vezes)return[];
+    const out=[];for(let i=1;i<=52;i++){const d=modo==="mensal"?addMes(base,i):addDias(base,(modo==="semanal"?7:14)*i);if(ate&&d>ate)break;out.push(d);if(vezes&&out.length>=vezes)break;}return out;}
+  function rpNovas(){const ds=rpDatas(),t=tasks.find(x=>x.id===editingId);if(!t||!t.serie)return ds;const usaEnt=!!$("iEnt").value;
+    const ja=new Set(tasks.filter(x=>x.serie===t.serie&&x.id!==t.id).map(x=>usaEnt?x.entrega:x.inicio));return ds.filter(d=>!ja.has(d));}
+  function rpRender(){const modo=rpModo();$("rpDatasBox").hidden=modo!=="datas";$("rpFreqBox").hidden=modo==="datas";
+    const box=$("rpDatas");box.textContent="";rpExtras.slice().sort().forEach(d=>box.append(el("span",null,`${fd(d)}/${d.slice(0,4)}`,el("button",{type:"button","aria-label":"Remover "+d,onclick:()=>{rpExtras=rpExtras.filter(x=>x!==d);rpRender();}},"×"))));
+    const todas=rpDatas(),ds=rpNovas(),rep=todas.length-ds.length,base=rpBase(),dur=$("iIni").value&&$("iEnt").value?Math.round((new Date($("iEnt").value)-new Date($("iIni").value))/864e5):null;
+    $("rpPrev").textContent=!base?"Preencha a data de início ou de entrega da tarefa para repetir.":ds.length?`${ds.length} ${ds.length===1?"cópia":"cópias"} com entrega em: ${ds.map(d=>fd(d)+"/"+d.slice(2,4)).join(", ")}${dur!=null&&dur>0?` (cada uma começa ${dur} dia${dur===1?"":"s"} antes da entrega, como esta)`:""}.${rep?` ${rep} já existe${rep===1?"":"m"} nesta série e não ${rep===1?"será duplicada":"serão duplicadas"}.`:""}`:rep?"Todas essas datas já existem nesta série.":modo==="datas"?"Adicione as datas em que a tarefa deve se repetir.":"Informe até quando ou quantas vezes repetir.";
+    $("rpBtn").textContent=ds.length?`Criar ${ds.length} ${ds.length===1?"repetição":"repetições"}`:"Criar repetições";}
+  function rpReset(t){rpExtras=[];$("rpData").value="";$("rpAte").value="";$("rpVezes").value="";document.querySelector("input[name=rpModo][value=datas]").checked=true;
+    const on=!!(t&&t.id);["rpData","rpAdd","rpAte","rpVezes","rpBtn"].forEach(id=>$(id).disabled=!on);document.querySelectorAll("input[name=rpModo]").forEach(i=>i.disabled=!on);
+    const irmas=t&&t.serie?tasks.filter(x=>x.serie===t.serie).length:0;
+    $("rpHint").textContent=!on?"Salve a tarefa para poder repetir.":irmas>1?`Esta tarefa faz parte de uma série com ${irmas} tarefas.`:"";rpRender();}
+  document.querySelectorAll("input[name=rpModo]").forEach(i=>i.addEventListener("change",rpRender));
+  ["rpAte","rpVezes","iIni","iEnt"].forEach(id=>$(id).addEventListener("input",rpRender));
+  $("rpAdd").onclick=()=>{const d=$("rpData").value;if(!d)return toast("Escolha a data.");if(d===rpBase())return toast("Essa já é a data desta tarefa.");if(!rpExtras.includes(d))rpExtras.push(d);$("rpData").value="";rpRender();};
+  $("rpData").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("rpAdd").click();}});
+  $("rpBtn").onclick=async()=>{if(!editingId)return;const t=tasks.find(x=>x.id===editingId);if(!t)return;const ds=rpNovas();if(!ds.length)return toast($("rpPrev").textContent);
+    const usaEnt=!!$("iEnt").value,dur=$("iIni").value&&$("iEnt").value?Math.round((new Date($("iEnt").value)-new Date($("iIni").value))/864e5):0;
+    const titulo=$("iTitulo").value.trim()||t.titulo,serie=t.serie||("s"+uid());const fase=$("iFase").value==="realizado"?"a_fazer":$("iFase").value;
+    const base={titulo,fase,prioridade:(document.querySelector("input[name=pri]:checked")||{}).value||t.prioridade||"normal",responsaveis:[...document.querySelectorAll("input[name=resp]:checked")].map(i=>i.value),
+      descricao:$("iDesc").value.trim(),briefing:$("iBrief").value.trim(),serie,criadoPor:me.email,comentarios:[]};
+    const btn=$("rpBtn");btn.disabled=true;let n=0;
+    try{for(const d of ds){btn.textContent=`Criando ${n+1} de ${ds.length}…`;
+        const c=Object.assign({},base,usaEnt?{entrega:d,inicio:$("iIni").value?addDias(d,-Math.max(0,dur)):""}:{inicio:d,entrega:""},{historico:[histItem({tipo:"repetida",origem:t.id})]});
+        await col.add(c);n++;}
+      await col.doc(t.id).update({serie,historico:(t.historico||[]).concat([histItem({tipo:"repetida",n,datas:ds})])});
+      toast(`${n} ${n===1?"repetição criada":"repetições criadas"}`);rpReset(Object.assign({},t,{serie}));}
+    catch(_){toast(n?`${n} criada(s); as demais não foram salvas. Tente de novo.`:"Não foi possível criar as repetições.");}
+    finally{btn.disabled=false;rpRender();}};
 
   Central.boot("tarefas",user=>{me=user;loadPref();
     col=Store.collection("tarefas");
