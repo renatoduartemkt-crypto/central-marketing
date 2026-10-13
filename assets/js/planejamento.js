@@ -5,7 +5,7 @@
  *  - Eventos e brindes ainda estão em planejamento: cada item tem uma situação (menu suspenso). A equipe cadastra e
  *    move entre ideia / negociação / cotação; só o administrador confirma. Confirmado fica travado para a equipe.
  *  - Tudo é validado também no servidor (Apps Script).
- * Coleções: plan_config (doc "2027"), plan_fases, plan_cotas, plan_eventos, plan_brindes, plan_orcamento.
+ * Coleções: plan_config (doc "2027"), plan_fases, plan_cotas, plan_eventos, plan_acoes, plan_brindes, plan_orcamento.
  */
 (function(){
   const ANO = 2027;
@@ -32,8 +32,15 @@
   // situação de eventos e brindes (menu suspenso). "Firmes" = confirmados pelo gerente: entram no orçamento confirmado.
   const SITUACOES = {
     plan_eventos: [["ideia", "Ideia"], ["negociacao", "Negociando patrocínio"], ["confirmado", "Confirmado"], ["realizado", "Realizado"], ["cancelado", "Cancelado"]],
+    plan_acoes: [["ideia", "Ideia"], ["planejando", "Em planejamento"], ["aprovado", "Aprovada"], ["executada", "Executada"], ["cancelado", "Cancelada"]],
     plan_brindes: [["ideia", "Ideia"], ["cotando", "Cotando"], ["aprovado", "Aprovado"], ["comprado", "Comprado"], ["entregue", "Entregue"], ["cancelado", "Cancelado"]] };
-  const FIRMES = { plan_eventos: ["confirmado", "realizado"], plan_brindes: ["aprovado", "comprado", "entregue"] };
+  const FIRMES = { plan_eventos: ["confirmado", "realizado"], plan_acoes: ["aprovado", "executada"], plan_brindes: ["aprovado", "comprado", "entregue"] };
+  // ações promocionais (campanhas comerciais para o cliente)
+  const CANAIS = [["tabloide", "Tabloide de ofertas"], ["post", "Post Instagram"], ["reels", "Stories / Reels"], ["sorteio", "Sorteio de prêmios"], ["radio", "Spot de rádio"], ["email", "E-mail marketing"],
+    ["whatsapp", "WhatsApp"], ["trafego", "Tráfego pago"], ["site", "Site / e-commerce"], ["pdv", "Material de PDV"], ["carrosom", "Carro de som"], ["externa", "Outdoor / mídia externa"], ["outros", "Outros"]];
+  const canalN = k => (CANAIS.find(c => c[0] === k) || [k, k])[1];
+  const TIPOS_AC = [["data", "Data comemorativa / aniversário"], ["comercial", "Ação comercial / queima de estoque"], ["sazonal", "Campanha sazonal"], ["lancamento", "Lançamento de produto"], ["industria", "Ação com indústria parceira"], ["outro", "Outra"]];
+  const tipoAcN = k => (TIPOS_AC.find(c => c[0] === k) || [k, k || ""])[1];
   const sitN = (col, k) => (SITUACOES[col].find(s => s[0] === k) || [k, k])[1];
   const etapa = x => x.etapa || "ideia";
   const firme = col => x => FIRMES[col].includes(etapa(x));
@@ -86,15 +93,17 @@
   let tt; const toast = m => { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 2800); };
   const pill = st => el("span", { class: "pl-pill st-" + (st || "proposto") }, STATUS[st] || STATUS.proposto);
 
-  const D = { cfg: null, fases: [], cotas: [], eventos: [], brindes: [], orc: [] };
+  const D = { cfg: null, fases: [], cotas: [], eventos: [], acoes: [], brindes: [], orc: [] };
   const C = {}; let me = null, admin = false, tab = "geral";
-  const F = { evMes: null, evSit: "", evUf: "", evVer: "mes", brMes: null, brSit: "", brFin: "", brConta: "", brVer: "mes", fiMes: null, fiModo: "previsto", fiCentro: "", fiAba: "painel", fiCat: "", fiSit: "", lfMes: null, lfCen: "", lfCat: "" };
+  const F = { acMes: null, acSit: "", acCanal: "", acVer: "mes", gCal: "tudo", evMes: null, evSit: "", evUf: "", evVer: "mes", brMes: null, brSit: "", brFin: "", brConta: "", brVer: "mes", fiMes: null, fiModo: "previsto", fiCentro: "", fiAba: "painel", fiCat: "", fiSit: "", lfMes: null, lfCen: "", lfCat: "" };
   try { tab = sessionStorage.getItem("pl-tab") || "geral"; } catch (_) {}
   const cfg = () => { const c = Object.assign({}, CFG0, D.cfg || {}); c.cotas = Object.assign({}, CFG0.cotas, (D.cfg || {}).cotas || {}); return c; };
   const ok = x => x.status === "aprovado";
   const vivo = x => x.status !== "recusado";
   const mesEv = x => +(String(x.data || "").slice(5, 7)) || +x.mes || 0;
   const liqEv = x => Math.max(0, (+x.custo || 0) - (+x.patrocinio || 0));
+  const mesAc = x => +(String(x.inicio || "").slice(5, 7)) || +x.mes || 0;
+  const cenAc = x => x.centro || "200020";
   const soma = a => a.reduce((s, v) => s + (+v || 0), 0);
 
   /* ---------- contas ---------- */
@@ -104,6 +113,7 @@
     const m = {}; CENTROS.forEach(c => m[c.c] = Array(13).fill(0));
     D.orc.filter(conf ? ok : vivo).forEach(x => { const r = m[x.centro] || (m[x.centro] = Array(13).fill(0)); r[+x.mes || 0] += +x.valor || 0; });
     D.eventos.filter(conf ? firme("plan_eventos") : ativo).forEach(x => { m["200022"][mesEv(x)] += +x.custo || 0; });
+    D.acoes.filter(conf ? firme("plan_acoes") : ativo).forEach(x => { const r = m[cenAc(x)] || (m[cenAc(x)] = Array(13).fill(0)); r[mesAc(x)] += +x.custo || 0; });
     D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(em23).forEach(x => { m["200023"][mesBr(x)] += totBr(x); });
     return m;
   }
@@ -130,7 +140,7 @@
     D.orc.filter(x => x.status === "proposto").map(x => ({ col: "plan_orcamento", x, tipo: "Financeiro", txt: `${x.centro} · ${MESES[(+x.mes || 1) - 1]} · ${x.descricao}`, val: +x.valor || 0 })));
 
   /* ---------- telas ---------- */
-  const VIEWS = { geral, cronograma, trade, eventos, brindes, financeiro, aprovar };
+  const VIEWS = { geral, cronograma, trade, eventos, acoes, brindes, financeiro, aprovar };
   function render(){
     if (document.activeElement && $("plBody").contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { render.pend = true; return; }
     render.pend = false;
@@ -144,6 +154,10 @@
   $("plBody").addEventListener("focusout", () => setTimeout(() => { if (render.pend) render(); }, 0));
   const irPara = t => { tab = t; try { sessionStorage.setItem("pl-tab", tab); } catch (_) {} render(); window.scrollTo({ top: 0, behavior: "smooth" }); };
   $("plTabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) irPara(b.dataset.t); });
+  const nomeAba = () => { const b = [...$("plTabs").children].find(x => x.dataset.t === tab); return b ? b.firstChild.textContent.trim() : ""; };
+  if (window.Exportar) Exportar.menu($("plExp"), { alvo: () => $("plBody"), titulo: () => `Planejamento ${ANO}`, secao: nomeAba,
+    sub: () => tab === "financeiro" ? ({ painel: "Painel", lanc: "Lançamentos", resumo: "Resumo mensal", cat: "Por categoria" }[F.fiAba] || "") : tab === "eventos" ? ({ mes: "Por mês", evento: "Por evento", cal: "Calendário anual" }[F.evVer] || "") : "",
+    arquivo: () => `planejamento-${ANO}-${nomeAba()}` });
 
   const card = (titulo, extra, ...kids) => el("div", { class: "pl-card" }, el("div", { class: "pl-head" }, el("h2", null, titulo), extra || null), ...kids);
   const btnNovo = (txt, fn) => el("button", { class: "pl-btn pri", type: "button", onclick: fn }, txt);
@@ -196,8 +210,14 @@
       frente("Cronograma", `${tot ? Math.round(feitos / tot * 100) : 0}%`, `${feitos} de ${tot} itens fechados nas 5 fases`, "cronograma", bar(tot ? feitos / tot * 100 : 0)),
       frente("Plano de trade e cotas", pct(ct.pct), `${brl0(ct.fechado)} de ${brl0(ct.potencial)} · ${brl0(ct.negociacao)} em negociação`, "trade", bar(ct.pct, ct.pct >= 90 ? "--ok" : ct.pct >= 70 ? "--warn" : "--bad")),
       frente("Eventos", brl0(ev.liq) + " líquido", contaSit("plan_eventos", D.eventos), "eventos", bar(ev.bruto ? ev.pat / ev.bruto * 100 : 0, "--info")),
+      frente("Ações promocionais", brl0(soma(D.acoes.filter(ativo).map(x => x.custo))), `${D.acoes.filter(ativo).length} ação(ões) · ${contaSit("plan_acoes", D.acoes)}`, "acoes", bar(D.acoes.length ? D.acoes.filter(firme("plan_acoes")).length / D.acoes.filter(ativo).length * 100 : 0, "--accent")),
       frente("Brindes", brl0(brP), `${contaSit("plan_brindes", D.brindes)} · ${pct(b23 ? brP / b23 * 100 : 0)} do planejado ${ANO - 1}`, "brindes", bar(b23 ? brP / b23 * 100 : 0, brP > b23 ? "--warn" : "--ok")),
       frente("Financeiro", brl0(totP), `${brl0(totC)} confirmado · ${brl0(totP - totC)} ainda em planejamento`, "financeiro", bar(totP ? totC / totP * 100 : 0))));
+    // calendário geral: ações promocionais e eventos juntos
+    const itG = (F.gCal !== "eventos" ? D.acoes.filter(ativo).map(itemAc) : []).concat(F.gCal !== "acoes" ? D.eventos.filter(ativo).map(itemEv) : []);
+    B.append(card(`Calendário geral ${ANO} · ações promocionais e eventos`, seg([["tudo", "Tudo"], ["acoes", "Só ações"], ["eventos", "Só eventos"]], F.gCal, v => { F.gCal = v; render(); }),
+      calendario(itG, { unid: ["item", "itens"], legenda: el("div", { class: "pl-calleg" }, el("span", null, el("em", { class: "tg k-ac" }, "Ação"), "ação promocional"), el("span", null, el("em", { class: "tg k-ev" }, "Evento"), "evento"),
+        el("span", { class: "sb" }, "a cor da faixa mostra a situação: cinza ideia · amarelo em negociação/planejamento · azul confirmado/aprovado · verde realizado · cancelados não aparecem"), ) })));
     B.append(card("Venda das cotas × regra de decisão", el("span", { class: "pl-who" }, `prazo ${fd(c.prazoVenda)}`),
       el("div", { class: "pl-bar", title: `${pct(ct.pct)} vendido` }, el("i", { style: `width:${Math.min(100, ct.pct)}%;background:var(${ct.pct >= 90 ? "--ok" : ct.pct >= 70 ? "--warn" : "--bad"})` }), el("span", { class: "mk", style: "left:70%" }), el("span", { class: "mk", style: "left:90%" })),
       el("p", { class: "hint", style: "margin:0" }, c.regra.map(f => `${f.min ? "≥ " + f.min + "%" : "abaixo de 70%"}: ${f.txt}`).join(" · "))));
@@ -274,7 +294,7 @@
     B.append(el("p", { class: "pl-ref" }, `${bl.nome}: ${bl.eventos} ocorrências, bruto ${curto(bl.bruto)}, patrocínio ${curto(bl.patrocinio)}, líquido ${curto(bl.liquido)}. Hoje o líquido está ${d(T.liq, bl.liquido)} em relação ao esboço. Cancelados não entram nos totais.`));
     const ufs = [...new Set(D.eventos.flatMap(x => x.ufs || []))].sort();
     const temF = F.evMes || F.evSit || F.evUf;
-    B.append(el("div", { class: "pl-filters" }, el("span", { class: "pl-who" }, "Ver"), seg([["mes", "Por mês"], ["evento", "Por evento"]], F.evVer, v => { F.evVer = v; render(); }),
+    B.append(el("div", { class: "pl-filters" }, el("span", { class: "pl-who" }, "Ver"), seg([["mes", "Por mês"], ["evento", "Por evento"], ["cal", "Calendário anual"]], F.evVer, v => { F.evVer = v; render(); }),
       filtro("Situação", SITUACOES[col], F.evSit, v => { F.evSit = v; render(); }), filtro("Estado", ufs.map(u => [u, u]), F.evUf, v => { F.evUf = v; render(); }),
       temF ? el("button", { type: "button", class: "pl-link", onclick: () => { F.evMes = null; F.evSit = F.evUf = ""; render(); } }, "Limpar filtros") : null));
     const L = D.eventos.filter(x => (!F.evMes || mesEv(x) === F.evMes) && (!F.evSit || etapa(x) === F.evSit) && (!F.evUf || (x.ufs || []).includes(F.evUf)))
@@ -285,6 +305,7 @@
       el("div", { class: "c2" }, el("div", null, [(x.ufs || []).join(", "), x.cidade].filter(Boolean).join(" | ") || "Praça a definir"), el("div", { class: "sb" }, x.publico ? `${x.publico} pessoas` : "")),
       el("div", { class: "c3" }, el("div", null, x.dri || "Sem responsável"), el("div", { class: "sb" }, "responsável")),
       el("div", { class: "mo" }, el("div", null, brl0(liqEv(x))), el("div", { class: "sb" }, `bruto ${brl0(x.custo)}`)), sitSelect(col, x));
+    if (F.evVer === "cal") { B.append(calAnual(L)); return; }
     if (F.evVer === "evento") {
       const G = new Map(); L.forEach(x => { const k = String(x.nome || "").trim().toLowerCase(); if (!G.has(k)) G.set(k, []); G.get(k).push(x); });
       const ul = el("ul", { class: "pl-rows" });
@@ -303,6 +324,63 @@
     Object.keys(by).map(Number).sort((a, b) => a - b).forEach(m => { const evs = by[m];
       B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês", el("small", null, `${evs.length} ocorrência${evs.length === 1 ? "" : "s"}, ${brl0(soma(evs.filter(ativo).map(liqEv)))} líquido`)),
         el("ul", { class: "pl-rows" }, ...evs.map(linha)))); });
+  }
+
+  /* calendário anual: 12 cartões de mês com o nome de cada item (eventos, ações). Bom para exportar e usar em apresentação */
+  const COR_EV = { ideia: "--muted", negociacao: "--warn", confirmado: "--info", realizado: "--ok", cancelado: "--bad" };
+  const COR_AC = { ideia: "--muted", planejando: "--warn", aprovado: "--info", executada: "--ok", cancelado: "--bad" };
+  const itemEv = x => ({ m: mesEv(x), dia: x.data ? String(x.data).slice(8, 10) : "", nome: x.nome, sub: [(x.ufs || []).join(", "), x.cidade].filter(Boolean).join(" · ") || sitN("plan_eventos", etapa(x)),
+    cor: COR_EV[etapa(x)] || "--muted", cancel: etapa(x) === "cancelado", tag: "Evento", k: "ev", ord: String(x.data || ""), tit: `${x.nome} · ${sitN("plan_eventos", etapa(x))}`, abrir: () => form("plan_eventos", x) });
+  const itemAc = x => ({ m: mesAc(x), dia: x.inicio ? String(x.inicio).slice(8, 10) : "", nome: x.nome, sub: (x.canais || []).map(canalN).join(", ") || tipoAcN(x.tipo) || sitN("plan_acoes", etapa(x)),
+    cor: COR_AC[etapa(x)] || "--muted", cancel: etapa(x) === "cancelado", tag: "Ação", k: "ac", ord: String(x.inicio || "00"), tit: `${x.nome} · ${sitN("plan_acoes", etapa(x))}`, abrir: () => form("plan_acoes", x) });
+  function calendario(itens, { legenda, sel, unid } = {}){
+    const by = {}; itens.forEach(x => (by[x.m] = by[x.m] || []).push(x));
+    const g = el("div", { class: "pl-cal" });
+    MESES_L.forEach((nm, i) => { const L = (by[i + 1] || []).slice().sort((a, b) => (a.ord || "").localeCompare(b.ord || "") || a.nome.localeCompare(b.nome)); const n = L.filter(x => !x.cancel).length;
+      g.append(el("section", { class: "pl-cm" + (sel === i + 1 ? " sel" : "") },
+        el("h4", null, cap(nm), el("small", null, L.length ? `${n} ${(unid || ["item", "itens"])[n === 1 ? 0 : 1]}` : "")),
+        ...(L.length ? L.map(x => el("button", { type: "button", class: "pl-ce k-" + x.k + (x.cancel ? " cancel" : ""), style: `--c:var(${x.cor})`, title: x.tit, onclick: x.abrir },
+          el("span", { class: "d" }, x.dia || "—"),
+          el("span", { class: "n" }, x.tag ? el("em", { class: "tg" }, x.tag) : null, x.nome, el("span", { class: "u" }, x.sub)))) : [el("p", { class: "vazio" }, "—")])));
+    });
+    const sem = by[0] || [];
+    return el("div", { class: "pl-calw" }, legenda || null, g, sem.length ? el("p", { class: "pl-who" }, `${sem.length} item(ns) sem mês não aparecem no calendário.`) : null);
+  }
+  const legSit = (col, cores) => el("div", { class: "pl-calleg" }, ...SITUACOES[col].map(([k, n]) => el("span", null, el("i", { style: `background:var(${cores[k]})` }), n)));
+  function calAnual(L){
+    return calendario(L.map(itemEv).map(x => Object.assign(x, { tag: null })), { legenda: legSit("plan_eventos", COR_EV), sel: F.evMes, unid: ["evento", "eventos"] });
+  }
+
+  /* ---------- ações promocionais (campanhas comerciais para o cliente, mês a mês) ---------- */
+  function acoes(B){
+    const col = "plan_acoes";
+    const vals = Array(12).fill(0), conf = Array(12).fill(0), cont = Array(12).fill(0);
+    D.acoes.filter(ativo).forEach(x => { const m = mesAc(x); if (m) { vals[m - 1] += +x.custo || 0; cont[m - 1]++; if (firme(col)(x)) conf[m - 1] += +x.custo || 0; } });
+    B.append(regua({ titulo: `Ações promocionais ${ANO}`, lede: "Campanhas comerciais para o cliente, mês a mês: aniversário, queima de estoque, datas sazonais, ações com indústrias. Barras = custo previsto de cada mês. Tudo aqui ainda é planejamento: o custo só vira verba oficial depois que o gerente aprova e envia para Metas e custos.",
+      vals, conf, cont, unid: ["ação", "ações"], legenda: true, sel: F.acMes, onSel: m => { F.acMes = m; render(); }, acoes: [btnNovo("+ Cadastrar ação", () => form(col, null))] }));
+    const L0 = D.acoes.filter(ativo), K = D.acoes.filter(firme(col));
+    const cus = soma(L0.map(x => x.custo)), vb = soma(L0.map(x => x.verba)), mv = soma(L0.map(x => x.metaVendas));
+    const meses = new Set(L0.map(mesAc).filter(Boolean)).size;
+    B.append(totais([[String(L0.length), "ações planejadas"], [`${meses}/12`, "meses com ação"], [curto(cus), "custo previsto", "net"], [curto(vb), "verba de indústrias/parceiros"],
+      [curto(soma(K.map(x => x.custo))), `aprovado (${K.length} ${K.length === 1 ? "ação" : "ações"})`], [curto(mv), "meta de vendas somada"]]));
+    const temF = F.acMes || F.acSit || F.acCanal;
+    B.append(el("div", { class: "pl-filters" }, el("span", { class: "pl-who" }, "Ver"), seg([["mes", "Por mês"], ["cal", "Calendário anual"]], F.acVer, v => { F.acVer = v; render(); }),
+      filtro("Situação", SITUACOES[col], F.acSit, v => { F.acSit = v; render(); }), filtro("Canal", CANAIS, F.acCanal, v => { F.acCanal = v; render(); }),
+      temF ? el("button", { type: "button", class: "pl-link", onclick: () => { F.acMes = null; F.acSit = F.acCanal = ""; render(); } }, "Limpar filtros") : null));
+    const L = D.acoes.filter(x => (!F.acMes || mesAc(x) === F.acMes) && (!F.acSit || etapa(x) === F.acSit) && (!F.acCanal || (x.canais || []).includes(F.acCanal)))
+      .sort((a, b) => mesAc(a) - mesAc(b) || String(a.inicio || "").localeCompare(String(b.inicio || "")) || String(a.nome).localeCompare(b.nome));
+    if (F.acVer === "cal") { B.append(calendario(L.map(itemAc).map(x => Object.assign(x, { tag: null })), { legenda: legSit(col, COR_AC), sel: F.acMes, unid: ["ação", "ações"] })); return; }
+    if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.acoes.length ? "Nenhuma ação com esses filtros." : "Nenhuma ação cadastrada ainda. Ex.: Janeiro · Aniversário da Lopes (tabloide, post no Instagram, sorteio, spot de rádio); Fevereiro · Zera Estoque.")); return; }
+    const per = x => x.inicio ? (x.fim && x.fim !== x.inicio ? `${fd(x.inicio).slice(0, 5)} a ${fd(x.fim).slice(0, 5)}` : fd(x.inicio).slice(0, 5)) : "data a definir";
+    const linha = x => el("li", { class: "pl-row pl-acrow" + (etapa(x) === "cancelado" ? " cancel" : ""), tabindex: "0", onclick: () => form(col, x), onkeydown: e => { if (e.key === "Enter") form(col, x); } },
+      el("div", null, el("div", { class: "nm" }, x.nome), el("div", { class: "sb" }, [tipoAcN(x.tipo), per(x)].filter(Boolean).join(" · ")),
+        (x.canais || []).length ? el("div", { class: "pl-chips" }, ...(x.canais || []).map(k => el("span", null, canalN(k)))) : null),
+      el("div", { class: "c3" }, el("div", null, x.dri || "Sem responsável"), el("div", { class: "sb" }, x.publico || "responsável")),
+      el("div", { class: "mo" }, el("div", null, brl0(+x.custo || 0)), el("div", { class: "sb" }, x.metaVendas ? `meta ${curto(x.metaVendas)}` : `centro ${cenAc(x)}`)), sitSelect(col, x));
+    const by = {}; L.forEach(x => (by[mesAc(x)] = by[mesAc(x)] || []).push(x));
+    Object.keys(by).map(Number).sort((a, b) => a - b).forEach(m => { const it = by[m];
+      B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês", el("small", null, `${it.length} ação${it.length === 1 ? "" : "ões"}, ${brl0(soma(it.filter(ativo).map(x => x.custo)))} previsto`)),
+        el("ul", { class: "pl-rows" }, ...it.map(linha)))); });
   }
 
   /* ---------- brindes (como no calendário de eventos: cada item tem uma ou mais compras) ---------- */
@@ -482,6 +560,7 @@
     const conf = modo === "confirmado", out = [];
     D.orc.filter(conf ? ok : vivo).filter(x => x.centro === centro).forEach(x => out.push({ cat: catN(centro, x.categoria) || "Sem categoria", mes: +x.mes || 0, valor: +x.valor || 0, origem: "lanc" }));
     if (centro === "200022") D.eventos.filter(conf ? firme("plan_eventos") : ativo).forEach(x => out.push({ cat: "Evento · " + (x.tipo || "sem tipo"), mes: mesEv(x), valor: +x.custo || 0, origem: "evento" }));
+    D.acoes.filter(conf ? firme("plan_acoes") : ativo).filter(x => cenAc(x) === centro).forEach(x => out.push({ cat: "Ação promocional · " + (tipoAcN(x.tipo) || "sem tipo"), mes: mesAc(x), valor: +x.custo || 0, origem: "acao" }));
     if (centro === "200023") D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(em23).forEach(x => out.push({ cat: "Brinde · " + (x.finalidade || "Outro"), mes: mesBr(x), valor: totBr(x), origem: "brinde" }));
     return out;
   }
@@ -507,6 +586,7 @@
     const fm = x => !mm || x === mm;
     const orig = [["Lançamentos do financeiro", D.orc.filter(vivo).filter(x => fm(+x.mes)), D.orc.filter(ok).filter(x => fm(+x.mes)), x => +x.valor || 0, "lanc"],
       ["Eventos · custo bruto (200022)", D.eventos.filter(ativo).filter(x => fm(mesEv(x))), D.eventos.filter(firme("plan_eventos")).filter(x => fm(mesEv(x))), x => +x.custo || 0, "eventos"],
+      ["Ações promocionais (centro de cada ação)", D.acoes.filter(ativo).filter(x => fm(mesAc(x))), D.acoes.filter(firme("plan_acoes")).filter(x => fm(mesAc(x))), x => +x.custo || 0, "acoes"],
       ["Brindes na conta 200023", D.brindes.filter(ativo).filter(em23).filter(x => fm(mesBr(x))), D.brindes.filter(firme("plan_brindes")).filter(em23).filter(x => fm(mesBr(x))), totBr, "brindes"]];
     const tO = soma(orig.map(o => soma(o[1].map(o[3]))));
     B.append(card("De onde vêm os custos", el("span", { class: "pl-who" }, mm ? MESES_L[mm - 1] : `ano ${ANO}`),
@@ -670,13 +750,14 @@
     }
     // eventos e brindes ainda não confirmados (não contam no aviso de pendências: estão em planejamento)
     const E = D.eventos.filter(x => ativo(x) && !firme("plan_eventos")(x)).sort((a, b) => String(a.data).localeCompare(String(b.data))).map(x => ({ col: "plan_eventos", x, tipo: "Evento", txt: `${x.nome} · ${x.cidade || ""} · ${fd(x.data)}`, val: liqEv(x) }))
+      .concat(D.acoes.filter(x => ativo(x) && !firme("plan_acoes")(x)).sort((a, b) => mesAc(a) - mesAc(b)).map(x => ({ col: "plan_acoes", x, tipo: "Ação promocional", txt: `${x.nome} · ${mesAc(x) ? MESES_L[mesAc(x) - 1] : "sem mês"}`, val: +x.custo || 0 })))
       .concat(D.brindes.filter(x => ativo(x) && !firme("plan_brindes")(x)).map(x => ({ col: "plan_brindes", x, tipo: "Brinde", txt: `${x.descricao} · pagamento em ${x.mesPagamento ? MESES_L[x.mesPagamento - 1] : "?"}`, val: totBr(x) })));
     const tb2 = el("tbody");
     E.forEach(p => tb2.append(el("tr", null, el("td", null, p.tipo), el("td", null, el("b", null, p.txt), el("div", { class: "pl-who" }, quem(p.x.criadoPor))), el("td", { class: "r m" }, brl0(p.val)), el("td", null, sitSelect(p.col, p.x)),
       el("td", null, admin ? el("button", { class: "pl-btn ok", type: "button", onclick: () => salvar(p.col, p.x, { etapa: FIRMES[p.col][0] }) }, p.col === "plan_eventos" ? "Confirmar" : "Aprovar") : null))));
-    B.append(card("Eventos e brindes ainda em planejamento", el("span", { class: "pl-who" }, admin ? "confirme quando o item estiver fechado" : "só o gerente confirma"),
+    B.append(card("Eventos, ações e brindes ainda em planejamento", el("span", { class: "pl-who" }, admin ? "confirme quando o item estiver fechado" : "só o gerente confirma"),
       E.length ? el("div", { class: "pl-tw" }, el("table", { class: "pl-t", style: "min-width:760px" }, el("thead", null, el("tr", null, el("th", null, "Tipo"), el("th", null, "Item"), el("th", { class: "r" }, "Valor"), el("th", null, "Situação"), el("th", null, ""))), tb2))
-        : el("div", { class: "pl-empty" }, "Todos os eventos e brindes estão confirmados.")));
+        : el("div", { class: "pl-empty" }, "Todos os eventos, ações e brindes estão confirmados.")));
   }
   const quem = e => { if (!e) return ""; const u = (D.usuarios || []).find(x => x.email === e); return "Lançado por " + (u && u.nome || e); };
 
@@ -699,6 +780,7 @@
         const projetado = Object.assign({}, ((D.mm || {})[`custos-${ANO}-${pad(m)}`] || {}).projetado || {}); ids.forEach(c => projetado[c.id] = Math.round((M[c.c][m] || 0) * 100) / 100);
         const itens = D.orc.filter(ok).filter(x => +x.mes === m && (CENTROS.find(c => c.c === x.centro) || {}).id).map(x => ({ centro: CENTROS.find(c => c.c === x.centro).id, conta: x.centro, item: x.descricao || catN(x.centro, x.categoria), valor: +x.valor || 0 }))
           .concat(D.eventos.filter(firme("plan_eventos")).filter(x => mesEv(x) === m).map(x => ({ centro: "eventos", conta: "200022", item: `${x.nome} · ${x.cidade || ""}`, valor: +x.custo || 0 })))
+          .concat(D.acoes.filter(firme("plan_acoes")).filter(x => mesAc(x) === m && (CENTROS.find(c => c.c === cenAc(x)) || {}).id).map(x => ({ centro: CENTROS.find(c => c.c === cenAc(x)).id, conta: cenAc(x), item: `Ação: ${x.nome}`, valor: +x.custo || 0 })))
           .concat(D.brindes.filter(firme("plan_brindes")).filter(em23).filter(x => mesBr(x) === m).map(x => ({ centro: "brindes", conta: "200023", item: x.descricao, valor: totBr(x) })));
         await col.doc(`custos-${ANO}-${pad(m)}`).update({ tipo: "custos", mes: `${ANO}-${pad(m)}`, projetado, itens, fonte: `Planejamento ${ANO} (confirmado)` }); n++;
       }
@@ -707,7 +789,7 @@
   }
 
   /* ---------- formulários ---------- */
-  const LIVRES = { plan_fases: ["situacao", "obs"], plan_cotas: ["etapa", "obs", "contato"], plan_eventos: ["obs"], plan_brindes: ["obs"], plan_orcamento: [] };
+  const LIVRES = { plan_fases: ["situacao", "obs"], plan_cotas: ["etapa", "obs", "contato"], plan_eventos: ["obs"], plan_acoes: ["obs"], plan_brindes: ["obs"], plan_orcamento: [] };
   const travadoP = (col, x) => FIRMES[col] ? FIRMES[col].includes(etapa(x)) : x.status === "aprovado";
   const mesesOpt = MESES_L.map((m, i) => [i + 1, cap(m)]);
   const SPEC = {
@@ -723,6 +805,13 @@
       ["nome", "Evento", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_eventos], ["data", "Data", "date"], ["tipo", "Tipo", "text"], ["cidade", "Cidade", "text"], ["ufsTxt", "UF(s) (ex.: MS ou RO/AC)", "text"],
       ["publico", "Público estimado", "number"], ["custo", "Custo bruto (R$)", "money"], ["patrocinio", "Patrocínio previsto (R$)", "money"], ["custo2026", "Custo em 2026 (R$)", "money"],
       ["metaReceita", "Meta de receita (R$)", "money"], ["dri", "Responsável", "text"], ["patrocinadores", "Indústrias patrocinadoras", "text", null, "w2"], ["obs", "Observação", "textarea", null, "w2"]] },
+    plan_acoes: { t: "Ação promocional", f: [
+      ["nome", "Ação (ex.: Aniversário da Lopes, Zera Estoque)", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_acoes], ["tipo", "Tipo de ação", "select", TIPOS_AC],
+      ["mes", "Mês", "select", mesesOpt], ["dri", "Responsável", "text"], ["inicio", "Início (opcional)", "date"], ["fim", "Fim (opcional)", "date"],
+      ["canais", "Canais e peças", "multi", CANAIS, "w2"], ["objetivo", "Objetivo / mecânica (ofertas, prêmios, regras)", "textarea", null, "w2"],
+      ["publico", "Público e praças (ex.: revendas MS e MT)", "text", null, "w2"], ["centro", "Centro de custo", "select", CENTROS.map(c => [c.c, `${c.c} · ${c.n}`])],
+      ["custo", "Custo previsto (R$)", "money"], ["verba", "Verba de indústria / parceiros (R$)", "money"], ["metaVendas", "Meta de vendas (R$)", "money"],
+      ["obs", "Observação", "textarea", null, "w2"]] },
     plan_brindes: { t: "Brinde", f: [
       ["descricao", "Descrição do brinde", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_brindes], ["finalidade", "Finalidade", "select", FIN.map(f => [f, f])],
       ["conta", "Conta contábil", "select", CONTAS_BR], ["evento", "Evento vinculado (opcional)", "text"], ["mesPagamento", "Mês de pagamento", "select", mesesOpt], ["mesUso", "Mês de uso", "select", [["", "—"]].concat(mesesOpt)],
@@ -731,7 +820,7 @@
     plan_orcamento: { t: "Lançamento do financeiro", f: [
       ["centro", "Centro de custo", "select", CENTROS.map(c => [c.c, `${c.c} · ${c.n}`])], ["categoria", "Categoria", "text"],
       ["descricao", "Descrição", "text", null, "w2"], ["valor", "Valor (R$)", "money"], ["mes", "Mês", "select", mesesOpt]] } };
-  const REPETE = { plan_orcamento: "mes", plan_brindes: "mesPagamento" };
+  const REPETE = { plan_orcamento: "mes", plan_brindes: "mesPagamento", plan_acoes: "mes" };
 
   function form(col, x, preset){
     if (col === "plan_brindes") return formBrinde(x);
@@ -743,6 +832,7 @@
     if (novo && col === "plan_cotas") { v.etapa = "prospeccao"; v.meses = cfg().meses; v.cota = "ouro"; }
     if (novo && col === "plan_orcamento" && !v.mes) v.mes = 1;
     if (novo && col === "plan_eventos" && F.evMes) v.data = `${ANO}-${pad(F.evMes)}-01`;
+    if (novo && col === "plan_acoes") { v.mes = F.acMes || 1; v.centro = "200020"; v.tipo = v.tipo || "comercial"; v.canais = v.canais || []; }
     if (novo && col === "plan_brindes") { v.mesPagamento = F.brMes || 1; v.conta = "200023"; v.finalidade = FIN[0]; }
     if (FIRMES[col]) v.etapa = etapa(v);
     const bd = el("div", { class: "bd" }), ins = {};
@@ -758,15 +848,16 @@
       }
       else if (tipo === "textarea") i = el("textarea", { maxlength: "1000" }, v[k] || "");
       else if (tipo === "check") { i = el("input", { type: "checkbox", style: "width:auto" }); i.checked = !!v[k]; }
+      else if (tipo === "multi") { i = el("div", { class: "pl-meses pl-multi" }, ...opts.map(([a, b]) => el("label", null, el("input", { type: "checkbox", value: a, checked: (v[k] || []).includes(a) ? true : null }), b))); }
       else if (tipo === "money") i = el("input", { type: "text", class: "money", inputmode: "decimal", placeholder: "0,00", value: v[k] ? num(v[k]) : "" });
       else i = el("input", { type: tipo === "number" ? "text" : tipo, inputmode: tipo === "number" ? "numeric" : null, value: v[k] != null ? String(v[k]) : "" });
-      if (!pode(k)) { i.readOnly = true; if (i.tagName === "SELECT" || i.type === "checkbox") i.disabled = true; }
+      if (!pode(k)) { i.readOnly = true; if (i.tagName === "SELECT" || i.type === "checkbox") i.disabled = true; if (tipo === "multi") i.querySelectorAll("input").forEach(c => c.disabled = true); }
       ins[k] = i;
-      bd.append(el("label", { class: cls || (tipo === "check" ? "w2" : "") }, lab, i));
+      bd.append(tipo === "multi" ? el("div", { class: cls || "w2" }, el("label", null, lab), i) : el("label", { class: cls || (tipo === "check" ? "w2" : "") }, lab, i));
     });
     if (REPETE[col] && novo) { // repetir em vários meses
       const box = el("div", { class: "pl-meses" }, ...MESES_L.map((m, i) => el("label", null, el("input", { type: "checkbox", value: String(i + 1) }), m)));
-      bd.append(el("div", { class: "w2" }, el("label", null, col === "plan_brindes" ? "Repetir a mesma compra também nos meses de pagamento (opcional)" : "Repetir o mesmo valor também nos meses (opcional)"), box)); ins._meses = box;
+      bd.append(el("div", { class: "w2" }, el("label", null, col === "plan_brindes" ? "Repetir a mesma compra também nos meses de pagamento (opcional)" : col === "plan_acoes" ? "Repetir a mesma ação também nos meses (opcional, sem as datas de início e fim)" : "Repetir o mesmo valor também nos meses (opcional)"), box)); ins._meses = box;
     }
     if (col === "plan_orcamento") {
       const cat = ins.categoria; const dl = el("datalist", { id: "plCats" }); cat.setAttribute("list", "plCats");
@@ -782,6 +873,12 @@
         prev.textContent = `Total da compra: ${brl(t)}${vb ? ` · líquido ${brl(Math.max(0, t - vb))}` : ""}${n > 1 ? ` · ${n} compras = ${brl(t * n)}` : ""}${ins.conta.value !== "200023" ? " · não soma na 200023" : ""}`; };
       bd.addEventListener("input", calc); bd.addEventListener("change", calc); calc();
     }
+    if (col === "plan_acoes") {
+      const prev = el("p", { class: "pl-prev w2" }); bd.append(prev);
+      const calc = () => { const c = lerR(ins.custo.value), vb = lerR(ins.verba.value), mv = lerR(ins.metaVendas.value);
+        prev.textContent = `Custo líquido: ${brl(Math.max(0, c - vb))}${c && mv ? ` · custo = ${pct(c / mv * 100)} da meta de vendas` : ""} · o custo previsto entra no Painel financeiro do planejamento (centro ${ins.centro.value}).`; };
+      bd.addEventListener("input", calc); bd.addEventListener("change", calc); calc();
+    }
     if (col === "plan_eventos") {
       const prev = el("p", { class: "pl-prev w2" }); bd.append(prev);
       const calc = () => { const c = lerR(ins.custo.value), p = lerR(ins.patrocinio.value), c26 = lerR(ins.custo2026.value);
@@ -791,13 +888,14 @@
     const err = el("p", { class: "pl-err", hidden: true }); bd.append(err);
     const ler = () => { const o = {};
       sp.f.forEach(([k, , tipo]) => { const i = ins[k]; if (!pode(k)) return;
-        o[k] = tipo === "money" ? lerR(i.value) : tipo === "number" ? (i.value.trim() === "" ? null : Math.round(lerR(i.value))) : tipo === "check" ? i.checked : i.value.trim(); });
+        o[k] = tipo === "multi" ? [...i.querySelectorAll("input:checked")].map(c => c.value) : tipo === "money" ? lerR(i.value) : tipo === "number" ? (i.value.trim() === "" ? null : Math.round(lerR(i.value))) : tipo === "check" ? i.checked : i.value.trim(); });
       if (col === "plan_fases" && o.fase != null) o.fase = +o.fase;
       if (col === "plan_orcamento" && o.mes != null) { o.mes = +o.mes; const f = (CATS[o.centro] || []).find(c => c[1] === o.categoria); if (f) o.categoria = f[0]; }
       if (col === "plan_brindes") { if (o.mesPagamento != null) o.mesPagamento = +o.mesPagamento; if ("mesUso" in o) o.mesUso = o.mesUso ? +o.mesUso : null; }
+      if (col === "plan_acoes") { if (o.mes != null) o.mes = +o.mes; if (o.inicio) o.mes = +o.inicio.slice(5, 7); }
       if (col === "plan_eventos" && "ufsTxt" in o) { o.ufs = o.ufsTxt.split(/[\/,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean); delete o.ufsTxt; if (o.data) o.mes = +o.data.slice(5, 7); }
       return o; };
-    const obrig = { plan_fases: ["titulo"], plan_cotas: ["empresa"], plan_eventos: ["nome", "data"], plan_brindes: ["descricao", "mesPagamento"], plan_orcamento: ["descricao", "valor"] }[col];
+    const obrig = { plan_fases: ["titulo"], plan_cotas: ["empresa"], plan_eventos: ["nome", "data"], plan_acoes: ["nome", "mes"], plan_brindes: ["descricao", "mesPagamento"], plan_orcamento: ["descricao", "valor"] }[col];
     const salvarF = async ev => { ev.preventDefault(); const o = ler();
       const falta = obrig.filter(k => pode(k) && !o[k]); if (falta.length) { err.hidden = false; err.textContent = "Preencha: " + falta.map(k => sp.f.find(f => f[0] === k)[1]).join(", ") + "."; return; }
       const btn = Fm.querySelector("button[type=submit]"); btn.disabled = true;
@@ -809,7 +907,7 @@
           const st = FIRMES[col] ? (FIRMES[col].includes(o.etapa) ? "aprovado" : o.etapa === "cancelado" ? "recusado" : "proposto") : (admin ? "aprovado" : "proposto");
           const base = Object.assign({ status: st, criadoPor: me && me.email }, o, serie ? { serie } : {});
           await C[col].add(base);
-          for (const m of meses) await C[col].add(Object.assign({}, base, { [rk]: m }));
+          for (const m of meses) await C[col].add(Object.assign({}, base, { [rk]: m }, col === "plan_acoes" ? { inicio: "", fim: "" } : {}));
           toast(FIRMES[col] ? `Salvo${meses.length ? ` (${meses.length + 1} meses)` : ""}` : admin ? "Salvo e aprovado" : `Enviado para aprovação${meses.length ? ` (${meses.length + 1} meses)` : ""}`);
         } else { await C[col].doc(x.id).update(o); toast("Salvo"); }
         fechar();
@@ -842,8 +940,8 @@
 
   Central.boot("planejamento", user => {
     me = user; admin = Auth.isAdmin();
-    ["plan_config", "plan_fases", "plan_cotas", "plan_eventos", "plan_brindes", "plan_orcamento"].forEach(n => C[n] = Store.collection(n));
-    const map = { plan_fases: "fases", plan_cotas: "cotas", plan_eventos: "eventos", plan_brindes: "brindes", plan_orcamento: "orc" };
+    ["plan_config", "plan_fases", "plan_cotas", "plan_eventos", "plan_acoes", "plan_brindes", "plan_orcamento"].forEach(n => C[n] = Store.collection(n));
+    const map = { plan_fases: "fases", plan_cotas: "cotas", plan_eventos: "eventos", plan_acoes: "acoes", plan_brindes: "brindes", plan_orcamento: "orc" };
     Object.entries(map).forEach(([n, k]) => C[n].onSnapshot(sn => { D[k] = sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data())); render(); }));
     C.plan_config.onSnapshot(sn => { const d = sn.docs.find(x => x.id === String(ANO)); D.cfg = d ? d.data() : null; render(); });
     Store.collection("usuarios").onSnapshot(sn => { D.usuarios = sn.docs.map(d => d.data()); });
