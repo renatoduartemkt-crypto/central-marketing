@@ -125,6 +125,17 @@ td.tt{font-weight:600;max-width:340px}
 .rp-datas button{border:0;background:none;cursor:pointer;font-size:15px;line-height:1;color:var(--muted);padding:0 4px}
 .rp-prev{background:var(--surface-2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--fg);margin:0}
 .rp-tag{font-size:11px;font-weight:700;color:var(--accent);margin-left:4px}
+.st-bar{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden}.st-bar i{display:block;height:100%;background:var(--ok,#2e9e5b);border-radius:99px}
+.st-list{display:flex;flex-direction:column;gap:6px}
+.st-row{display:grid;grid-template-columns:22px minmax(0,1fr) 140px 170px 30px;gap:6px;align-items:center}
+.st-row input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
+.panel .st-row input[type=text],.panel .st-row input[type=date],.panel .st-row select{padding:6px 8px;font-size:13px}
+.st-row.ok input[type=text]{text-decoration:line-through;color:var(--muted)}
+.st-row.late input[type=date]{border-color:var(--bad);color:var(--bad)}
+.st-row .x{width:28px;height:28px;font-size:16px}
+.st-new{display:grid;grid-template-columns:minmax(0,1fr) 140px 170px auto;gap:6px;align-items:center;border-top:1px dashed var(--line);padding-top:10px}
+.stk{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}.stk.late{color:var(--bad)}.stk.all{color:var(--ok,#2e9e5b)}
+@media (max-width:640px){.st-row{grid-template-columns:22px minmax(0,1fr) 30px}.st-row input[type=date],.st-row select{grid-column:2/3}.st-new{grid-template-columns:1fr}}
 .comments{display:flex;flex-direction:column;gap:10px}
 .cm{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px}
 .cm .av{margin:0;width:28px;height:28px;font-size:10.5px;border:0}
@@ -196,6 +207,18 @@ td.tt{font-weight:600;max-width:340px}
       </div>
       <div class="field"><label for="iDesc">Descrição</label><textarea id="iDesc" maxlength="2000" placeholder="O que precisa ser feito"></textarea></div>
       <div class="field"><label for="iBrief">Briefing</label><textarea id="iBrief" maxlength="6000" style="min-height:120px" placeholder="Objetivo, público, referências, peças, prazos, links..."></textarea></div>
+
+      <div class="sec" id="secSub">
+        <h3>Subtarefas <small id="stInfo">checklist com data e responsável</small></h3>
+        <div class="st-bar" id="stBar" hidden><i></i></div>
+        <div class="st-list" id="stList"></div>
+        <div class="st-new">
+          <input type="text" id="stTxt" maxlength="300" placeholder="Nova subtarefa" aria-label="Nova subtarefa">
+          <input type="date" id="stData" aria-label="Data da subtarefa">
+          <select id="stResp" aria-label="Responsável pela subtarefa"></select>
+          <button class="btn" type="button" id="stAdd">+ Adicionar</button>
+        </div>
+      </div>
 
       <div class="sec" id="secRep">
         <h3>Repetir tarefa <small>cria cópias desta tarefa em outras datas, com os mesmos responsáveis, prioridade, descrição e briefing</small></h3>
@@ -281,6 +304,9 @@ td.tt{font-weight:600;max-width:340px}
   const dueEl=t=>t.entrega?el("span",{class:"due"+(isLate(t)?" late":""),title:isLate(t)?"Entrega atrasada":"Data de entrega"},(isLate(t)?"⚠ ":"")+"Entrega "+fd(t.entrega)):null;
   const avs=t=>el("span",{class:"avs"},...(t.responsaveis||[]).map(avatar));
   const cmts=t=>(t.comentarios||[]).length?el("span",{class:"cmt"},`💬 ${(t.comentarios||[]).length}`):null;
+  const stkEl=t=>{const S=t.subtarefas||[];if(!S.length)return null;const ok=S.filter(x=>x.feito).length,late=S.some(x=>!x.feito&&x.data&&x.data<hoje());
+    const prox=S.filter(x=>!x.feito&&x.data).map(x=>x.data).sort()[0];
+    return el("span",{class:"stk"+(late?" late":ok===S.length?" all":""),title:`${ok} de ${S.length} subtarefas concluídas`+(prox?` · próxima em ${fd(prox)}`:"")},`☑ ${ok}/${S.length}`);};
 
   // preferência de visualização por usuário (no navegador e no cadastro do usuário)
   const prefKey=()=>"tarefas-visao:"+(me?me.email:"");
@@ -289,7 +315,8 @@ td.tt{font-weight:600;max-width:340px}
     if(me&&Store.modo()!=="gas")Store.collection("usuarios").doc(Auth.docId(me.email)).update({preferencias:Object.assign({},me.preferencias,{tarefasVisao:view})}).catch(()=>{});}
 
   function filtered(){const q=F.q.trim().toLowerCase();
-    return tasks.filter(t=>(!F.resp||(F.resp==="__eu"?(t.responsaveis||[]).includes(me.email):F.resp==="__sem"?!(t.responsaveis||[]).length:(t.responsaveis||[]).includes(F.resp)))
+    const tem=(t,e)=>(t.responsaveis||[]).includes(e)||(t.subtarefas||[]).some(x=>!x.feito&&x.resp===e);
+    return tasks.filter(t=>(!F.resp||(F.resp==="__eu"?tem(t,me.email):F.resp==="__sem"?!(t.responsaveis||[]).length:tem(t,F.resp)))
       &&(!F.pri||priOf(t).k===F.pri)&&(!q||[t.titulo,t.descricao,t.briefing].join(" ").toLowerCase().includes(q)));}
   const sortT=a=>a.slice().sort((x,y)=>{const pr=k=>PRI.findIndex(p=>p.k===priOf(k).k);return (x.entrega||"9999").localeCompare(y.entrega||"9999")||pr(x)-pr(y);});
 
@@ -312,7 +339,7 @@ td.tt{font-weight:600;max-width:340px}
   function card(t){const f=faseOf(t);
     return el("div",{class:"card"+(f.k==="realizado"?" done":""),draggable:"true",tabindex:"0",role:"button","aria-label":t.titulo||"Tarefa",
       onclick:()=>openTask(t),onkeydown:e=>{if(e.key==="Enter")openTask(t);},ondragstart:e=>e.dataTransfer.setData("text/plain",t.id)},
-      el("div",{class:"m"},priTag(t),cmts(t)),el("div",{class:"t"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
+      el("div",{class:"m"},priTag(t),el("span",{style:"display:flex;gap:8px"},stkEl(t),cmts(t))),el("div",{class:"t"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
   function renderKanban(){const k=$("kanban");k.textContent="";const L=sortT(filtered());
     FASES.forEach(f=>{const items=L.filter(t=>faseOf(t).k===f.k);
       const c=el("div",{class:"colk",style:`--c:var(${f.c})`},el("header",null,el("b",null,f.n),el("span",null,items.length)));
@@ -324,7 +351,7 @@ td.tt{font-weight:600;max-width:340px}
       const g=el("div",{class:"lgroup",style:`--c:var(${f.c})`},el("header",null,el("i",{class:"dot",style:`--c:var(${f.c})`}),el("b",null,f.n),el("span",null,items.length),el("button",{type:"button",class:"btn",style:"padding:5px 10px;font-size:12.5px",onclick:()=>openTask(null,{fase:f.k})},"+ Tarefa")));
       if(!items.length)g.append(el("div",{class:"lempty"},"Nenhuma tarefa nesta fase."));
       else{const tb=el("tbody");items.forEach(t=>tb.append(el("tr",{tabindex:"0",onclick:()=>openTask(t),onkeydown:e=>{if(e.key==="Enter")openTask(t);}},
-        el("td",{class:"tt"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("td",null,avs(t)),el("td",null,priTag(t)),el("td",{class:"due"},fd(t.inicio)||"—"),el("td",null,dueEl(t)||el("span",{class:"due"},"—")),el("td",null,cmts(t)||""))));
+        el("td",{class:"tt"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null,stkEl(t)?el("span",{style:"margin-left:8px"},stkEl(t)):null),el("td",null,avs(t)),el("td",null,priTag(t)),el("td",{class:"due"},fd(t.inicio)||"—"),el("td",null,dueEl(t)||el("span",{class:"due"},"—")),el("td",null,cmts(t)||""))));
         g.append(el("div",{class:"tw"},el("table",null,el("thead",null,el("tr",null,...["Tarefa","Responsáveis","Prioridade","Início","Entrega","Comentários"].map(h=>el("th",null,h)))),tb)));}
       v.append(g);});}
   function renderCal(){$("mTitle").textContent=`${MESES[M]} ${Y}`;const dw=$("dow");dw.textContent="";DOW.forEach(d=>dw.append(el("div",null,d)));
@@ -374,6 +401,7 @@ td.tt{font-weight:600;max-width:340px}
       else if(x.tipo==="fase")txt=["Fase ",el("b",null,(by(FASES,x.faseDe)||{n:"—"}).n)," → ",el("b",null,(by(FASES,x.fasePara)||{n:"—"}).n)];
       else if(x.tipo==="entrega")txt=["Entrega ",el("b",null,fd(x.de)||"—")," → ",el("b",null,fd(x.para))];
       else if(x.tipo==="criada")txt=["Tarefa criada"];
+      else if(x.tipo==="subtarefa")txt=[x.feito?"Subtarefa concluída: ":"Subtarefa reaberta: ",el("b",null,x.texto||"")];
       else if(x.tipo==="repetida")txt=[x.origem?"Criada como repetição de outra tarefa":`Repetida em ${x.n} data(s): ${(x.datas||[]).map(fd).join(", ")}`];
       else txt=[x.tipo||"Alteração"];
       ul.append(el("li",null,...txt,` · ${userName(x.por)} · ${fdt(x.em)}`));});h.append(ul);}
@@ -389,7 +417,7 @@ td.tt{font-weight:600;max-width:340px}
     buildPriOpts(); const pk=t?priOf(t).k:"normal"; document.querySelectorAll("input[name=pri]").forEach(i=>i.checked=i.value===pk);
     $("iIni").value=t?t.inicio||"":hoje(); $("iEnt").value=t?t.entrega||"":(preset&&preset.entrega)||"";
     buildRespOpts(t?t.responsaveis:[me.email]); $("iDesc").value=t?t.descricao||"":""; $("iBrief").value=t?t.briefing||"":"";
-    $("cTxt").value=""; $("tNota").value=""; rpReset(t); syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
+    $("cTxt").value=""; $("tNota").value=""; stLoad(t); rpReset(t); syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
     $("overlay").hidden=false; setTimeout(()=>$("iTitulo").focus(),40);}
   function closeTask(){$("overlay").hidden=true;editingId=null;}
   $("closeBtn").onclick=closeTask;$("cancelBtn").onclick=closeTask;$("newBtn").onclick=()=>openTask(null);
@@ -407,7 +435,7 @@ td.tt{font-weight:600;max-width:340px}
     const titulo=$("iTitulo").value.trim(); if(!titulo)return err("Dê um nome para a tarefa.");
     const ini_=$("iIni").value, ent=$("iEnt").value; if(ini_&&ent&&ent<ini_)return err("A data de entrega precisa ser depois do início.");
     const body={titulo,fase:$("iFase").value,prioridade:(document.querySelector("input[name=pri]:checked")||{}).value||"normal",inicio:ini_,entrega:ent,
-      responsaveis:[...document.querySelectorAll("input[name=resp]:checked")].map(i=>i.value),descricao:$("iDesc").value.trim(),briefing:$("iBrief").value.trim()};
+      responsaveis:[...document.querySelectorAll("input[name=resp]:checked")].map(i=>i.value),descricao:$("iDesc").value.trim(),briefing:$("iBrief").value.trim(),subtarefas:subs.map(x=>Object.assign({},x))};
     const btn=$("saveBtn");btn.disabled=true;
     try{if(editingId){const t=tasks.find(x=>x.id===editingId);const H=[];
         if(t.fase!==body.fase)H.push(histItem({tipo:"fase",faseDe:t.fase,fasePara:body.fase}));
@@ -427,6 +455,33 @@ td.tt{font-weight:600;max-width:340px}
     await patch(t,{responsaveis:resp,fase},{tipo:"transferencia",de,para,faseDe:t.fase,fasePara:fase,nota});
     $("iFase").value=fase;buildRespOpts(resp);$("tNota").value="";toast(`Transferida para ${userName(para)}`);
     const nt=Object.assign({},t,{responsaveis:resp,fase});syncTransfer(nt);};
+
+  /* ---------- subtarefas (checklist com data e responsável) ---------- */
+  let subs=[], stTimer=null;
+  function stLoad(t){subs=((t&&t.subtarefas)||[]).map(x=>Object.assign({},x));$("stTxt").value="";$("stData").value="";stFillResp();stRender();}
+  function stFillResp(){const s=$("stResp"),cur=s.value;s.textContent="";s.append(el("option",{value:""},"Sem responsável"),...users.slice().sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email)).map(u=>el("option",{value:u.email},u.nome||u.email)));s.value=cur;}
+  const stOpts=v=>[el("option",{value:""},"Sem responsável")].concat(users.slice().sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email)).map(u=>el("option",{value:u.email,selected:u.email===v?true:null},u.nome||u.email)));
+  function stSave(hist){if(!editingId)return;const t=tasks.find(x=>x.id===editingId)||{};
+    const body={subtarefas:subs.map(x=>Object.assign({},x))};if(hist)body.historico=(t.historico||[]).concat([histItem(hist)]);
+    t.subtarefas=body.subtarefas;if(hist)t.historico=body.historico;
+    col.doc(editingId).update(body).catch(()=>toast("Não foi possível salvar a subtarefa."));if(hist)renderHist(t);}
+  const stSaveLater=()=>{clearTimeout(stTimer);stTimer=setTimeout(()=>stSave(),700);};
+  function stRender(){const L=$("stList");L.textContent="";const ok=subs.filter(x=>x.feito).length;
+    $("stInfo").textContent=subs.length?`${ok} de ${subs.length} concluída${subs.length===1?"":"s"}`:"checklist com data e responsável";
+    $("stBar").hidden=!subs.length;$("stBar").firstChild.style.width=(subs.length?ok/subs.length*100:0)+"%";
+    if(!subs.length)L.append(el("p",{class:"hint",style:"margin:0"},"Nenhuma subtarefa. Divida a demanda em etapas com prazo e responsável."));
+    subs.forEach(x=>{const late=!x.feito&&x.data&&x.data<hoje();
+      L.append(el("div",{class:"st-row"+(x.feito?" ok":"")+(late?" late":"")},
+        el("input",{type:"checkbox","aria-label":"Concluir "+(x.texto||"subtarefa"),checked:x.feito?true:null,onchange:e=>{x.feito=e.target.checked;x.feitoEm=x.feito?new Date().toISOString():"";x.feitoPor=x.feito?me.email:"";stRender();stSave({tipo:"subtarefa",texto:x.texto,feito:x.feito});}}),
+        el("input",{type:"text",value:x.texto||"",maxlength:"300","aria-label":"Subtarefa",oninput:e=>{x.texto=e.target.value;stSaveLater();},onchange:e=>{x.texto=e.target.value.trim()||x.texto;clearTimeout(stTimer);stSave();}}),
+        el("input",{type:"date",value:x.data||"","aria-label":"Data","title":late?"Subtarefa atrasada":"Data",onchange:e=>{x.data=e.target.value;stRender();stSave();}}),
+        el("select",{"aria-label":"Responsável",onchange:e=>{x.resp=e.target.value;stSave();}},...stOpts(x.resp)),
+        el("button",{type:"button",class:"x","aria-label":"Remover subtarefa",title:"Remover",onclick:()=>{subs=subs.filter(y=>y!==x);stRender();stSave();}},"×")));});}
+  function stAdd(){const txt=$("stTxt").value.trim();if(!txt){$("stTxt").focus();return toast("Escreva a subtarefa.");}
+    subs.push({id:uid(),texto:txt,data:$("stData").value,resp:$("stResp").value,feito:false});
+    $("stTxt").value="";$("stData").value="";stRender();stSave();$("stTxt").focus();}
+  $("stAdd").onclick=stAdd;
+  $("stTxt").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();stAdd();}});
 
   /* ---------- repetir tarefa em outras datas ---------- */
   let rpExtras=[];
@@ -460,6 +515,8 @@ td.tt{font-weight:600;max-width:340px}
       descricao:$("iDesc").value.trim(),briefing:$("iBrief").value.trim(),serie,criadoPor:me.email,comentarios:[]};
     const btn=$("rpBtn");btn.disabled=true;let n=0;
     try{for(const d of ds){btn.textContent=`Criando ${n+1} de ${ds.length}…`;
+        const ref0=$("iEnt").value||$("iIni").value,dd=Math.round((new Date(d)-new Date(ref0))/864e5);
+        base.subtarefas=subs.map(x=>({id:uid(),texto:x.texto,resp:x.resp||"",data:x.data?addDias(x.data,dd):"",feito:false}));
         const c=Object.assign({},base,usaEnt?{entrega:d,inicio:$("iIni").value?addDias(d,-Math.max(0,dur)):""}:{inicio:d,entrega:""},{historico:[histItem({tipo:"repetida",origem:t.id})]});
         await col.add(c);n++;}
       await col.doc(t.id).update({serie,historico:(t.historico||[]).concat([histItem({tipo:"repetida",n,datas:ds})])});
@@ -469,7 +526,7 @@ td.tt{font-weight:600;max-width:340px}
 
   Central.boot("tarefas",user=>{me=user;loadPref();
     col=Store.collection("tarefas");
-    Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email);render();});
+    Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email);stFillResp();render();});
     col.onSnapshot(sn=>{tasks=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
     render();});
 })();

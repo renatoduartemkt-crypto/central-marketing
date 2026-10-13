@@ -253,7 +253,7 @@ tbody tr:last-child td{border-bottom:0}
 <script src="assets/js/relatorio.js" charset="utf-8"></script>
 <script>
 (function(){
-  const EMP=[{k:"lopes",n:"Distribuidora Lopes"},{k:"opta",n:"Opta Suprimentos"},{k:"a2j",n:"A2J"},{k:"grupo",n:"Grupo Lopes"}];
+  const EMP=[{k:"lopes",n:"Distribuidora Lopes"},{k:"a2j",n:"A2J"},{k:"grupo",n:"Grupo Lopes"}];
   const CENTROS_PADRAO=["Locação do espaço","Alimentação / buffet","Estrutura e montagem","Som, luz e atrações","Material gráfico / comunicação","Brindes","Transporte e hospedagem","Equipe / staff","Outros"];
   // checklist padrão: dias em relação à data do evento (negativo = antes)
   const TPL=[["Definir data, local e público do evento",-45],["Aprovar verba projetada",-40],["Pedir orçamentos de fornecedores",-35],["Fechar local / espaço",-30],["Fechar buffet / alimentação",-25],["Enviar convites",-21],["Criar artes e divulgação (redes, e-mail, WhatsApp)",-20],["Contratar som, luz e atrações",-18],["Pedir material gráfico e brindes",-14],["Confirmar presenças",-7],["Confirmar fornecedores e horários",-3],["Montagem e checagem do espaço",-1],["Fotos e registro do evento",0],["Conferir notas fiscais e pagar fornecedores",5],["Relatório final e resultados do evento",7]];
@@ -667,7 +667,7 @@ tbody tr:last-child td{border-bottom:0}
     try{selId=localStorage.getItem("eventos-sel");}catch(_){}
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email);render();});
     Store.collection("centros_custo").onSnapshot(sn=>{setorCentros=Custos.centros(sn.docs.map(d=>Object.assign({id:d.id},d.data())));});
-    col.onSnapshot(sn=>{events=sn.docs.map(d=>Object.assign({id:d.id},d.data()));
+    col.onSnapshot(sn=>{events=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));
       if(!cur()){const nx=events.filter(e=>!isPast(e)).sort((a,b)=>(a.inicio||"").localeCompare(b.inicio||""))[0]||events[0];selId=nx?nx.id:null;}
       render();});
     render();});

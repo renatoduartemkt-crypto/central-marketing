@@ -131,7 +131,7 @@ table.cc{min-width:760px}
   <section id="tEcom" style="display:flex;flex-direction:column;gap:16px">
     <div class="box">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h2>Metas do e-commerce <small id="metaInfo"></small></h2>
-        <div class="tabs sites" id="siteSeg" role="group" aria-label="Site"><button type="button" data-s="lopes" aria-pressed="true"><i style="--c:#1B2D49"></i>Site Lopes</button><button type="button" data-s="opta" aria-pressed="false"><i style="--c:#EE3B2D"></i>Site Opta</button><button type="button" data-s="total" aria-pressed="false">Lopes + Opta</button></div></div>
+        <div class="tabs sites" id="siteSeg" hidden role="group" aria-label="Site"><button type="button" data-s="lopes" aria-pressed="true"><i style="--c:#1B2D49"></i>Site Lopes</button></div></div>
       <div class="metas">
         <div class="field"><label for="mVendas">Meta de vendas do mês (R$)</label><input class="inp money" type="text" id="mVendas" inputmode="decimal" placeholder="0,00" autocomplete="off" readonly></div>
         <div class="field"><label for="mPos">Meta de positivações do mês</label><input class="inp" type="text" id="mPos" inputmode="numeric" placeholder="0" autocomplete="off" readonly></div>
@@ -154,7 +154,7 @@ table.cc{min-width:760px}
   <section id="tAlc" style="display:flex;flex-direction:column;gap:16px" hidden>
     <div class="tot" id="alcTot"></div>
     <div class="mx" id="alcMx"></div>
-    <p class="hint" style="margin:0">Metas conforme o planejamento de KPIs de Marketing 2026: Instagram por alcance, LinkedIn Lopes por interações, LinkedIn Opta por seguidores, e ROAS de e-mail (RD) e de mídia paga (Meta + Google). Atualize o realizado sempre que conferir os números; a meta e o realizado valem para o mês selecionado.</p>
+    <p class="hint" style="margin:0">Metas conforme o planejamento de KPIs de Marketing 2026: Instagram por alcance, LinkedIn Lopes por interações, e ROAS de e-mail (RD) e de mídia paga (Meta + Google). Atualize o realizado sempre que conferir os números; a meta e o realizado valem para o mês selecionado.</p>
   </section>
 
   <!-- CUSTOS DO SETOR -->
@@ -182,15 +182,15 @@ table.cc{min-width:760px}
   const lerN=s=>Custos.parseBR(s);
   const mostra=(v,dec)=>v==null||v===""?"":(+v||0).toLocaleString("pt-BR",{minimumFractionDigits:dec,maximumFractionDigits:dec});
   // métricas conforme a planilha "planejamento KPIs de Marketing 2026": Instagram = alcance; LinkedIn Lopes = interações; LinkedIn Opta = seguidores
-  const ALC=[{k:"ig_opta",emp:"opta",rede:"Instagram",n:"Instagram Opta · Alcance",mt:"alcance",un:"pessoas",curto:"IG Opta"},{k:"ig_lopes",emp:"lopes",rede:"Instagram",n:"Instagram Lopes · Alcance",mt:"alcance",un:"pessoas",curto:"IG Lopes"},
-             {k:"in_opta",emp:"opta",rede:"LinkedIn",n:"LinkedIn Opta · Seguidores",mt:"seguidores",un:"seguidores",curto:"LinkedIn Opta"},{k:"in_lopes",emp:"lopes",rede:"LinkedIn",n:"LinkedIn Lopes · Interações",mt:"interações",un:"interações",curto:"LinkedIn Lopes"},
+  const ALC=[{k:"ig_lopes",emp:"lopes",rede:"Instagram",n:"Instagram Lopes · Alcance",mt:"alcance",un:"pessoas",curto:"IG Lopes"},
+             {k:"in_lopes",emp:"lopes",rede:"LinkedIn",n:"LinkedIn Lopes · Interações",mt:"interações",un:"interações",curto:"LinkedIn Lopes"},
              {k:"roas_email",emp:"roas",rede:"ROAS",n:"ROAS E-mail (RD Station)",mt:"ROAS",un:"x",dec:2,h:"Receita via e-mail ÷ custo mensal do RD",curto:"ROAS E-mail"},
              {k:"roas_pago",emp:"roas",rede:"ROAS",n:"ROAS Pago (Meta + Google)",mt:"ROAS",un:"x",dec:2,h:"Receita atribuída às campanhas ÷ investimento",curto:"ROAS Pago"}];
   const fmtG=(g,v)=>g.dec?(+v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"x":num(Math.round(+v||0));
-  const EMP=[{k:"opta",n:"Opta Suprimentos",c:"--opta",b:"--opta-bg",sub:"Instagram · LinkedIn"},{k:"lopes",n:"Distribuidora Lopes",c:"--lopes",b:"--lopes-bg",sub:"Instagram · LinkedIn"},{k:"roas",n:"ROAS",c:"--accent",b:"--accent-soft",sub:"E-mail · Pago"}];
+  const EMP=[{k:"lopes",n:"Distribuidora Lopes",c:"--lopes",b:"--lopes-bg",sub:"Instagram · LinkedIn"},{k:"roas",n:"ROAS",c:"--accent",b:"--accent-soft",sub:"E-mail · Pago"}];
   const now=new Date(); let Y=now.getFullYear(), M=now.getMonth(), tab="ecom";
   try{const t=localStorage.getItem("metas-tab");if(t==="alc"||t==="ecom"||t==="custos")tab=t;}catch(_){}
-  let site="lopes"; try{const v=localStorage.getItem("metas-site");if(["lopes","opta","total"].includes(v))site=v;}catch(_){}
+  let site="lopes";
   const SITES={lopes:"Site Lopes",opta:"Site Opta",total:"Lopes + Opta"};
   let dias={}, mensais={}; const colD=Store.collection("metas_ecommerce"), colM=Store.collection("metas_mensais");
   function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!=null&&v!==false)e.setAttribute(k,v);}kids.forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}

@@ -180,7 +180,7 @@ textarea{min-height:76px;resize:vertical}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Distribuidora Lopes · Opta Suprimentos · A2J · Grupo Lopes</div>
+      <div class="eyebrow">Distribuidora Lopes · A2J · Grupo Lopes</div>
       <h1>Redes <span>sociais</span></h1>
     </div>
     <button class="btn primary" type="button" id="newBtn">+ Novo post</button>
@@ -278,7 +278,7 @@ textarea{min-height:76px;resize:vertical}
 <script>
 (function(){
   const REDES=[{k:"instagram",n:"Instagram",ab:"IG"},{k:"facebook",n:"Facebook",ab:"FB"},{k:"whatsapp",n:"WhatsApp",ab:"WA"},{k:"linkedin",n:"LinkedIn",ab:"IN"},{k:"blog",n:"Blog",ab:"BL"}];
-  const PERFIS=[{k:"lopes",n:"Distribuidora Lopes",ab:"Lopes",c:"--p-lopes",b:"--p-lopes-bg"},{k:"opta",n:"Opta Suprimentos",ab:"Opta",c:"--p-opta",b:"--p-opta-bg"},{k:"a2j",n:"A2J",ab:"A2J",c:"--p-a2j",b:"--p-a2j-bg"},{k:"grupo",n:"Grupo Lopes",ab:"Grupo",c:"--p-grupo",b:"--p-grupo-bg"}];
+  const PERFIS=[{k:"lopes",n:"Distribuidora Lopes",ab:"Lopes",c:"--p-lopes",b:"--p-lopes-bg"},{k:"a2j",n:"A2J",ab:"A2J",c:"--p-a2j",b:"--p-a2j-bg"},{k:"grupo",n:"Grupo Lopes",ab:"Grupo",c:"--p-grupo",b:"--p-grupo-bg"}];
   const TIPOS=[{k:"feed",n:"Feed"},{k:"stories",n:"Stories"},{k:"reels",n:"Reels"},{k:"estatico",n:"Estático"},{k:"carrossel",n:"Carrossel"},{k:"artigo",n:"Artigo (blog)"}];
   const temasOf=p=>Array.isArray(p.temas)?p.temas:(p.tema?[p.tema]:[]);
   const temasLabel=p=>temasOf(p).map(k=>(by(TEMAS,k)||{n:k}).n).join(" · ");
@@ -524,7 +524,7 @@ textarea{min-height:76px;resize:vertical}
   Central.boot("redes",user=>{
     Custos.painel(document.getElementById("custosPanel"),{origem:"redes",titulo:"Custos com produção e impulsionamento",centroPadrao:"propaganda",tipos:[{k:"producao",n:"Produção"},{k:"impulsionamento",n:"Impulsionamento"}],refLabel:"Post (opcional)",refs:()=>posts.slice().sort((a,b)=>(b.data||"").localeCompare(a.data||"")).slice(0,80).map(p=>({id:p.id,nome:`${(p.data||"").slice(8,10)}/${(p.data||"").slice(5,7)} · ${p.titulo||"Post"}`}))});
     col=Store.collection("posts"); canWrite=true;
-    col.onSnapshot(sn=>{posts=sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));render();},()=>notice("Não foi possível carregar os posts. Recarregue a página."));
+    col.onSnapshot(sn=>{posts=Central.filtraOpta(sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data())));render();},()=>notice("Não foi possível carregar os posts. Recarregue a página."));
     render();
   });
 })();

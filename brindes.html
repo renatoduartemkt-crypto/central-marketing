@@ -136,7 +136,7 @@ td.r,th.r{text-align:right}
       <div><label class="lab" for="bMin">Estoque mínimo (alerta)</label><input type="number" id="bMin" min="0" step="1"></div>
       <div><label class="lab" for="bCusto">Custo unitário de referência (R$)</label><input type="text" id="bCusto" inputmode="decimal" class="money" placeholder="0,00"></div>
       <div id="iniBox"><label class="lab" for="bIni">Quantidade inicial em estoque</label><input type="number" id="bIni" min="0" step="1" placeholder="0"></div>
-      <div><label class="lab" for="bEmp">Marca / empresa</label><select id="bEmp"><option value="">—</option><option>Distribuidora Lopes</option><option>Opta Suprimentos</option><option>A2J</option><option>Grupo Lopes</option></select></div>
+      <div><label class="lab" for="bEmp">Marca / empresa</label><select id="bEmp"><option value="">—</option><option>Distribuidora Lopes</option><option>A2J</option><option>Grupo Lopes</option></select></div>
       <div class="full"><label class="lab" for="bObs">Observações</label><textarea id="bObs" maxlength="500"></textarea></div>
       <div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="bAtivo" checked> Brinde ativo (aparece para entregas)</label></div>
       <p class="err full" id="bErr" hidden></p>
@@ -287,8 +287,8 @@ td.r,th.r{text-align:right}
   function render(){lastSync=Date.now();$("live").lastChild.textContent=" atualizado agora";renderStock();fillSelects();updSaldo();renderHist();}
   Central.boot("brindes",user=>{me=user;$("mData").value=hoje();
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));render();});
-    Store.collection("eventos").onSnapshot(sn=>{eventos=sn.docs.map(d=>Object.assign({id:d.id},d.data()));fillSelects();});
-    colB().onSnapshot(sn=>{brindes=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
+    Store.collection("eventos").onSnapshot(sn=>{eventos=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));fillSelects();});
+    colB().onSnapshot(sn=>{brindes=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));render();});
     colM().onSnapshot(sn=>{movs=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
     setTipo("saida");render();});
 })();

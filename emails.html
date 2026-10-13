@@ -184,7 +184,7 @@ textarea{min-height:76px;resize:vertical}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Distribuidora Lopes · Opta · RD Station</div>
+      <div class="eyebrow">Distribuidora Lopes · RD Station</div>
       <h1>E-mail <span>marketing</span></h1>
     </div>
     <div class="actions">
@@ -207,7 +207,7 @@ textarea{min-height:76px;resize:vertical}
   <div class="toolbar">
     <div class="filters">
       <div><span class="flabel">Empresa</span>
-        <div class="seg" id="fEmpresa" role="group" aria-label="Filtrar por empresa"></div></div>
+        <div class="seg" id="fEmpresa" hidden role="group" aria-label="Filtrar por empresa"></div></div>
       <div><span class="flabel">Tipo</span>
         <div class="seg" id="fTipo" role="group" aria-label="Filtrar por tipo"></div></div>
       <div><span class="flabel">Estado</span>
@@ -248,7 +248,7 @@ textarea{min-height:76px;resize:vertical}
     </div>
     <p class="hint" id="dayHint"></p>
 
-    <div class="field"><span class="lab">Empresa</span><div class="opts" id="oEmpresa"></div></div>
+    <div class="field" hidden><span class="lab">Empresa</span><div class="opts" id="oEmpresa"></div></div>
     <div class="field"><span class="lab">Tipo de e-mail</span><div class="opts" id="oTipo"></div></div>
     <div class="field"><span class="lab">Estados <span class="hint">(marque um ou mais)</span></span>
       <div class="opts" id="oUF"></div></div>
@@ -302,7 +302,7 @@ textarea{min-height:76px;resize:vertical}
 (function(){
   const NOW=new Date(); let YEAR=NOW.getFullYear(), MONTH=NOW.getMonth();
   const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-  const EMPRESAS=[{k:"lopes",n:"Lopes",c:"--lopes",b:"--lopes-bg"},{k:"opta",n:"Opta",c:"--opta",b:"--opta-bg"}];
+  const EMPRESAS=[{k:"lopes",n:"Lopes",c:"--lopes",b:"--lopes-bg"}];
   const TIPOS=[{k:"ofertas",n:"Ofertas",c:"--t-of",b:"--t-of-bg"},{k:"novidades",n:"Novidades",c:"--t-nov",b:"--t-nov-bg"},{k:"blog",n:"Blog",c:"--t-blog",b:"--t-blog-bg"},{k:"institucional",n:"Institucional",c:"--t-inst",b:"--t-inst-bg"},{k:"descadastramento",n:"Descadastramento",c:"--t-desc",b:"--t-desc-bg"}];
   const SEGS=[{k:"engajados",n:"Engajados (quentes)",short:"Engajados"},{k:"novos",n:"Novos leads (frios)",short:"Novos leads"},{k:"indeterminados",n:"Indeterminados",short:"Indetermin."}];
   const UFS=["MS","MT","RO","AC"];
@@ -554,7 +554,7 @@ textarea{min-height:76px;resize:vertical}
 
   Central.boot("emails",user=>{
     col=Store.collection("emails"); canWrite=true;
-    col.onSnapshot(snap=>{emails=snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));render(); if(!$("overlay").hidden)dayHint();},
+    col.onSnapshot(snap=>{emails=Central.filtraOpta(snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data())));render(); if(!$("overlay").hidden)dayHint();},
       ()=>notice("Não foi possível carregar os e-mails. Recarregue a página."));
   });
 })();

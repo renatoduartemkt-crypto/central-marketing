@@ -196,7 +196,7 @@ textarea{min-height:64px;resize:vertical}
 <div class="wrap">
   <header class="top">
     <div>
-      <div class="eyebrow">Meta Ads · Instagram · Distribuidora Lopes · Opta</div>
+      <div class="eyebrow">Meta Ads · Instagram · Distribuidora Lopes</div>
       <h1>Tráfego <span>pago</span></h1>
     </div>
     <button class="btn primary" type="button" id="newBtn">+ Nova campanha</button>
@@ -231,7 +231,7 @@ textarea{min-height:64px;resize:vertical}
     <header><h2 id="formTitle">Nova campanha</h2><button class="x" type="button" id="closeBtn" aria-label="Fechar">×</button></header>
     <div class="row2">
       <div class="field"><label for="fNome">Nome da campanha</label><input type="text" id="fNome" maxlength="90" placeholder="Ex.: Black Friday Lopes MS"></div>
-      <div class="field"><span class="lab">Empresa</span><div class="opts" id="oEmp"></div></div>
+      <div class="field" hidden><span class="lab">Empresa</span><div class="opts" id="oEmp"></div></div>
     </div>
     <div class="field"><span class="lab">Status da campanha</span><div class="opts" id="oStc"></div></div>
 
@@ -309,7 +309,7 @@ textarea{min-height:64px;resize:vertical}
 <script src="assets/js/contas-meta.js" charset="utf-8"></script>
 <script>
 (function(){
-  const EMP=[{k:"lopes",n:"Lopes"},{k:"opta",n:"Opta"}];
+  const EMP=[{k:"lopes",n:"Lopes"}];
   const TIPOS=[{k:"ofertas",n:"Ofertas"},{k:"institucional",n:"Institucional"},{k:"lancamento",n:"Lançamento de produto"},{k:"evento",n:"Evento"},{k:"remarketing",n:"Remarketing"},{k:"leads",n:"Captação de leads"},{k:"outro",n:"Outro"}];
   const OBJ=[{k:"reconhecimento",n:"Reconhecimento",h:"Alcançar o maior número de pessoas e lembrar a marca."},
              {k:"trafego",n:"Tráfego",h:"Levar pessoas ao site, e-commerce, WhatsApp ou perfil."},
@@ -556,7 +556,7 @@ textarea{min-height:64px;resize:vertical}
     ContasMeta.painel(document.getElementById("contasPanel"));
     Custos.painel(document.getElementById("custosPanel"),{origem:"trafego",titulo:"Custos com produção e impulsionamento",centroPadrao:"propaganda",tipos:[{k:"producao",n:"Produção"},{k:"impulsionamento",n:"Impulsionamento"}],refLabel:"Campanha (opcional)",refs:()=>camps.map(c=>({id:c.id,nome:c.nome||"Campanha"}))});
     col=Store.collection("trafego_campanhas"); canWrite=true;
-    col.onSnapshot(sn=>{camps=sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data()));render();},()=>notice("Não foi possível carregar as campanhas. Recarregue a página."));
+    col.onSnapshot(sn=>{camps=Central.filtraOpta(sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data())));render();},()=>notice("Não foi possível carregar as campanhas. Recarregue a página."));
     render();
   });
 })();

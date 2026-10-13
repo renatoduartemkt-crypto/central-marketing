@@ -107,9 +107,7 @@
     m.append(head("E-mail marketing","emails.html"),
       el("div",{class:"kpi"},el("b",null,`${env}/${n}`),el("span",null,`realizado × planejado · ${n?Math.round(env/n*100):0}%`)),
       meter([[env,"var(--ok)"],[pro,"var(--warn)"],[nao,"var(--bad)"]]),
-      el("div",{class:"rows"},row("Enviados",env,"var(--ok)"),row("Em produção",pro,"var(--warn)"),row("Não enviados",nao,"var(--bad)"),row("Atrasados (data já passou)",atr)),
-      el("div",{class:"sub"},"Por empresa"),
-      el("div",{class:"rows"},...["lopes","opta"].map(k=>{const x=L.filter(e=>e.empresa===k);return row(k==="lopes"?"Lopes":"Opta",`${x.filter(e=>execOf(e)==="enviado").length}/${x.length}`);})));}
+      el("div",{class:"rows"},row("Enviados",env,"var(--ok)"),row("Em produção",pro,"var(--warn)"),row("Não enviados",nao,"var(--bad)"),row("Atrasados (data já passou)",atr)));}
   function renderTraf(){const m=$("mTraf");m.textContent="";
     const ini=`${mk()}-01`, fim=`${mk()}-${pad(new Date(Y,M+1,0).getDate())}`;
     const L=D.camps.filter(c=>!c.inicio||!c.fim?true:(c.inicio<=fim&&c.fim>=ini));
@@ -132,18 +130,18 @@
       el("div",{class:"rows"},...S.map(s=>row(s[1],c(s[0]),s[2]))),
       el("div",{class:"sub"},"Plano de marketing"),el("div",{class:"rows"},row("Posts marcados",pm)));}
   function renderMetas(){
-    const eL=D.mensais["ecom-"+mk()]||{}, eO=D.mensais["ecom-opta-"+mk()]||{}, mA=D.mensais["alcance-"+mk()]||{};
-    const mE={metaVendas:(+eL.metaVendas||0)+(+eO.metaVendas||0),metaPositivacoes:(+eL.metaPositivacoes||0)+(+eO.metaPositivacoes||0)};
-    let v=0,p=0,vL=0,vO=0; Object.entries(D.dias).forEach(([id,x])=>{if((x.data||"").slice(0,7)===mk()){const n=+x.vendido||0;v+=n;p+=+x.positivacoes||0;if(id.indexOf("opta-")===0||x.site==="opta")vO+=n;else vL+=n;}});
+    const eL=D.mensais["ecom-"+mk()]||{}, mA=D.mensais["alcance-"+mk()]||{};
+    const mE={metaVendas:+eL.metaVendas||0,metaPositivacoes:+eL.metaPositivacoes||0};
+    let v=0,p=0; Object.entries(D.dias).forEach(([id,x])=>{if((x.data||"").slice(0,7)===mk()){if(id.indexOf("opta-")===0||x.site==="opta")return;v+=+x.vendido||0;p+=+x.positivacoes||0;}});
     const pc=(r,m)=>m?Math.round(r/m*100):0;
     const a=$("mMetaE"); a.textContent="";
     const mv=+mE.metaVendas||0, mp=+mE.metaPositivacoes||0;
-    a.append(head("Metas do e-commerce · Lopes + Opta","metas.html"),
+    a.append(head("Metas do e-commerce · Site Lopes","metas.html"),
       el("div",{class:"kpi"},el("b",null,mv?pc(v,mv)+"%":"—"),el("span",null,mv?`da meta de vendas · ${brl(v)} de ${brl(mv)}`:"defina a meta de vendas do mês")),
       meter([[Math.min(v,mv||v),"var(--ok)"],[Math.max(0,mv-v),"var(--surface-2)"]]),
-      el("div",{class:"rows"},row("Faltam vender",mv?brl(Math.max(0,mv-v)):"—"),row("Positivações",mp?`${p} de ${mp} (${pc(p,mp)}%)`:String(p)),row("Ticket médio do mês",p?brl(v/p):"—"),row("Site Lopes",+eL.metaVendas?`${brl(vL)} · ${pc(vL,+eL.metaVendas)}%`:brl(vL)),row("Site Opta",+eO.metaVendas?`${brl(vO)} · ${pc(vO,+eO.metaVendas)}%`:brl(vO))));
+      el("div",{class:"rows"},row("Faltam vender",mv?brl(Math.max(0,mv-v)):"—"),row("Positivações",mp?`${p} de ${mp} (${pc(p,mp)}%)`:String(p)),row("Ticket médio do mês",p?brl(v/p):"—")));
     const b=$("mMetaA"); b.textContent="";
-    const G=[["ig_lopes","Instagram Lopes · alcance"],["ig_opta","Instagram Opta · alcance"],["in_lopes","LinkedIn Lopes · interações"],["in_opta","LinkedIn Opta · seguidores"],["roas_email","ROAS E-mail"],["roas_pago","ROAS Pago"]];
+    const G=[["ig_lopes","Instagram Lopes · alcance"],["in_lopes","LinkedIn Lopes · interações"],["roas_email","ROAS E-mail"],["roas_pago","ROAS Pago"]];
     const def=G.filter(g=>+(mA[g[0]]||{}).meta), bat=def.filter(g=>(+(mA[g[0]]||{}).realizado||0)>=+(mA[g[0]]||{}).meta).length;
     b.append(head("Metas de redes sociais e ROAS","metas.html"),
       el("div",{class:"kpi"},el("b",null,def.length?`${bat}/${def.length}`:"—"),el("span",null,def.length?"metas batidas no mês":"defina as metas do mês")),
@@ -153,7 +151,7 @@
     for(let i=0;i<7;i++){const d=new Date(t0);d.setDate(t0.getDate()+i);const s=iso(d);
       const col=el("div",{class:"dcol"+(i===0?" today":"")},el("div",{class:"dh"},`${DOW[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth()+1)}`));
       const items=[];
-      D.emails.filter(e=>e.data===s).forEach(e=>items.push([e.hora||"",el("a",{class:"it",href:"emails.html",style:"--c:var(--accent)"},el("small",null,`E-mail · ${e.empresa==="opta"?"Opta":"Lopes"}${e.hora?" · "+e.hora:""}`),el("span",null,e.nome||e.assunto||"E-mail"))]));
+      D.emails.filter(e=>e.data===s).forEach(e=>items.push([e.hora||"",el("a",{class:"it",href:"emails.html",style:"--c:var(--accent)"},el("small",null,`E-mail${e.hora?" · "+e.hora:""}`),el("span",null,e.nome||e.assunto||"E-mail"))]));
       D.posts.filter(p=>p.data===s).forEach(p=>items.push([p.hora||"",el("a",{class:"it",href:"redes.html",style:"--c:var(--info)"},el("small",null,`Post${p.hora?" · "+p.hora:""}`),el("span",null,p.titulo||"Post"))]));
       D.camps.forEach(c=>{if(c.inicio===s)items.push(["",el("a",{class:"it",href:"trafego.html",style:"--c:var(--ok)"},el("small",null,"Campanha começa"),el("span",null,c.nome||"Campanha"))]);
         if(c.fim===s)items.push(["",el("a",{class:"it",href:"trafego.html",style:"--c:var(--muted)"},el("small",null,"Campanha termina"),el("span",null,c.nome||"Campanha"))]);});
@@ -165,7 +163,7 @@
   $("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}render();};
   Central.boot("painel",user=>{
     $("hello").textContent=`Olá, ${(user.nome||"").split(" ")[0]||"bem-vindo"}${user.cargo?" · "+user.cargo:""}`;
-    const sub=(name,key)=>Store.collection(name).onSnapshot(sn=>{D[key]=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
+    const sub=(name,key)=>Store.collection(name).onSnapshot(sn=>{D[key]=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));render();});
     sub("emails","emails"); sub("trafego_campanhas","camps"); sub("posts","posts");
     const subMap=(name,key)=>Store.collection(name).onSnapshot(sn=>{D[key]={};sn.docs.forEach(d=>D[key][d.id]=d.data());render();});
     subMap("metas_ecommerce","dias"); subMap("metas_mensais","mensais"); render();

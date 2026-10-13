@@ -271,7 +271,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
   function render(){renderPanel();renderList();}
   Central.boot("producao",user=>{me=user;
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));render();});
-    Store.collection("eventos").onSnapshot(sn=>{eventos=sn.docs.map(d=>Object.assign({id:d.id},d.data()));});
+    Store.collection("eventos").onSnapshot(sn=>{eventos=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));});
     Store.collection("centros_custo").onSnapshot(sn=>{centros=Custos.centros(sn.docs.map(d=>Object.assign({id:d.id},d.data())));render();});
     col().onSnapshot(sn=>{pedidos=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();if(editing&&draft&&!$("overlay").hidden){const p=pedidos.find(x=>x.id===editing);if(p&&p.status!==draft.status)openForm(p);}});
     render();});
