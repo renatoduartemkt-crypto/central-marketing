@@ -45,7 +45,7 @@
   const etapa = x => x.etapa || "ideia";
   const firme = col => x => FIRMES[col].includes(etapa(x));
   const ativo = x => etapa(x) !== "cancelado";
-  const FIN = ["Kit de evento", "Relacionamento Curva A", "Apoio à visita do RCA", "Data comemorativa", "Endomarketing", "Campanha de incentivo", "Outro"];
+  const FIN = ["Kit de evento", "Brinde em eventos", "Comunicação externa nos eventos", "Brinde para clientes", "Relacionamento Curva A", "Apoio à visita do RCA", "Data comemorativa", "Endomarketing", "Campanha de incentivo", "Outro"];
   const CONTAS_BR = [["200023", "200023 Marketing Brindes"], ["evento", "Já incluso no custo do evento (200022)"], ["outra", "Outra conta"]];
   const totBr = x => (+x.quantidade || 0) * (+x.custoUnit || 0) + (+x.adicionais || 0);
   const liqBr = x => Math.max(0, totBr(x) - (+x.verba || 0));
