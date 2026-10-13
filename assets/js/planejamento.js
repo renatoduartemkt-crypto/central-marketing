@@ -245,7 +245,7 @@
         el("div", { class: "pl-vagas", title: `${t.vagas} vagas` }, ...sq),
         el("span", { class: "pl-who" }, `${t.prop} marca(s) própria(s) · ${t.fech} fechada(s) · ${t.neg} em negociação · ${Math.max(0, t.vagas - t.prop - t.fech - t.neg)} livre(s)`)); }));
     B.append(card("Cotas do plano de trade", admin ? el("button", { class: "pl-btn", type: "button", onclick: formPremissas }, "Premissas (preços, vagas, regra)") : null, cards,
-      el("div", { class: "pl-legend" }, el("span", null, el("i", { style: "background:var(--navy)" }), "Marca própria (Opta, Lupus, Durabem)"), el("span", null, el("i", { style: "background:var(--ok)" }), "Fechada"), el("span", null, el("i", { style: "background:var(--info);opacity:.55" }), "Em negociação"), el("span", null, el("i", { style: "background:var(--surface-2);border:1px solid var(--line)" }), "Livre"))));
+      el("div", { class: "pl-legend" }, el("span", null, el("i", { style: "background:var(--navy)" }), "Marca própria (Lupus, Durabem)"), el("span", null, el("i", { style: "background:var(--ok)" }), "Fechada"), el("span", null, el("i", { style: "background:var(--info);opacity:.55" }), "Em negociação"), el("span", null, el("i", { style: "background:var(--surface-2);border:1px solid var(--line)" }), "Livre"))));
     const L = D.cotas.filter(vivo).sort((a, b) => COTAS.findIndex(q => q.k === a.cota) - COTAS.findIndex(q => q.k === b.cota) || String(a.empresa).localeCompare(b.empresa));
     const tb = el("tbody");
     L.forEach(x => { const s = el("select", { "aria-label": "Etapa de " + x.empresa, onchange: e => salvar("plan_cotas", x, { etapa: e.target.value }) }, ...ETAPAS.map(o => el("option", { value: o.k }, o.n))); s.value = x.etapa || "prospeccao";

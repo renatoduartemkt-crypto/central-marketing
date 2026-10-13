@@ -1,5 +1,5 @@
 /*
- * Contas de anúncio do Meta (Opta e Lopes) — página Tráfego pago.
+ * Conta de anúncio do Meta (Lopes) — página Tráfego pago.
  *   - Calculadora de verba: saldo de cada conta = recargas registradas − gasto lido dos relatórios do Meta.
  *   - Importação de relatórios do Gerenciador de Anúncios (.csv ou .xlsx): lê o gasto e os principais
  *     indicadores de cada campanha e liga cada campanha do Meta a uma campanha cadastrada no site (pelo nome).
@@ -7,7 +7,7 @@
  * Coleções: trafego_recargas, trafego_relatorios (e lê/atualiza trafego_campanhas).
  */
 (function(){
-  const EMP = [{ k: "opta", n: "Opta" }, { k: "lopes", n: "Lopes" }];
+  const EMP = [{ k: "lopes", n: "Lopes" }];
   const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   const pad = n => String(n).padStart(2, "0");
   const hoje = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -140,7 +140,7 @@
     // conta: pela coluna “Nome da conta” ou pelo nome das campanhas
     const txtConta = norm(Object.keys(contas).join(" ")), txtCamp = norm(linhas.map(l => l.nome).join(" "));
     const achou = t => { const o = (t.match(/\bopta\b/g) || []).length, l = (t.match(/\blopes\b/g) || []).length; return o > l ? "opta" : l > o ? "lopes" : ""; };
-    return { linhas, inicio: ini, fim: fim || ini, empresa: achou(txtConta) || achou(txtCamp), contaNome: Object.keys(contas).join(", "), linhasLidas, colunas: Object.keys(map) };
+    return { linhas, inicio: ini, fim: fim || ini, empresa: "lopes", contaNome: Object.keys(contas).join(", "), linhasLidas, colunas: Object.keys(map) };
   }
 
   // liga a campanha do Meta à campanha cadastrada no site (nome igual, contido ou com mais palavras em comum)
@@ -226,7 +226,7 @@
           el("dl", null, el("dt", null, "Recargas"), el("dd", null, brl(R)), el("dt", null, "Gasto"), el("dd", null, brl(G)),
             el("dt", null, `Recargas em ${MESES[M]}`), el("dd", null, brl(Rm)), el("dt", null, `Gasto em ${MESES[M]}`), el("dd", null, brl(Gm))));
       };
-      grid.append(cont("Conta Opta", ["opta"], "opta"), cont("Conta Lopes", ["lopes"], "lopes"), cont("Total das duas contas", ["opta", "lopes"], "tot"));
+      grid.append(cont("Conta Lopes", ["lopes"], "lopes"));
       card.append(grid);
 
       // gasto por campanha
@@ -385,9 +385,9 @@
     }
 
     estilo();
-    colR.onSnapshot(sn => { rec = sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data())); render(); });
-    colI.onSnapshot(sn => { rels = sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data())); render(); });
-    colC.onSnapshot(sn => { camps = sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data())); render(); });
+    colR.onSnapshot(sn => { rec = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); });
+    colI.onSnapshot(sn => { rels = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); });
+    colC.onSnapshot(sn => { camps = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); });
     draw();
   }
 
@@ -396,7 +396,7 @@
     const s = document.createElement("style"); s.id = "cm-css";
     s.textContent = `
 .cm{margin-bottom:18px}
-.cm-contas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.cm-contas{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,380px));gap:10px}
 .cm-conta{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg);display:flex;flex-direction:column;gap:6px;min-width:0;border-top:4px solid var(--cc,var(--navy))}
 .cm-conta.opta{--cc:#EE3B2D}.cm-conta.lopes{--cc:var(--navy)}.cm-conta.tot{--cc:var(--accent)}
 .cm-conta small{font-size:12px;font-weight:700;color:var(--muted)}

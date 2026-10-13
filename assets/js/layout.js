@@ -55,7 +55,7 @@
     const M = window.MARCA || {};
     const f = document.createElement("footer"); f.className = "appfoot";
     f.innerHTML = '<div class="appfoot-in"><div class="logos"></div><span></span></div>';
-    [["lopesNeg", "Distribuidora Lopes"], ["optaNeg", "Opta Suprimentos"]].forEach(([k, n]) => { if (M[k]) { const i = document.createElement("img"); i.src = M[k]; i.alt = n; f.querySelector(".logos").append(i); } });
+    [["lopesNeg", "Distribuidora Lopes"]].forEach(([k, n]) => { if (M[k]) { const i = document.createElement("img"); i.src = M[k]; i.alt = n; f.querySelector(".logos").append(i); } });
     f.querySelector("span").textContent = (CFG.nomeSite || "Central de Marketing") + " · " + (CFG.empresa || "Grupo Lopes") + " · uso interno";
     document.body.append(f);
   }
@@ -92,5 +92,21 @@
     t.value = mostraDinheiro(lerDinheiro(t.value));
   });
 
-  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro };
+  // a Opta saiu da Central: registros só da Opta ficam guardados na planilha, mas não aparecem no site
+  const ehOpta = k => k === "opta" || k === "Opta Suprimentos";
+  function semOpta(x){
+    if (!x) return true;
+    if (ehOpta(x.empresa) || x.site === "opta") return false;
+    if (Array.isArray(x.perfis) && x.perfis.length && x.perfis.every(ehOpta)) return false;
+    if (Array.isArray(x.empresas) && x.empresas.length && x.empresas.every(ehOpta)) return false;
+    return true;
+  }
+  function limpaOpta(x){
+    if (Array.isArray(x.perfis)) x.perfis = x.perfis.filter(k => !ehOpta(k));
+    if (Array.isArray(x.empresas)) x.empresas = x.empresas.filter(k => !ehOpta(k));
+    return x;
+  }
+  const filtraOpta = L => L.filter(semOpta).map(limpaOpta);
+
+  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro, semOpta, filtraOpta };
 })();
