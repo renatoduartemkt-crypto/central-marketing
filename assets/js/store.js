@@ -88,7 +88,7 @@
   /* ---------- modo gas (Google Apps Script + Planilha no Drive) ---------- */
   // O Google responde cada pedido em alguns segundos e fica instável com vários pedidos ao mesmo tempo.
   // Por isso: (1) os pedidos vão em fila, um por vez; (2) falha passageira é repetida; (3) a página pede
-  // todas as coleções de uma vez; (4) o que já foi carregado fica guardado nesta aba (sessionStorage)
+  // todas as coleções de uma vez; (4) o que já foi carregado fica guardado neste navegador (localStorage) até o logout
   // e aparece na hora ao trocar de página, enquanto a versão nova chega.
   // leituras e gravações têm filas separadas: uma gravação nunca espera uma leitura lenta
   const filas = { leitura: Promise.resolve(), escrita: Promise.resolve() };
@@ -135,7 +135,7 @@
     // sessão por usuário e senha: o token fica só neste navegador e vai junto em cada chamada
     token(){ try { return localStorage.getItem(TOKEN_KEY) || memToken; } catch (_) { return memToken; } },
     setToken(t){ memToken = t || ""; try { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); } catch (_) {} if (!t) GAS.limparCache(); },
-    limparCache(){ try { Object.keys(sessionStorage).filter(k => k.indexOf(SS) === 0).forEach(k => sessionStorage.removeItem(k)); } catch (_) {} },
+    limparCache(){ [window.sessionStorage, window.localStorage].forEach(st => { try { Object.keys(st).filter(k => k.indexOf(SS) === 0).forEach(k => st.removeItem(k)); } catch (_) {} }); },
     api(req){
       return GAS.call("api", Object.assign({}, req, { token: GAS.token() })).then(r => {
         if (r && r.erro) {
@@ -156,8 +156,9 @@
   const pend = {};   // nome -> { id: { n: gravações em andamento, v: valor local (null = excluído) } }
   const marcar = (n, id, v) => { const p = (pend[n] = pend[n] || {}); p[id] = { n: ((p[id] && p[id].n) || 0) + 1, v }; };
   const desmarcar = (n, id) => { const p = pend[n] && pend[n][id]; if (p && --p.n <= 0) delete pend[n][id]; };
-  const lerGuardado = n => { try { const s = sessionStorage.getItem(SS + n); return s ? JSON.parse(s) : null; } catch (_) { return null; } };
-  const guardar = n => { try { sessionStorage.setItem(SS + n, JSON.stringify(cache[n] || {})); } catch (_) {} };
+  // guardado neste navegador (localStorage): a página abre na hora com o último conteúdo e atualiza em seguida; sai ao fazer logout
+  const lerGuardado = n => { try { const s = localStorage.getItem(SS + n) || sessionStorage.getItem(SS + n); return s ? JSON.parse(s) : null; } catch (_) { return null; } };
+  const guardar = n => { const v = JSON.stringify(cache[n] || {}); try { localStorage.setItem(SS + n, v); } catch (_) { try { sessionStorage.setItem(SS + n, v); } catch (__) {} } };
   // aplica a lista que veio do servidor; só redesenha a tela se algo mudou
   function aplicar(n, arr){
     if (!Array.isArray(arr)) return;
@@ -228,6 +229,13 @@
       if (!names.length || document.hidden || GAS.ocupado || !GAS.token()) return;
       names.forEach(n => { fresco[n] = false; buscar(n).catch(() => {}); });
     }, Math.max(CFG.intervaloAtualizacao || 30000, 30000));
+    // ao voltar para a aba depois de um tempo fora, atualiza na hora (fora da tela não consulta o servidor)
+    let saiu = 0;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { saiu = Date.now(); return; }
+      if (Date.now() - saiu < 15000 || GAS.ocupado || !GAS.token()) return;
+      Object.keys(listeners).filter(n => listeners[n].size).forEach(n => { fresco[n] = false; buscar(n).catch(() => {}); });
+    });
   }
 
   const A = () => (CFG.modo === "api" ? Api : CFG.modo === "gas" ? Gas : Local);

@@ -642,7 +642,7 @@
       if (document.activeElement) document.activeElement.blur(); render(); const nd = document.querySelector(".pl-lform input[maxlength='160']"); if (nd) nd.focus();
     };
     btn.addEventListener("click", add);
-    fVal.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+    [fDesc, fVal, fMes, fCen, fCat].forEach(i => i.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } }));
     B.append(card("Novo lançamento", el("span", { class: "pl-who" }, "entra como previsto e só vira confirmado quando o gerente aprova"),
       el("div", { class: "pl-lform" }, lbl("Mês", fMes, "s"), lbl("Centro de custo", fCen, "l"), lbl("Categoria", fCat, "l"), lbl("Descrição", fDesc, "xl"), lbl("Valor (R$)", fVal, "m"), el("div", { class: "b" }, btn)),
       el("p", { class: "hint", style: "margin:0" }, "Eventos, ações promocionais e brindes cadastrados nas abas deles já entram sozinhos aqui e no painel (aparecem na lista abaixo com a aba de origem). Aqui você lança os demais custos de qualquer centro. Use ↻ para repetir um lançamento em outros meses.")));
