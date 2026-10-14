@@ -46,10 +46,11 @@
   const firme = col => x => FIRMES[col].includes(etapa(x));
   const ativo = x => etapa(x) !== "cancelado";
   const FIN = ["Kit de evento", "Brinde em eventos", "Comunicação externa nos eventos", "Brinde para clientes", "Relacionamento Curva A", "Apoio à visita do RCA", "Data comemorativa", "Endomarketing", "Campanha de incentivo", "Outro"];
-  const CONTAS_BR = [["200023", "200023 Marketing Brindes"], ["evento", "Já incluso no custo do evento (200022)"], ["outra", "Outra conta"]];
+  const CONTAS_BR = [["200023", "200023 Marketing Brindes"], ["evento", "Já incluso no custo do evento (200022)"], ["200020", "200020 Material de venda / propaganda"], ["200021", "200021 Material terceirizado"], ["200024", "200024 Softwares"], ["200018", "200018 Feiras / eventos / palestras"], ["outra", "Outra conta (fora do planejamento)"]];
   const totBr = x => (+x.quantidade || 0) * (+x.custoUnit || 0) + (+x.adicionais || 0);
   const liqBr = x => Math.max(0, totBr(x) - (+x.verba || 0));
   const em23 = x => (x.conta || "200023") === "200023";
+  const cenBr = x => { const c = x.conta || "200023"; return /^\d{6}$/.test(c) ? c : null; }; // centro de custo em que a compra soma (null = já está no evento ou fora)
   const mesBr = x => +x.mesPagamento || 0;
   // centros de custo do grupo Comercial/Marketing; "id" liga ao centro usado em Metas e custos
   const CENTROS = [
@@ -95,7 +96,7 @@
 
   const D = { cfg: null, fases: [], cotas: [], eventos: [], acoes: [], brindes: [], orc: [] };
   const C = {}; let me = null, admin = false, tab = "geral";
-  const F = { acMes: null, acSit: "", acCanal: "", acVer: "mes", gCal: "tudo", evMes: null, evSit: "", evUf: "", evVer: "mes", brMes: null, brSit: "", brFin: "", brConta: "", brVer: "mes", fiMes: null, fiModo: "previsto", fiCentro: "", fiAba: "painel", fiCat: "", fiSit: "", lfMes: null, lfCen: "", lfCat: "" };
+  const F = { acMes: null, acSit: "", acCanal: "", acVer: "mes", gCal: "tudo", evMes: null, evSit: "", evUf: "", evVer: "mes", brMes: null, brSit: "", brFin: "", brConta: "", brVer: "mes", fiMes: null, fiModo: "previsto", fiCentro: "", fiAba: "painel", fiOrig: "", fiCat: "", fiSit: "", lfMes: null, lfCen: "", lfCat: "" };
   try { tab = sessionStorage.getItem("pl-tab") || "geral"; } catch (_) {}
   const cfg = () => { const c = Object.assign({}, CFG0, D.cfg || {}); c.cotas = Object.assign({}, CFG0.cotas, (D.cfg || {}).cotas || {}); return c; };
   const ok = x => x.status === "aprovado";
@@ -114,7 +115,7 @@
     D.orc.filter(conf ? ok : vivo).forEach(x => { const r = m[x.centro] || (m[x.centro] = Array(13).fill(0)); r[+x.mes || 0] += +x.valor || 0; });
     D.eventos.filter(conf ? firme("plan_eventos") : ativo).forEach(x => { m["200022"][mesEv(x)] += +x.custo || 0; });
     D.acoes.filter(conf ? firme("plan_acoes") : ativo).forEach(x => { const r = m[cenAc(x)] || (m[cenAc(x)] = Array(13).fill(0)); r[mesAc(x)] += +x.custo || 0; });
-    D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(em23).forEach(x => { m["200023"][mesBr(x)] += totBr(x); });
+    D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(cenBr).forEach(x => { const r = m[cenBr(x)] || (m[cenBr(x)] = Array(13).fill(0)); r[mesBr(x)] += totBr(x); });
     return m;
   }
   const porMes = M => { const r = Array(12).fill(0); Object.values(M).forEach(a => a.forEach((v, i) => { if (i) r[i - 1] += v; })); return r; };
@@ -561,7 +562,7 @@
     D.orc.filter(conf ? ok : vivo).filter(x => x.centro === centro).forEach(x => out.push({ cat: catN(centro, x.categoria) || "Sem categoria", mes: +x.mes || 0, valor: +x.valor || 0, origem: "lanc" }));
     if (centro === "200022") D.eventos.filter(conf ? firme("plan_eventos") : ativo).forEach(x => out.push({ cat: "Evento · " + (x.tipo || "sem tipo"), mes: mesEv(x), valor: +x.custo || 0, origem: "evento" }));
     D.acoes.filter(conf ? firme("plan_acoes") : ativo).filter(x => cenAc(x) === centro).forEach(x => out.push({ cat: "Ação promocional · " + (tipoAcN(x.tipo) || "sem tipo"), mes: mesAc(x), valor: +x.custo || 0, origem: "acao" }));
-    if (centro === "200023") D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(em23).forEach(x => out.push({ cat: "Brinde · " + (x.finalidade || "Outro"), mes: mesBr(x), valor: totBr(x), origem: "brinde" }));
+    D.brindes.filter(conf ? firme("plan_brindes") : ativo).filter(x => cenBr(x) === centro).forEach(x => out.push({ cat: "Brinde · " + (x.finalidade || "Outro"), mes: mesBr(x), valor: totBr(x), origem: "brinde" }));
     return out;
   }
   function financeiro(B){
@@ -587,7 +588,7 @@
     const orig = [["Lançamentos do financeiro", D.orc.filter(vivo).filter(x => fm(+x.mes)), D.orc.filter(ok).filter(x => fm(+x.mes)), x => +x.valor || 0, "lanc"],
       ["Eventos · custo bruto (200022)", D.eventos.filter(ativo).filter(x => fm(mesEv(x))), D.eventos.filter(firme("plan_eventos")).filter(x => fm(mesEv(x))), x => +x.custo || 0, "eventos"],
       ["Ações promocionais (centro de cada ação)", D.acoes.filter(ativo).filter(x => fm(mesAc(x))), D.acoes.filter(firme("plan_acoes")).filter(x => fm(mesAc(x))), x => +x.custo || 0, "acoes"],
-      ["Brindes na conta 200023", D.brindes.filter(ativo).filter(em23).filter(x => fm(mesBr(x))), D.brindes.filter(firme("plan_brindes")).filter(em23).filter(x => fm(mesBr(x))), totBr, "brindes"]];
+      ["Brindes (conta de cada compra)", D.brindes.filter(ativo).filter(cenBr).filter(x => fm(mesBr(x))), D.brindes.filter(firme("plan_brindes")).filter(cenBr).filter(x => fm(mesBr(x))), totBr, "brindes"]];
     const tO = soma(orig.map(o => soma(o[1].map(o[3]))));
     B.append(card("De onde vêm os custos", el("span", { class: "pl-who" }, mm ? MESES_L[mm - 1] : `ano ${ANO}`),
       el("div", { class: "pl-tw" }, el("table", { class: "pl-t" }, el("thead", null, el("tr", null, el("th", null, "Origem"), el("th", { class: "r" }, "Registros"), el("th", { class: "r" }, "Previsto"), el("th", { class: "r" }, "Confirmado"), el("th", { class: "r" }, "% do total"), el("th", null, ""))),
@@ -642,21 +643,31 @@
     };
     btn.addEventListener("click", add);
     fVal.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
-    B.append(card("Novo lançamento", el("span", { class: "pl-who" }, admin ? "o que você lança já entra aprovado" : "fica aguardando a aprovação do gerente"),
+    B.append(card("Novo lançamento", el("span", { class: "pl-who" }, "entra como previsto e só vira confirmado quando o gerente aprova"),
       el("div", { class: "pl-lform" }, lbl("Mês", fMes, "s"), lbl("Centro de custo", fCen, "l"), lbl("Categoria", fCat, "l"), lbl("Descrição", fDesc, "xl"), lbl("Valor (R$)", fVal, "m"), el("div", { class: "b" }, btn)),
-      el("p", { class: "hint", style: "margin:0" }, "Os eventos do calendário (200022) e as compras de brindes (200023) já entram sozinhos no painel; aqui você lança os demais custos de qualquer centro, inclusive custos extras de eventos e brindes. Use ↻ para repetir um lançamento em outros meses.")));
+      el("p", { class: "hint", style: "margin:0" }, "Eventos, ações promocionais e brindes cadastrados nas abas deles já entram sozinhos aqui e no painel (aparecem na lista abaixo com a aba de origem). Aqui você lança os demais custos de qualquer centro. Use ↻ para repetir um lançamento em outros meses.")));
     // filtros e tabela
     const cats = F.fiCentro ? (CATS[F.fiCentro] || []) : [];
     B.append(el("div", { class: "pl-filters" }, filtro("Mês", mesesOpt.map(([a, b]) => [String(a), b]), F.fiMes ? String(F.fiMes) : "", v => { F.fiMes = +v || null; render(); }), centroSel(),
       cats.length ? filtro("Categoria", cats, F.fiCat, v => { F.fiCat = v; render(); }) : null,
       filtro("Situação", [["aprovado", "Aprovado"], ["proposto", "Aguardando aprovação"], ["recusado", "Recusado"]], F.fiSit, v => { F.fiSit = v; render(); }),
-      (F.fiMes || F.fiCentro || F.fiCat || F.fiSit) ? el("button", { type: "button", class: "pl-link", onclick: () => { F.fiMes = null; F.fiCentro = F.fiCat = F.fiSit = ""; render(); } }, "Limpar filtros") : null));
-    const L = D.orc.filter(x => (!F.fiMes || +x.mes === F.fiMes) && (!F.fiCentro || x.centro === F.fiCentro) && (!F.fiCat || x.categoria === F.fiCat) && (F.fiSit ? x.status === F.fiSit : vivo(x)))
-      .sort((a, b) => (+a.mes - +b.mes) || String(a.centro).localeCompare(b.centro) || String(a.descricao).localeCompare(b.descricao));
-    if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.orc.length ? "Nenhum lançamento neste filtro." : "Nenhum lançamento ainda. Use o formulário acima para adicionar.")); return; }
+      filtro("Origem", [["lanc", "Lançados aqui"], ["Eventos", "Aba Eventos"], ["Ações promocionais", "Aba Ações promocionais"], ["Brindes", "Aba Brindes"]], F.fiOrig, v => { F.fiOrig = v; render(); }),
+      (F.fiMes || F.fiCentro || F.fiCat || F.fiSit || F.fiOrig) ? el("button", { type: "button", class: "pl-link", onclick: () => { F.fiMes = null; F.fiCentro = F.fiCat = F.fiSit = F.fiOrig = ""; render(); } }, "Limpar filtros") : null));
+    // custos que vêm das outras abas do planejamento (só leitura aqui; editar na aba de origem)
+    const ext = [].concat(
+      D.eventos.filter(ativo).map(x => ({ _o: "Eventos", _col: "plan_eventos", _x: x, mes: mesEv(x), centro: "200022", descricao: [x.nome, x.cidade].filter(Boolean).join(" · "), valor: +x.custo || 0, status: x.status })),
+      D.acoes.filter(ativo).filter(x => +x.custo > 0).map(x => ({ _o: "Ações promocionais", _col: "plan_acoes", _x: x, mes: mesAc(x), centro: cenAc(x), descricao: x.nome, valor: +x.custo || 0, status: x.status })),
+      D.brindes.filter(ativo).filter(cenBr).map(x => ({ _o: "Brindes", _col: "plan_brindes", _x: x, mes: mesBr(x), centro: cenBr(x), descricao: x.descricao + (x.quantidade ? ` · ${x.quantidade} un.` : ""), valor: totBr(x), status: x.status })));
+    const L = D.orc.map(x => Object.assign({ _o: "" }, x)).concat(ext)
+      .filter(x => (!F.fiMes || +x.mes === F.fiMes) && (!F.fiCentro || x.centro === F.fiCentro) && (!F.fiCat || (!x._o && x.categoria === F.fiCat)) && (F.fiSit ? x.status === F.fiSit : vivo(x)) && (!F.fiOrig || (F.fiOrig === "lanc" ? !x._o : x._o === F.fiOrig)))
+      .sort((a, b) => (+a.mes - +b.mes) || String(a.centro).localeCompare(b.centro) || String(a._o).localeCompare(b._o) || String(a.descricao).localeCompare(b.descricao));
+    if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.orc.length || ext.length ? "Nenhum lançamento neste filtro." : "Nenhum lançamento ainda. Use o formulário acima para adicionar.")); return; }
     const ac = (t, cls, fn, title) => el("button", { type: "button", class: "pl-ic " + cls, title, "aria-label": title, onclick: e => { e.stopPropagation(); fn(); } }, t);
     const tb = el("tbody");
     L.forEach(x => { const pode = admin || x.status !== "aprovado";
+      if (x._o) { tb.append(el("tr", { class: "pl-ext" }, el("td", null, x.mes ? cap(MESES_L[x.mes - 1]) : "—"), el("td", null, el("b", null, x.centro), el("div", { class: "pl-who" }, centroN(x.centro))),
+          el("td", null, el("span", { class: "pl-orig" }, "Aba " + x._o)), el("td", null, x.descricao || ""), el("td", { class: "r m" }, brl(x.valor)), el("td", null, pill(x.status)),
+          el("td", null, el("div", { class: "pl-acts nw" }, ac("✎", "", () => form(x._col, x._x), "Abrir na aba " + x._o))))); return; }
       tb.append(el("tr", null, el("td", null, cap(MESES_L[(+x.mes || 1) - 1])), el("td", null, el("b", null, x.centro), el("div", { class: "pl-who" }, centroN(x.centro))),
         el("td", null, el("span", { class: "pl-cat " + catCls(x.centro, x.categoria) }, catN(x.centro, x.categoria) || "—")), el("td", null, x.descricao || "", x.serie ? el("div", { class: "pl-who" }, "repetido") : null),
         el("td", { class: "r m" }, brl(x.valor)), el("td", null, pill(x.status)),
@@ -666,7 +677,7 @@
     const desc = [F.fiMes ? MESES_L[F.fiMes - 1] : "", F.fiCentro ? F.fiCentro : "", F.fiCat ? catN(F.fiCentro, F.fiCat) : ""].filter(Boolean).join(" — ");
     B.append(el("div", { class: "pl-tw pl-lt" }, el("table", { class: "pl-t", style: "min-width:860px" },
       el("thead", null, el("tr", null, ...["Mês", "Centro", "Categoria", "Descrição", "Valor", "Situação", "Ações"].map((h, i) => el("th", { class: i === 4 ? "r" : "" }, h)))), tb,
-      el("tfoot", null, el("tr", null, el("td", { colspan: "4" }, `Total ${ANO}${desc ? " — " + desc : ""} (${L.length} lançamento${L.length === 1 ? "" : "s"})`), el("td", { class: "r m" }, brl(soma(L.map(x => x.valor)))), el("td", { colspan: "2" }))))));
+      el("tfoot", null, el("tr", null, el("td", { colspan: "4" }, `Total ${ANO}${desc ? " — " + desc : ""} (${L.length} lançamento${L.length === 1 ? "" : "s"}${L.some(x => x._o) ? `, ${L.filter(x => x._o).length} vindos de outras abas` : ""})`), el("td", { class: "r m" }, brl(soma(L.map(x => x.valor)))), el("td", { colspan: "2" }))))));
   }
   // repetir um lançamento em outros meses (meses que já têm o mesmo lançamento ficam marcados ✓)
   function repetir(x){
@@ -782,7 +793,7 @@
         const itens = D.orc.filter(ok).filter(x => +x.mes === m && (CENTROS.find(c => c.c === x.centro) || {}).id).map(x => ({ centro: CENTROS.find(c => c.c === x.centro).id, conta: x.centro, item: x.descricao || catN(x.centro, x.categoria), valor: +x.valor || 0 }))
           .concat(D.eventos.filter(firme("plan_eventos")).filter(x => mesEv(x) === m).map(x => ({ centro: "eventos", conta: "200022", item: `${x.nome} · ${x.cidade || ""}`, valor: +x.custo || 0 })))
           .concat(D.acoes.filter(firme("plan_acoes")).filter(x => mesAc(x) === m && (CENTROS.find(c => c.c === cenAc(x)) || {}).id).map(x => ({ centro: CENTROS.find(c => c.c === cenAc(x)).id, conta: cenAc(x), item: `Ação: ${x.nome}`, valor: +x.custo || 0 })))
-          .concat(D.brindes.filter(firme("plan_brindes")).filter(em23).filter(x => mesBr(x) === m).map(x => ({ centro: "brindes", conta: "200023", item: x.descricao, valor: totBr(x) })));
+          .concat(D.brindes.filter(firme("plan_brindes")).filter(cenBr).filter(x => mesBr(x) === m && (CENTROS.find(c => c.c === cenBr(x)) || {}).id).map(x => ({ centro: CENTROS.find(c => c.c === cenBr(x)).id, conta: cenBr(x), item: x.descricao, valor: totBr(x) })));
         await col.doc(`custos-${ANO}-${pad(m)}`).update({ tipo: "custos", mes: `${ANO}-${pad(m)}`, projetado, itens, fonte: `Planejamento ${ANO} (confirmado)` }); n++;
       }
       toast(`Projetado de ${n} meses enviado para Metas e custos`);
