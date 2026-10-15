@@ -141,7 +141,15 @@
     D.orc.filter(x => x.status === "proposto").map(x => ({ col: "plan_orcamento", x, tipo: "Financeiro", txt: `${x.centro} · ${MESES[(+x.mes || 1) - 1]} · ${x.descricao}`, val: +x.valor || 0 })));
 
   /* ---------- telas ---------- */
-  const VIEWS = { geral, cronograma, trade, eventos, acoes, brindes, financeiro, aprovar };
+  const VIEWS = { geral, cronograma, trade, eventos, acoes, brindes, financeiro, aprovar, bi };
+  // Painel BI dos gastos de 2026 (assets/js/bi.js). A base fica em plan_bi/"2026" e só é lida quando a aba é aberta.
+  function bi(B){
+    if (!window.BI) { B.append(el("div", { class: "pl-empty" }, "Não foi possível carregar o painel. Atualize a página.")); return; }
+    if (!C.plan_bi) { C.plan_bi = Store.collection("plan_bi"); D.biOk = false;
+      C.plan_bi.onSnapshot(sn => { const d = sn.docs.find(x => x.id === "2026" && x.exists); D.bi = d ? d.data() : null; D.biOk = true; if (tab === "bi") render(); }); }
+    if (!D.biOk && !D.bi) { B.append(el("div", { class: "pl-empty" }, "Carregando a base de 2026…")); return; }
+    BI.render(B, { bi: D.bi, D, admin, me, C, el, brl, brl0, curto, pct, num, lerR, toast, render, form, CENTROS, CATS });
+  }
   function render(){
     if (document.activeElement && $("plBody").contains(document.activeElement) && /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { render.pend = true; return; }
     render.pend = false;
@@ -157,7 +165,7 @@
   $("plTabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) irPara(b.dataset.t); });
   const nomeAba = () => { const b = [...$("plTabs").children].find(x => x.dataset.t === tab); return b ? b.firstChild.textContent.trim() : ""; };
   if (window.Exportar) Exportar.menu($("plExp"), { alvo: () => $("plBody"), titulo: () => `Planejamento ${ANO}`, secao: nomeAba,
-    sub: () => tab === "financeiro" ? ({ painel: "Painel", lanc: "Lançamentos", resumo: "Resumo mensal", cat: "Por categoria" }[F.fiAba] || "") : tab === "eventos" ? ({ mes: "Por mês", evento: "Por evento", cal: "Calendário anual" }[F.evVer] || "") : "",
+    sub: () => tab === "bi" && window.BI ? BI.nomeAba() : tab === "financeiro" ? ({ painel: "Painel", lanc: "Lançamentos", resumo: "Resumo mensal", cat: "Por categoria" }[F.fiAba] || "") : tab === "eventos" ? ({ mes: "Por mês", evento: "Por evento", cal: "Calendário anual" }[F.evVer] || "") : "",
     arquivo: () => `planejamento-${ANO}-${nomeAba()}` });
 
   const card = (titulo, extra, ...kids) => el("div", { class: "pl-card" }, el("div", { class: "pl-head" }, el("h2", null, titulo), extra || null), ...kids);
