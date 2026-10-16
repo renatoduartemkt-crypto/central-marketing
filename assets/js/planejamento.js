@@ -60,7 +60,8 @@
     { c: "200023", n: "Brindes", id: "brindes", derivado: "brindes" },
     { c: "200024", n: "Softwares", id: "softwares" },
     { c: "200018", n: "Feiras / eventos / palestras", id: "" },
-    { c: "200310", n: "Folha de marketing (200310–200316)", id: "" }];
+    { c: "200310", n: "Folha de marketing", id: "" },
+    { c: "200316", n: "Despesa de viagem marketing", id: "" }];
   const centroN = c => (CENTROS.find(x => x.c === c) || { n: c }).n;
   // categorias de lançamento de cada centro de custo (o 200021 segue o planejamento que já existia)
   const CATS = {
@@ -70,7 +71,8 @@
     "200023": [["avulsos", "Brindes avulsos"], ["outros", "Outros"]],
     "200024": [["assinaturas", "Assinaturas e licenças"], ["ferramentas", "Ferramentas e plataformas"], ["outros", "Outros"]],
     "200018": [["inscricoes", "Inscrições e cotas de feiras"], ["estande", "Estande e montagem"], ["viagem", "Viagens"], ["outros", "Outros"]],
-    "200310": [["salarios", "Salários"], ["encargos", "Encargos"], ["beneficios", "Benefícios"], ["outros", "Outros"]] };
+    "200310": [["salarios", "Salários"], ["encargos", "Encargos"], ["beneficios", "Benefícios"], ["outros", "Outros"]],
+    "200316": [["viagem", "Viagem completa (hospedagem, transporte e alimentação)"], ["hospedagem", "Hospedagem"], ["transporte", "Passagens / combustível"], ["alimentacao", "Alimentação"], ["outros", "Outros"]] };
   const catN = (c, k) => { const f = (CATS[c] || []).find(x => x[0] === k); return f ? f[1] : (k || ""); };
   // premissas padrão (substituídas pelo documento plan_config/2027 quando existir)
   const CFG0 = {
