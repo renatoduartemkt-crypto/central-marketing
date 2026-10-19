@@ -29,6 +29,7 @@
  *  SEGREDO              gerado automaticamente; NÃO apague (invalida todas as senhas)
  *  PLANILHA_ID          id da planilha (se o script NÃO estiver vinculado a ela)
  *  PASTA_RELATORIOS     id da pasta do Drive para os PDFs (senão cria "Central de Marketing - Relatórios")
+ *  PASTA_ANEXOS         id da pasta privada dos anexos de tarefas e orçamentos (senão cria "Central de Marketing - Anexos")
  *  IMPORTACAO_ID        id da planilha de importação de metas/projetado (usada por importarMetas)
  *
  * IMPORTANTE (armadilhas conhecidas): ao alterar este arquivo, cole-o INTEIRO no editor e crie uma
@@ -46,7 +47,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-15a';
+const VERSAO_API = '2026-10-19a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -92,6 +93,9 @@ function api(req) {
       case 'salvarUsuario':  return salvarUsuario_(eu, req);
       case 'redefinirSenha': return redefinirSenha_(eu, req.id, req.senha);
       case 'excluirUsuario': return excluirUsuario_(eu, req.id);
+      case 'anexoEnviar':    return anexoEnviar_(eu, req);
+      case 'anexoBaixar':    return anexoBaixar_(eu, req.id);
+      case 'anexoExcluir':   return anexoExcluir_(eu, req.id);
     }
 
     if (req.acao === 'listarVarias') {
@@ -547,6 +551,60 @@ function pastaRelatorios_() {
   const f = DriveApp.createFolder('Central de Marketing - Relatórios');
   PropertiesService.getScriptProperties().setProperty('PASTA_RELATORIOS', f.getId());
   return f;
+}
+
+/* ======================= anexos (arquivos de tarefas e orçamentos) ======================= */
+// Os arquivos ficam numa pasta PRIVADA do Drive do dono do script. O site só abre um arquivo por aqui,
+// com sessão válida, e o backend só entrega arquivos que estão nessa pasta (nunca outro arquivo do Drive).
+const ANEXO_MAX = 10 * 1024 * 1024;   // 10 MB por arquivo
+const ANEXO_TIPOS_ = /^(image\/(jpeg|png|webp|gif)|application\/pdf|text\/(plain|csv)|application\/(msword|vnd\.ms-excel|vnd\.ms-powerpoint|zip|x-zip-compressed|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)))$/;
+function pastaAnexos_() {
+  const id = prop_('PASTA_ANEXOS');
+  if (id) return DriveApp.getFolderById(id);
+  const it = DriveApp.getFoldersByName('Central de Marketing - Anexos');
+  const f = it.hasNext() ? it.next() : DriveApp.createFolder('Central de Marketing - Anexos');
+  PropertiesService.getScriptProperties().setProperty('PASTA_ANEXOS', f.getId());
+  return f;
+}
+function anexoArquivo_(id) {
+  id = String(id || '');
+  if (!/^[A-Za-z0-9_-]{10,100}$/.test(id)) throw new Error('Anexo inválido.');
+  let f;
+  try { f = DriveApp.getFileById(id); } catch (e) { throw new Error('Anexo não encontrado.'); }
+  const pasta = pastaAnexos_().getId(), pais = f.getParents();
+  let naPasta = false;
+  while (pais.hasNext()) if (pais.next().getId() === pasta) { naPasta = true; break; }
+  if (!naPasta || f.isTrashed()) throw new Error('Anexo não encontrado.');
+  return f;
+}
+function anexoEnviar_(eu, r) {
+  const nome = String(r.nome || 'arquivo').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120) || 'arquivo';
+  const tipo = String(r.tipo || '').toLowerCase();
+  if (!ANEXO_TIPOS_.test(tipo)) throw new Error('Tipo de arquivo não permitido. Envie imagem, PDF, Word, Excel, PowerPoint, CSV, TXT ou ZIP.');
+  const b64 = String(r.base64 || '');
+  if (b64.length > Math.ceil(ANEXO_MAX / 3) * 4 + 8) throw new Error('O arquivo passa de 10 MB.');
+  const bytes = Utilities.base64Decode(b64);
+  if (!bytes.length) throw new Error('O arquivo está vazio.');
+  if (bytes.length > ANEXO_MAX) throw new Error('O arquivo passa de 10 MB.');
+  const ref = String(r.ref || '').slice(0, 200);
+  const f = pastaAnexos_().createFile(Utilities.newBlob(bytes, tipo, nome));
+  f.setDescription(JSON.stringify({ por: eu.email, ref: ref }));
+  const a = { id: f.getId(), nome: nome, tipo: tipo, tamanho: bytes.length, por: eu.email, em: new Date().toISOString() };
+  log_(eu.email, 'anexo enviado', '', a.id, nome + (ref ? ' · ' + ref : ''));
+  return { anexo: a };
+}
+function anexoBaixar_(eu, id) {
+  const f = anexoArquivo_(id), b = f.getBlob();
+  return { nome: f.getName(), tipo: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) };
+}
+function anexoExcluir_(eu, id) {
+  const f = anexoArquivo_(id);
+  let por = '';
+  try { por = JSON.parse(f.getDescription() || '{}').por || ''; } catch (e) {}
+  if (!isAdmin_(eu) && por !== eu.email) throw new Error('Só quem enviou o arquivo ou um administrador pode removê-lo.');
+  f.setTrashed(true);   // vai para a lixeira do Drive: dá para recuperar por 30 dias
+  log_(eu.email, 'anexo removido', '', id, f.getName());
+  return { ok: true };
 }
 
 /* ======================= instalação ======================= */
