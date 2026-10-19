@@ -266,7 +266,7 @@ td.tt{font-weight:600;max-width:340px}
       <div class="sec"><h3>Histórico</h3><div class="hist" id="hList"></div></div>
       <p class="err" id="formErr" hidden></p>
     </div>
-    <div class="pf"><div id="delArea"></div><div style="display:flex;gap:8px"><button class="btn" type="button" id="cancelBtn">Fechar</button><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div></div>
+    <div class="pf"><div id="delArea"></div><div style="display:flex;gap:8px"><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div></div>
   </form>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -420,7 +420,7 @@ td.tt{font-weight:600;max-width:340px}
     $("cTxt").value=""; $("tNota").value=""; stLoad(t); rpReset(t); syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
     $("overlay").hidden=false; setTimeout(()=>$("iTitulo").focus(),40);}
   function closeTask(){$("overlay").hidden=true;editingId=null;}
-  $("closeBtn").onclick=closeTask;$("cancelBtn").onclick=closeTask;$("newBtn").onclick=()=>openTask(null);
+  $("closeBtn").onclick=closeTask;$("newBtn").onclick=()=>openTask(null);
   $("overlay").addEventListener("click",e=>{if(e.target===$("overlay"))closeTask();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeTask();});
   function renderDel(confirm){const a=$("delArea");a.textContent="";if(!editingId)return;

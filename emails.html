@@ -285,7 +285,7 @@ textarea{min-height:76px;resize:vertical}
     <footer>
       <div id="delArea"></div>
       <div style="display:flex;gap:8px">
-        <button class="btn" type="button" id="cancelBtn">Cancelar</button>
+        
         <button class="btn primary" type="submit" id="saveBtn">Salvar</button>
       </div>
     </footer>
@@ -510,7 +510,7 @@ textarea{min-height:76px;resize:vertical}
         el("button",{class:"btn",type:"button",title:"Abre uma cópia deste e-mail para você escolher outra data",onclick:()=>{openForm(cur,cur?addDays(cur.data,7):null,true);}},"Duplicar")));return;}
     a.append(el("div",{class:"confirm"},"Excluir este e-mail?",el("button",{class:"btn danger",type:"button",onclick:doDelete},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
   async function doDelete(){try{await col.doc(editingId).delete();closeForm();toast("E-mail excluído");}catch(err){showErr(err);}}
-  $("closeBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm;
+  $("closeBtn").onclick=closeForm;
   $("overlay").addEventListener("click",ev=>{if(ev.target===$("overlay"))closeForm();});
   document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("overlay").hidden)closeForm();});
   $("newBtn").onclick=()=>openForm(null);

@@ -295,7 +295,7 @@ textarea{min-height:64px;resize:vertical}
     <p class="err" id="formErr" hidden></p>
     <footer>
       <div id="delArea"></div>
-      <div style="display:flex;gap:8px"><button class="btn" type="button" id="cancelBtn">Cancelar</button><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div>
     </footer>
   </form>
 </div>
@@ -527,7 +527,7 @@ textarea{min-height:64px;resize:vertical}
   async function doDelete(){try{await col.doc(editingId).delete();closeForm();toast("Campanha excluída");}catch(e){showErr(e);}}
   async function duplicate(){const c=camps.find(x=>x.id===editingId);if(!c)return;const copy=JSON.parse(JSON.stringify(c));delete copy.id;copy.nome=(c.nome||"Campanha")+" (cópia)";copy.criadoEm=copy.atualizadoEm=new Date().toISOString();
     try{const ref=await col.add(copy);sel=ref.id;saveSel();closeForm();toast("Campanha duplicada");}catch(e){showErr(e);}}
-  $("closeBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm; $("newBtn").onclick=()=>openForm(null);
+  $("closeBtn").onclick=closeForm; $("newBtn").onclick=()=>openForm(null);
   $("overlay").addEventListener("click",ev=>{if(ev.target===$("overlay"))closeForm();});
   document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("overlay").hidden)closeForm();});
   function showErr(e){const p=$("formErr");p.hidden=false;const c=e&&e.code;

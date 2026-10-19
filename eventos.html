@@ -239,7 +239,7 @@ tbody tr:last-child td{border-bottom:0}
       <div class="full" id="tplBox"><label class="opt"><input type="checkbox" id="eTpl" checked><span>Começar com o checklist padrão de eventos (prazos calculados pela data do evento)</span></label></div>
       <p class="err full" id="fErr" hidden></p>
     </div>
-    <div class="pf"><div id="fDel"></div><div style="display:flex;gap:8px"><button class="btn" type="button" id="fCancel">Cancelar</button><button class="btn primary" type="submit" id="fSave">Salvar</button></div></div>
+    <div class="pf"><div id="fDel"></div><div style="display:flex;gap:8px"><button class="btn primary" type="submit" id="fSave">Salvar</button></div></div>
   </form>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -651,7 +651,7 @@ tbody tr:last-child td{border-bottom:0}
   function renderFDel(c){const a=$("fDel");a.textContent="";if(!editingEv)return;
     if(!c)a.append(el("button",{class:"btn danger",type:"button",onclick:()=>renderFDel(true)},"Excluir evento"));
     else a.append(el("div",{class:"confirm"},"Excluir o evento e tudo dele?",el("button",{class:"btn danger",type:"button",onclick:async()=>{const id=editingEv;await col.doc(id).delete();if(selId===id)selId=null;closeForm();toast("Evento excluído");}},"Sim"),el("button",{class:"btn",type:"button",onclick:()=>renderFDel(false)},"Não")));}
-  $("newEv").onclick=()=>openForm(null);$("fClose").onclick=closeForm;$("fCancel").onclick=closeForm;
+  $("newEv").onclick=()=>openForm(null);$("fClose").onclick=closeForm;
   $("overlay").addEventListener("click",e=>{if(e.target===$("overlay"))closeForm();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeForm();});
   $("evForm").addEventListener("submit",async ev=>{ev.preventDefault();const err=m=>{$("fErr").textContent=m;$("fErr").hidden=false;};

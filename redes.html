@@ -264,7 +264,7 @@ textarea{min-height:76px;resize:vertical}
     <p class="err" id="formErr" hidden></p>
     <footer>
       <div id="delArea"></div>
-      <div style="display:flex;gap:8px"><button class="btn" type="button" id="cancelBtn">Cancelar</button><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn primary" type="submit" id="saveBtn">Salvar</button></div>
     </footer>
   </form>
 </div>
@@ -482,7 +482,7 @@ textarea{min-height:76px;resize:vertical}
     if(!confirm){a.append(el("div",{class:"confirm"},el("button",{class:"btn danger",type:"button",onclick:()=>renderDel(true)},"Excluir"),el("button",{class:"btn",type:"button",onclick:()=>openForm(cur,null,true)},"Duplicar"),el("button",{class:"btn",type:"button",title:"Cria uma cópia na mesma data do próximo ano",onclick:()=>repetirAno([cur]).then(n=>{if(n){closeForm();}})},"Repetir no próximo ano")));return;}
     a.append(el("div",{class:"confirm"},"Excluir este post?",el("button",{class:"btn danger",type:"button",onclick:doDelete},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>renderDel(false)},"Não")));}
   async function doDelete(){try{await col.doc(editingId).delete();closeForm();toast("Post excluído");}catch(e){showErr(e);}}
-  $("closeBtn").onclick=closeForm; $("cancelBtn").onclick=closeForm; $("newBtn").onclick=()=>openForm(null);
+  $("closeBtn").onclick=closeForm; $("newBtn").onclick=()=>openForm(null);
   $("overlay").addEventListener("click",ev=>{if(ev.target===$("overlay"))closeForm();});
   document.addEventListener("keydown",ev=>{if(ev.key==="Escape"&&!$("overlay").hidden)closeForm();});
   function showErr(e){const p=$("formErr");p.hidden=false;const c=e&&e.code;

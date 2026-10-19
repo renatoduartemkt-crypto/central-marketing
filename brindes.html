@@ -141,7 +141,7 @@ td.r,th.r{text-align:right}
       <div class="full"><label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="bAtivo" checked> Brinde ativo (aparece para entregas)</label></div>
       <p class="err full" id="bErr" hidden></p>
     </div>
-    <div class="pf"><span class="hint" id="bInfo"></span><div style="display:flex;gap:8px"><button class="btn" type="button" id="bCancel">Cancelar</button><button class="btn primary" type="submit" id="bSave">Salvar</button></div></div>
+    <div class="pf"><span class="hint" id="bInfo"></span><div style="display:flex;gap:8px"><button class="btn primary" type="submit" id="bSave">Salvar</button></div></div>
   </form>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -270,7 +270,7 @@ td.r,th.r{text-align:right}
     $("iniBox").hidden=!!b;$("bInfo").textContent=b?`Em estoque: ${int(saldoOf(b.id))} · use Ajuste de inventário para corrigir a quantidade`:"";
     $("overlay").hidden=false;setTimeout(()=>$("bNome").focus(),40);}
   const closeForm=()=>{$("overlay").hidden=true;editing=null;};
-  $("newB").onclick=()=>openForm(null);$("bClose").onclick=closeForm;$("bCancel").onclick=closeForm;
+  $("newB").onclick=()=>openForm(null);$("bClose").onclick=closeForm;
   $("overlay").addEventListener("click",e=>{if(e.target===$("overlay"))closeForm();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeForm();});
   $("bCusto").addEventListener("blur",e=>{const v=parseBR(e.target.value);e.target.value=v?num(v):"";});

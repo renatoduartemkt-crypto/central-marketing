@@ -237,7 +237,6 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
   function drawActions(){const L=$("pLeft"),R=$("pRight");L.textContent="";R.textContent="";const st=draft.status||"rascunho";
     if(editing&&["rascunho","recusado"].includes(st))L.append(delBtn());
     if(editing&&st==="aguardando"&&Custos.isAdmin())L.append(Custos.acoes(asItem(Object.assign({id:editing},draft)),msg=>{toast(msg);closeForm();}));
-    R.append(el("button",{class:"btn",type:"button",onclick:closeForm},"Fechar"));
     if(!locked()){R.append(el("button",{class:"btn",type:"button",onclick:()=>save(st==="aguardando"?"aguardando":"rascunho")},st==="aguardando"?"Salvar alterações":"Salvar rascunho"));
       if(st!=="aguardando")R.append(el("button",{class:"btn primary",type:"button",onclick:()=>save("aguardando")},"Enviar para aprovação"));}
     else{if(st==="aprovado")R.append(el("button",{class:"btn primary",type:"button",onclick:()=>save("produzindo")},"Marcar em produção"));
