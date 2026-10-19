@@ -452,9 +452,12 @@ button.bi-crow:hover,button.bi-nrow:hover,.bi-crow.on,.bi-nrow.on{background:var
 .cc-spk{display:flex;align-items:flex-end;gap:2px;height:32px}
 .cc-spk i{flex:1;background:var(--k4);border-radius:2px 2px 0 0;min-height:1px}
 .cc-spk i.sel{background:var(--accent)}
-@media (max-width:980px){.cc-head{display:none}.cc-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"id val" "bar bar" "cmp spk"}
+/* o painel se adapta à largura do próprio cartão (o menu lateral ocupa parte da tela) */
+.pl-card:has(.cc-list){container:cc/inline-size}
+.pl-card:has(.pl-mx){container:mx/inline-size}
+@container cc (max-width:880px){.cc-head{display:none}.cc-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"id val" "bar bar" "cmp spk"}
   .cc-id{grid-area:id}.cc-val{grid-area:val}.cc-bar{grid-area:bar}.cc-cmp{grid-area:cmp;flex-direction:row;align-items:center;gap:8px}.cc-spk{grid-area:spk;width:110px;height:26px}}
-@media (max-width:560px){.cc-top{grid-template-columns:1fr}.cc-tt{font-size:34px}.cc-row{padding:12px 4px}.cc-cmp{flex-direction:column;align-items:flex-start;gap:2px}.cc-spk{width:84px}}
+@container cc (max-width:540px){.cc-top{grid-template-columns:1fr}.cc-tt{font-size:34px}.cc-row{padding:12px 4px}.cc-cmp{flex-direction:column;align-items:flex-start;gap:2px}.cc-spk{width:84px}}
 
 /* ---- financeiro: matriz centro de custo × mês ---- */
 .mx-nota{margin:-4px 0 0}
@@ -478,7 +481,7 @@ button.bi-crow:hover,button.bi-nrow:hover,.bi-crow.on,.bi-nrow.on{background:var
 .pl-mx tfoot .mx-c{background:var(--surface-2);font-size:14px}
 .pl-mx td.neg{color:var(--bad);font-weight:700}.pl-mx td.pos{color:var(--ok);font-weight:700}
 .mx-mob{display:none}
-@media (max-width:760px){
+@container mx (max-width:640px){
   .mx-tw,.mx-nota{display:none}
   .mx-mob{display:flex;flex-direction:column;gap:10px}
   .mx-mc{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
