@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="assets/css/base.css">
 <style>
-/* Layout: painel (indicadores + por centro de custo + pedidos aguardando aprovação) → lista de pedidos → pedido abre em painel lateral com 3 orçamentos obrigatórios */
+/* Layout: painel (indicadores + por centro de custo + pedidos aguardando aprovação) → lista de pedidos → pedido abre em painel lateral com no mínimo 2 orçamentos (o 3º é opcional) */
 .top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
 .card h2{font-size:16px;margin:0}
@@ -168,7 +168,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
     k.append(el("div",{class:"kpi warn"},el("small",null,"Aguardando aprovação"),el("b",null,brl(ag.reduce((s,p)=>s+valOf(p),0))),el("span",null,`${ag.length} pedido(s), todos os meses`)),
       el("div",{class:"kpi ok"},el("small",null,"Aprovado no mês"),el("b",null,brl(apr.reduce((s,p)=>s+valOf(p),0))),el("span",null,`${apr.length} pedido(s)`)),
       el("div",{class:"kpi"},el("small",null,"Em produção"),el("b",null,pedidos.filter(p=>p.status==="produzindo").length)),
-      el("div",{class:"kpi"},el("small",null,"Economia com 3 orçamentos (mês)"),el("b",null,brl(apr.reduce((s,p)=>{const vs=(p.orcamentos||[]).map(o=>+o.valor||0).filter(v=>v>0);return s+(vs.length>1?Math.max(...vs)-valOf(p):0);},0))),el("span",null,"escolhido × mais caro")));
+      el("div",{class:"kpi"},el("small",null,"Economia nos orçamentos (mês)"),el("b",null,brl(apr.reduce((s,p)=>{const vs=(p.orcamentos||[]).map(o=>+o.valor||0).filter(v=>v>0);return s+(vs.length>1?Math.max(...vs)-valOf(p):0);},0))),el("span",null,"escolhido × mais caro")));
     // por centro
     const m=new Map();inM.forEach(p=>{const c=p.centro||"terceirizado";if(!m.has(c))m.set(c,{ag:0,ap:0,n:0});const x=m.get(c);x.n++;if(p.status==="aguardando")x.ag+=valOf(p);if(["aprovado","produzindo","entregue"].includes(p.status))x.ap+=valOf(p);});
     const b=$("byCc");b.textContent="";
@@ -189,7 +189,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
     [["","Todos"],["aguardando","Aguardando"],["aprovado","Aprovados"],["produzindo","Em produção"],["entregue","Entregues"],["recusado","Recusados"],["rascunho","Rascunhos"]].forEach(([k,n])=>f.append(el("button",{type:"button","aria-pressed":String(fst===k),onclick:()=>{fst=k;renderList();}},n)));
     const L=pedidos.filter(p=>!fst||p.status===fst).sort((a,b)=>(b.dataPedido||"").localeCompare(a.dataPedido||""));
     const box=$("list");box.textContent="";
-    if(!L.length){box.append(el("div",{class:"empty"},el("strong",null,pedidos.length?"Nenhum pedido neste filtro":"Nenhum pedido de produção"),pedidos.length?"":"Clique em “+ Novo pedido”. Todo pedido precisa de 3 orçamentos."));return;}
+    if(!L.length){box.append(el("div",{class:"empty"},el("strong",null,pedidos.length?"Nenhum pedido neste filtro":"Nenhum pedido de produção"),pedidos.length?"":"Clique em “+ Novo pedido”. Todo pedido precisa de pelo menos 2 orçamentos."));return;}
     const tb=el("tbody");L.forEach(p=>{const o=esc(p),late=p.prazo&&p.prazo<hoje()&&!["entregue","recusado"].includes(p.status);
       tb.append(el("tr",{class:"click",tabindex:"0",onclick:()=>openForm(p),onkeydown:e=>{if(e.key==="Enter")openForm(p);}},
         el("td",{class:"mono"},fd(p.dataPedido)),el("td",null,el("b",null,p.titulo),el("div",{class:"hint"},[p.tipo,p.quantidade?p.quantidade+" un.":"",p.eventoNome].filter(Boolean).join(" · "))),
@@ -199,6 +199,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
 
   // FORMULÁRIO
   const blankQ=()=>({fornecedor:"",valor:0,prazo:"",condicao:""});
+  const MIN_ORC=2; // mínimo de orçamentos por pedido; o 3º espaço fica opcional (cidades com só 2 prestadores)
   function fillSelects(){const c=$("pCentro"),cv=c.value;c.textContent="";centros.filter(x=>x.ativo!==false).forEach(x=>c.append(el("option",{value:x.id},(x.codigo?x.codigo+" · ":"")+x.nome)));c.value=cv||"terceirizado";
     const e=$("pEvento"),ev=e.value;e.textContent="";e.append(el("option",{value:""},"—"));eventos.slice().sort((a,b)=>(b.inicio||"").localeCompare(a.inicio||"")).forEach(x=>e.append(el("option",{value:x.id},x.nome)));e.value=ev;
     const s=$("pSol"),sv=s.value;s.textContent="";users.forEach(u=>s.append(el("option",{value:u.email},u.nome||u.email)));s.value=sv||(me?me.email:"");
@@ -209,7 +210,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
       const mk2=(k,lab,attrs)=>el("div",null,el("label",{class:"lab",for:`q${i}${k}`},lab),el("input",Object.assign({type:"text",id:`q${i}${k}`,value:k==="valor"?(o.valor?num(o.valor):""):(o[k]||""),disabled:dis,
         oninput:ev=>{draft.orcamentos[i][k]=k==="valor"?parseBR(ev.target.value):ev.target.value;refreshCmp();},onblur:ev=>{if(k==="valor"){const v=parseBR(ev.target.value);ev.target.value=v?num(v):"";}}},attrs)));
       box.append(el("div",{class:"q"+(i===ci&&draft.orcamentos.filter(x=>x.fornecedor&&+x.valor>0).length>1?" best":"")+(draft.escolhido===i?" pick":""),"data-i":i},
-        el("h4",null,`Orçamento ${i+1}`,el("span",{class:"bdg"})),
+        el("h4",null,`Orçamento ${i+1}`+(i>=MIN_ORC?" (opcional)":""),el("span",{class:"bdg"})),
         mk2("fornecedor","Fornecedor",{list:"dlForn",maxlength:"100"}),mk2("valor","Valor total (R$)",{inputmode:"decimal",class:"money",placeholder:"0,00"}),
         mk2("prazo","Prazo de entrega",{maxlength:"60",placeholder:"Ex.: 5 dias úteis"}),mk2("condicao","Condição de pagamento",{maxlength:"80",placeholder:"Ex.: 28 dias"}),
         el("label",{class:"pickl"},el("input",{type:"radio",name:"esc",value:i,checked:draft.escolhido===i?true:null,disabled:dis,onchange:()=>{draft.escolhido=i;refreshCmp();}}),"Escolher este")));});
@@ -217,7 +218,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
   function refreshCmp(){const os=draft.orcamentos,ci=cheapest(os),filled=os.filter(o=>o.fornecedor&&+o.valor>0);
     [...$("qs").children].forEach((q,i)=>{q.classList.toggle("best",i===ci&&filled.length>1);q.classList.toggle("pick",draft.escolhido===i);const b=q.querySelector(".bdg");b.textContent="";if(i===ci&&filled.length>1)b.append(el("span",{class:"badge"},"MAIS BARATO"));});
     const c=$("cmp");c.textContent="";
-    if(filled.length<3)c.append(`Preencha os 3 orçamentos (${filled.length}/3 completos) para enviar para aprovação.`);
+    if(filled.length<MIN_ORC)c.append(`Preencha pelo menos ${MIN_ORC} orçamentos (${filled.length}/${MIN_ORC} completos) para enviar para aprovação. O 3º é opcional, para cidades com mais opções de fornecedor.`);
     else{const vs=filled.map(o=>+o.valor),mx=Math.max(...vs),mn=Math.min(...vs);c.append("Mais barato: ",el("b",null,os[ci].fornecedor+" "+brl(mn))," · mais caro: ",el("b",null,brl(mx))," · diferença ",el("b",null,brl(mx-mn)));
       if(draft.escolhido!=null&&os[draft.escolhido])c.append(" · escolhido: ",el("b",null,`${os[draft.escolhido].fornecedor||"—"} ${brl(os[draft.escolhido].valor)}`));}
     $("justBox").hidden=!(draft.escolhido!=null&&ci>=0&&draft.escolhido!==ci);}
@@ -253,10 +254,11 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
       solicitante:$("pSol").value,descricao:$("pDesc").value.trim(),justificativa:$("pJust").value.trim()});const ev=eventos.find(x=>x.id===$("pEvento").value);draft.eventoId=ev?ev.id:"";draft.eventoNome=ev?ev.nome:"";}
     else draft.nf=$("pNF").value.trim();
     if(!draft.titulo)return err("Diga o que será produzido.");
-    if(novo==="aguardando"){const os=draft.orcamentos;const bad=os.findIndex(o=>!(o.fornecedor||"").trim()||!(+o.valor>0));
-      if(bad>=0)return err(`Preencha fornecedor e valor do orçamento ${bad+1}. Todo pedido precisa de 3 orçamentos.`);
-      const names=os.map(o=>o.fornecedor.trim().toLowerCase());if(new Set(names).size<3)return err("Os 3 orçamentos precisam ser de fornecedores diferentes.");
-      if(draft.escolhido==null)return err("Marque qual orçamento foi escolhido.");
+    if(novo==="aguardando"){const os=draft.orcamentos;const vazio=o=>!(o.fornecedor||"").trim()&&!(+o.valor>0);
+      const bad=os.findIndex((o,i)=>(i<MIN_ORC||!vazio(o))&&(!(o.fornecedor||"").trim()||!(+o.valor>0)));
+      if(bad>=0)return err(bad<MIN_ORC?`Preencha fornecedor e valor do orçamento ${bad+1}. Todo pedido precisa de pelo menos ${MIN_ORC} orçamentos.`:`O orçamento ${bad+1} está incompleto: preencha fornecedor e valor, ou deixe os dois em branco.`);
+      const usados=os.filter(o=>!vazio(o)),names=usados.map(o=>o.fornecedor.trim().toLowerCase());if(new Set(names).size<usados.length)return err("Os orçamentos precisam ser de fornecedores diferentes.");
+      if(draft.escolhido==null||vazio(os[draft.escolhido]||{}))return err("Marque qual orçamento foi escolhido.");
       const ci=cheapest(os);if(draft.escolhido!==ci&&!draft.justificativa)return err("Explique por que o escolhido não é o mais barato.");}
     const acao=novo!==prev?{aguardando:prev==="recusado"?"Reenviado para aprovação":"Enviado para aprovação",produzindo:"Em produção",entregue:"Entregue",rascunho:"Rascunho salvo"}[novo]:"";
     if(acao)draft.historico=(draft.historico||[]).concat([{em:new Date().toISOString(),por:me.email,acao}]);

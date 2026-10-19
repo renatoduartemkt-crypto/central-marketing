@@ -449,12 +449,12 @@ tbody tr:last-child td{border-bottom:0}
 
   // ORÇAMENTOS (calculadora de cotações)
   function tOrc(e,body){
-    const intro=el("section",{class:"card"},el("div",{class:"ch"},el("h2",null,"Calculadora de orçamentos"),el("button",{class:"btn primary",type:"button",onclick:()=>{const it={id:uid(),item:"",qtd:1,unidade:"un",cotacoes:[{id:uid(),fornecedor:"",unit:0,frete:0,desconto:0,cond:""},{id:uid(),fornecedor:"",unit:0,frete:0,desconto:0,cond:""},{id:uid(),fornecedor:"",unit:0,frete:0,desconto:0,cond:""}]};
+    const intro=el("section",{class:"card"},el("div",{class:"ch"},el("h2",null,"Calculadora de orçamentos"),el("button",{class:"btn primary",type:"button",onclick:()=>{const it={id:uid(),item:"",qtd:1,unidade:"un",cotacoes:[{id:uid(),fornecedor:"",unit:0,frete:0,desconto:0,cond:""},{id:uid(),fornecedor:"",unit:0,frete:0,desconto:0,cond:""}]};
         mutate("orcamentos",a=>a.push(it));const n=document.querySelector(`[data-it="${it.id}"] input.nm`);if(n){n.focus();n.scrollIntoView({block:"center"});}}},"+ Item para orçar")),
       el("p",{class:"hint",style:"margin:0"},"Para cada item (ex.: buffet, som, brindes), preencha o fornecedor e o valor de cada orçamento. O sistema soma frete e desconta descontos, e marca o mais barato em verde."));
     body.append(intro);
     const its=e.orcamentos||[];
-    if(!its.length){body.append(el("div",{class:"empty"},el("strong",null,"Nenhum item em cotação"),"Clique em “+ Item para orçar”. Cada item já vem com 3 linhas de orçamento."));return;}
+    if(!its.length){body.append(el("div",{class:"empty"},el("strong",null,"Nenhum item em cotação"),"Clique em “+ Item para orçar”. Cada item já vem com 2 linhas de orçamento; use “+ Orçamento” se a cidade tiver mais fornecedores."));return;}
     const box=el("div",{class:"items"});its.forEach(it=>box.append(itemCard(e,it)));body.append(box);}
   function setIt(itId,fn){const e=cur();const it=(e.orcamentos||[]).find(x=>x.id===itId);if(!it)return;fn(it);clearTimeout(setIt.t);setIt.t=setTimeout(()=>save(e.id,{orcamentos:e.orcamentos}),350);}
   function itemCard(e,it){
