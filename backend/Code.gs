@@ -36,14 +36,17 @@
  */
 
 const COLECOES = ['usuarios', 'emails', 'trafego_campanhas', 'posts', 'eventos', 'custos', 'centros_custo', 'brindes', 'brindes_mov',
-                  'producao', 'metas_ecommerce', 'metas_mensais', 'tarefas'];
+                  'producao', 'metas_ecommerce', 'metas_mensais', 'tarefas', 'trafego_recargas', 'trafego_relatorios',
+                  'plan_config', 'plan_fases', 'plan_cotas', 'plan_eventos', 'plan_orcamento', 'plan_brindes', 'plan_acoes', 'plan_bi'];
+// coleções de dinheiro das contas de anúncio: quem criou fica registrado pelo servidor; só o autor ou um administrador apaga
+const COL_AUTORIA_ = ['trafego_recargas', 'trafego_relatorios'];
 const CHUNK = 45000;           // limite seguro por célula (o Sheets aceita 50.000 caracteres)
 const ABA_LOG = '_log';
 const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-02';
+const VERSAO_API = '2026-10-15a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -136,14 +139,16 @@ const SEGREDOS_ = ['senhaHash', 'sal', 'iter'];
 function usuario_(login) {
   login = String(login || '').trim().toLowerCase();
   if (!login) return null;
-  const u = ler_('usuarios', docId_(login));
-  if (!u) return null;
+  const c = CacheService.getScriptCache(), k = 'u:' + docId_(login);
+  let u = null; try { const s = c.get(k); if (s) u = JSON.parse(s); } catch (e) {}
+  if (!u) { u = ler_('usuarios', docId_(login)); if (!u) return null; u = { dados: u.dados }; try { c.put(k, JSON.stringify(u), CACHE_SEG); } catch (e) {} }
   const out = Object.assign({}, u.dados, { email: login, usuario: login });
   if (lista_('ADMINISTRADORES').indexOf(login) >= 0) out.perfil = 'admin';
   return out;
 }
+function usuarioCacheApagar_(id) { try { CacheService.getScriptCache().remove('u:' + String(id)); } catch (e) {} }
 function publico_(u) { const o = Object.assign({}, u); SEGREDOS_.forEach(function (k) { delete o[k]; }); return o; }
-function listarPublico_(col) { const L = listar_(col); return col === 'usuarios' ? L.map(function (u) { return publico_(Object.assign({}, u, { email: u.id, usuario: u.id })); }) : L; }
+function listarPublico_(col) { let L = cacheLer_(col); if (!L) { L = listar_(col); cacheGravar_(col, L); } return col === 'usuarios' ? L.map(function (u) { return publico_(Object.assign({}, u, { email: u.id, usuario: u.id })); }) : L; }
 function isAdmin_(u) { return !!u && (u.perfil === 'admin' || lista_('ADMINISTRADORES').indexOf(u.email) >= 0); }
 
 /* ---------- senhas ---------- */
@@ -275,7 +280,7 @@ function excluirUsuario_(eu, id) {
   if (login === eu.email) return { erro: 'Você não pode excluir o próprio usuário.' };
   return comLock_(function () {
     const a = ler_('usuarios', docId_(login)); if (!a) return { ok: true };
-    aba_('usuarios').deleteRow(a.linha);
+    aba_('usuarios').deleteRow(a.linha); cacheApagar_('usuarios'); usuarioCacheApagar_(docId_(login));
     log_(eu.email, 'excluir usuário', 'usuarios', docId_(login), resumo_(publico_(a.dados)));
     return { ok: true };
   });
@@ -300,12 +305,103 @@ function checarAprovacao_(eu, antigo, novo) {
   // produção: "produzindo"/"entregue" exigem que já esteja aprovado
   if (novo && (novo.status === 'produzindo' || novo.status === 'entregue') && antigo && ['aprovado', 'produzindo', 'entregue'].indexOf(antigo.status) < 0) throw new Error('O pedido precisa estar aprovado.');
 }
+/* Metas, projetado e centros de custo: só o administrador define ou altera.
+   A equipe continua lançando o REALIZADO (vendas, alcance, ROAS realizado), mas não muda o objetivo. */
+const CAMPOS_META_ = ['metaVendas', 'metaPositivacoes', 'projetado', 'itens', 'fonte'];
+function checarMetas_(eu, col, antigo, novo) {
+  if (isAdmin_(eu)) return;
+  if (col === 'centros_custo') throw new Error('Só o administrador altera os centros de custo.');
+  if (col !== 'metas_mensais') return;
+  const a = antigo || {}, n = novo || {};
+  const igual = function (x, y) { return JSON.stringify(x === undefined ? null : x) === JSON.stringify(y === undefined ? null : y); };
+  const metaDe = function (v) { return v && typeof v === 'object' && !Array.isArray(v) && 'meta' in v ? Number(v.meta) || 0 : null; };
+  Object.keys(Object.assign({}, a, n)).forEach(function (k) {
+    if (CAMPOS_META_.indexOf(k) >= 0 && !igual(a[k], n[k])) throw new Error('Só o administrador altera metas e projetado.');
+    const ma = metaDe(a[k]), mn = metaDe(n[k]);
+    if ((ma !== null || mn !== null) && (ma || 0) !== (mn || 0)) throw new Error('Só o administrador altera metas e projetado.');
+  });
+}
+
+/* Planejamento anual: a equipe propõe, o administrador aprova.
+   - item novo da equipe entra sempre como "proposto"; do administrador, como "aprovado" (se não vier outro status)
+   - item aprovado: a equipe só altera os campos de acompanhamento (situação da tarefa, etapa da negociação, observações)
+   - plan_config (preços, vagas, ativos, linha de base): só o administrador */
+const PLANO_LIVRES_ = { plan_fases: ['situacao', 'obs'], plan_cotas: ['etapa', 'obs', 'contato'], plan_orcamento: [] };
+/* Eventos e brindes ainda em planejamento: cada item tem uma situação (etapa). A equipe cadastra e edita enquanto
+   está em ideia/negociação/cotação; só o administrador confirma. Item confirmado fica travado para a equipe (só observação). */
+const PLANO_ETAPAS_ = {
+  plan_eventos: { todas: ['ideia', 'negociacao', 'confirmado', 'realizado', 'cancelado'], firmes: ['confirmado', 'realizado'] },
+  plan_brindes: { todas: ['ideia', 'cotando', 'aprovado', 'comprado', 'entregue', 'cancelado'], firmes: ['aprovado', 'comprado', 'entregue'] },
+  plan_acoes: { todas: ['ideia', 'planejando', 'aprovado', 'executada', 'cancelado'], firmes: ['aprovado', 'executada'] } };
+const PLANO_SISTEMA_ = ['atualizadoEm', 'atualizadoPor', 'criadoEm', 'criadoPor', 'status'];
+function checarPlano_(eu, col, antigo, novo) {
+  if (col === 'plan_config') { if (!isAdmin_(eu)) throw new Error('Só o administrador altera as premissas do planejamento.'); return; }
+  if (col === 'plan_bi') { if (!isAdmin_(eu)) throw new Error('Só o administrador altera a base de análise.'); return; }
+  if (col in PLANO_ETAPAS_) { checarEtapa_(eu, col, antigo, novo); return; }
+  if (!(col in PLANO_LIVRES_)) return;
+  // lançamento do financeiro nasce como previsto (proposto) até o gerente aprovar, mesmo quando o gerente lança
+  if (isAdmin_(eu)) { if (!antigo && !novo.status) novo.status = col === 'plan_orcamento' ? 'proposto' : 'aprovado'; return; }
+  if (!antigo) { novo.status = 'proposto'; novo.criadoPor = eu.email; return; }
+  if (antigo.status !== 'aprovado') { if (novo.status !== antigo.status && novo.status !== 'proposto') novo.status = antigo.status; return; }
+  const igual = function (x, y) { return JSON.stringify(x === undefined ? null : x) === JSON.stringify(y === undefined ? null : y); };
+  Object.keys(Object.assign({}, antigo, novo)).forEach(function (k) {
+    if (PLANO_SISTEMA_.indexOf(k) >= 0 || PLANO_LIVRES_[col].indexOf(k) >= 0) return;
+    if (!igual(antigo[k], novo[k])) throw new Error('Item já aprovado: só o administrador altera valores, datas e descrição.');
+  });
+  if (novo.status !== 'aprovado') throw new Error('Item já aprovado: só o administrador altera o status.');
+}
+function checarEtapa_(eu, col, antigo, novo) {
+  const E = PLANO_ETAPAS_[col], firme = function (x) { return E.firmes.indexOf(x) >= 0; };
+  if (!novo.etapa) novo.etapa = (antigo && antigo.etapa) || 'ideia';
+  if (E.todas.indexOf(novo.etapa) < 0) throw new Error('Situação inválida.');
+  if (!isAdmin_(eu)) {
+    if (!antigo) novo.criadoPor = eu.email;
+    if (antigo && firme(antigo.etapa)) {
+      const igual = function (x, y) { return JSON.stringify(x === undefined ? null : x) === JSON.stringify(y === undefined ? null : y); };
+      Object.keys(Object.assign({}, antigo, novo)).forEach(function (k) {
+        if (PLANO_SISTEMA_.indexOf(k) >= 0 || k === 'obs') return;
+        if (!igual(antigo[k], novo[k])) throw new Error('Item já confirmado: só o administrador altera.');
+      });
+    } else if (firme(novo.etapa)) throw new Error('Só o administrador confirma itens do planejamento.');
+  }
+  novo.status = firme(novo.etapa) ? 'aprovado' : (novo.etapa === 'cancelado' ? 'recusado' : 'proposto');
+}
+
 /* ======================= planilha ======================= */
 
+let SS_ = null, TZ_ = null;   // abertos uma vez por pedido
 function ss_() {
+  if (SS_) return SS_;
   const id = prop_('PLANILHA_ID');
-  return id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  SS_ = id ? SpreadsheetApp.openById(id) : SpreadsheetApp.getActiveSpreadsheet();
+  return SS_;
 }
+function tz_() { if (!TZ_) TZ_ = ss_().getSpreadsheetTimeZone(); return TZ_; }
+
+/* ---------- cache das listas (CacheService) ----------
+   A lista de cada coleção fica guardada até 10 minutos; qualquer gravação pelo site apaga o cache daquela coleção.
+   Textos grandes são divididos em pedaços de 90 mil caracteres (limite do CacheService: 100 KB por chave). */
+const CACHE_SEG = 600, CACHE_PED = 90000;
+function cacheLer_(nome) {
+  try {
+    const c = CacheService.getScriptCache(), n = Number(c.get('c:' + nome + ':n') || 0);
+    if (!n) return null;
+    const ks = []; for (let i = 0; i < n; i++) ks.push('c:' + nome + ':' + i);
+    const m = c.getAll(ks); let s = '';
+    for (let i = 0; i < n; i++) { if (m[ks[i]] == null) return null; s += m[ks[i]]; }
+    return JSON.parse(s);
+  } catch (e) { return null; }
+}
+function cacheGravar_(nome, L) {
+  try {
+    const s = JSON.stringify(L); if (s.length > CACHE_PED * 50) return;
+    const o = {}; let n = 0; for (let i = 0; i < s.length || !n; i += CACHE_PED) o['c:' + nome + ':' + (n++)] = s.slice(i, i + CACHE_PED);
+    o['c:' + nome + ':n'] = String(n);
+    CacheService.getScriptCache().putAll(o, CACHE_SEG);
+  } catch (e) { console.error(e); }
+}
+function cacheApagar_(nome) { try { const c = CacheService.getScriptCache(); c.remove('c:' + nome + ':n'); } catch (e) {} }
+function limparCache() { COLECOES.forEach(cacheApagar_); }
 function aba_(nome) {
   const ss = ss_();
   let sh = ss.getSheetByName(nome);
@@ -328,27 +424,52 @@ function json_(row) {
   for (let i = 5; i < row.length; i++) if (row[i]) s += String(row[i]);
   try { return JSON.parse(s || '{}'); } catch (e) { return {}; }
 }
+/* O Google Planilhas transforma textos como "2026-10-01" em data. O id é sempre lido como texto
+   (datas voltam para AAAA-MM-DD) e gravado com formato de texto puro, para nunca mais mudar. */
+function idCel_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, tz_(), 'yyyy-MM-dd');
+  return String(v);
+}
+// se houver linhas repetidas com o mesmo id, vale a última gravada
 function listar_(nome) {
-  return linhas_(nome).rows.filter(function (r) { return r[0] !== ''; }).map(function (r) { return Object.assign({ id: String(r[0]) }, json_(r)); });
+  const ordem = [], mapa = {};
+  linhas_(nome).rows.forEach(function (r) {
+    if (r[0] === '') return;
+    const id = idCel_(r[0]);
+    if (!(id in mapa)) ordem.push(id);
+    mapa[id] = Object.assign({ id: id }, json_(r));
+  });
+  return ordem.map(function (id) { return mapa[id]; });
 }
+// procura o id só na coluna A (bem mais rápido que ler a aba inteira) e depois lê apenas a linha encontrada
 function ler_(nome, id) {
-  const L = linhas_(nome).rows;
-  for (let i = 0; i < L.length; i++) if (String(L[i][0]) === String(id)) return { linha: i + 2, dados: json_(L[i]), criado: L[i][2] };
-  return null;
+  const sh = aba_(nome), n = sh.getLastRow();
+  if (n < 2) return null;
+  const ids = sh.getRange(2, 1, n - 1, 1).getValues(); let linha = 0; const outras = [];
+  for (let i = 0; i < ids.length; i++) if (ids[i][0] !== '' && idCel_(ids[i][0]) === String(id)) { if (linha) outras.push(linha); linha = i + 2; }
+  if (!linha) return null;
+  const row = sh.getRange(linha, 1, 1, Math.max(5, sh.getLastColumn())).getValues()[0];
+  return { linha: linha, dados: json_(row), criado: row[2], repetidas: outras };
 }
-function gravarLinha_(nome, id, dados, email, novo) {
+function gravarLinha_(nome, id, dados, email, novo, jaLido) {
   const sh = aba_(nome);
   const s = JSON.stringify(dados);
   const partes = [];
   for (let i = 0; i < s.length; i += CHUNK) partes.push(s.slice(i, i + CHUNK));
   if (!partes.length) partes.push('{}');
   const agora = new Date().toISOString();
-  const atual = novo ? null : ler_(nome, id);
+  const atual = novo ? null : (jaLido || ler_(nome, id));
   const row = [id, partes[0], atual ? atual.criado : agora, agora, email].concat(partes.slice(1));
   const largura = Math.max(sh.getLastColumn(), row.length);
   while (row.length < largura) row.push('');
-  if (atual) sh.getRange(atual.linha, 1, 1, row.length).setValues([row]);
-  else sh.appendRow(row);
+  const linha = atual ? atual.linha : sh.getLastRow() + 1;
+  const rg = sh.getRange(linha, 1, 1, row.length);
+  rg.setNumberFormat('@');                       // texto puro: o id e o JSON não viram data nem número
+  rg.setValues([row]);
+  // apaga cópias antigas do mesmo registro (de baixo para cima, para não deslocar as linhas)
+  if (atual && atual.repetidas && atual.repetidas.length) atual.repetidas.slice().sort(function (a, b) { return b - a; }).forEach(function (n) { sh.deleteRow(n); });
+  cacheApagar_(nome);
+  if (nome === 'usuarios') usuarioCacheApagar_(id);
 }
 function comLock_(fn) {
   const lock = LockService.getScriptLock();
@@ -359,18 +480,21 @@ function comLock_(fn) {
 function escrever_(eu, col, id, dados, acao) {
   dados = dados || {};
   return comLock_(function () {
+    if (id && !/^[A-Za-z0-9_.@+-]{1,100}$/.test(id)) throw new Error('Identificador inválido.');
     const antigo = id ? ler_(col, id) : null;
     let final;
-    if (acao === 'mesclar') {
-      if (!antigo) throw new Error('Registro não encontrado.');
-      final = Object.assign({}, antigo.dados, dados);
-    } else final = Object.assign({}, dados);
+    // "mesclar" altera só os campos enviados; se o registro ainda não existe, ele é criado (nunca apaga os outros campos)
+    if (acao === 'mesclar') final = Object.assign({}, antigo ? antigo.dados : {}, dados);
+    else final = Object.assign({}, dados);
     if (!id) id = Utilities.getUuid().replace(/-/g, '').slice(0, 20);
     checarAprovacao_(eu, antigo && antigo.dados, final);
+    checarMetas_(eu, col, antigo && antigo.dados, final);
+    checarPlano_(eu, col, antigo && antigo.dados, final);
     final.atualizadoEm = new Date().toISOString();
     final.atualizadoPor = eu.email;                 // o servidor sempre carimba quem gravou
     if (!antigo && !final.criadoEm) final.criadoEm = final.atualizadoEm;
-    gravarLinha_(col, id, final, eu.email, !antigo);
+    if (COL_AUTORIA_.indexOf(col) >= 0) final.criadoPor = antigo && antigo.dados.criadoPor ? antigo.dados.criadoPor : eu.email;
+    gravarLinha_(col, id, final, eu.email, !antigo, antigo);
     log_(eu.email, acao, col, id, resumo_(acao === 'mesclar' ? dados : final));
     if (col === 'brindes_mov' && !antigo) movimentacao_(final, eu);
     return { id: id, item: Object.assign({ id: id }, final) };
@@ -381,8 +505,12 @@ function excluir_(eu, col, id) {
     const antigo = ler_(col, id);
     if (!antigo) return { ok: true };
     if (col === 'brindes_mov') throw new Error('Movimentações de brindes não podem ser apagadas. Use “Estornar”.');
+    if ((col === 'metas_mensais' || col === 'centros_custo' || col === 'plan_bi') && !isAdmin_(eu)) throw new Error(col === 'plan_bi' ? 'Só o administrador exclui a base de análise.' : 'Só o administrador exclui metas e centros de custo.');
+    if (COL_AUTORIA_.indexOf(col) >= 0 && !isAdmin_(eu) && antigo.dados.criadoPor !== eu.email) throw new Error('Só quem lançou ou um administrador pode excluir este registro.');
     if (antigo.dados && antigo.dados.status === 'aprovado' && !isAdmin_(eu)) throw new Error('Só administradores excluem registros aprovados.');
-    aba_(col).deleteRow(antigo.linha);
+    const sh = aba_(col);
+    [antigo.linha].concat(antigo.repetidas || []).sort(function (a, b) { return b - a; }).forEach(function (n) { sh.deleteRow(n); });
+    cacheApagar_(col); if (col === 'usuarios') usuarioCacheApagar_(id);
     log_(eu.email, 'excluir', col, id, resumo_(antigo.dados));
     return { ok: true };
   });
@@ -531,4 +659,35 @@ function importarMetas() {
   });
   log_(email, 'importar metas', 'metas_mensais', '', Object.keys(mensal).join(', '));
   return 'ok: ' + Object.keys(mensal).length + ' registros de metas/projetado';
+}
+
+
+/* Conserta a planilha uma vez: ids que viraram data voltam a ser texto (AAAA-MM-DD) e
+   registros repetidos são juntados (vale a última versão gravada). Rode pelo editor: corrigirPlanilha */
+function corrigirPlanilha() {
+  soEditor_(); limparCache();
+  const rel = [];
+  comLock_(function () {
+    COLECOES.forEach(function (nome) {
+      const t = linhas_(nome); if (!t.rows.length) return;
+      const sh = t.sh, grupos = {}, ordem = [], apagar = []; let datas = 0;
+      t.rows.forEach(function (r, i) { if (r[0] === '') return; const id = idCel_(r[0]); if (!grupos[id]) { grupos[id] = []; ordem.push(id); } grupos[id].push(i); });
+      ordem.forEach(function (id) {
+        const g = grupos[id], ult = g[g.length - 1], v = t.rows[ult][0];
+        if (g.length > 1) {                       // junta os campos de todas as cópias, da mais antiga para a mais nova
+          const junto = {}; g.forEach(function (i) { Object.assign(junto, json_(t.rows[i])); });
+          const js = JSON.stringify(junto), partes = []; for (let k = 0; k < js.length; k += CHUNK) partes.push(js.slice(k, k + CHUNK));
+          const b = t.rows[ult], r = [id, partes[0] || '{}', b[2], b[3], b[4]].concat(partes.slice(1)); while (r.length < b.length) r.push('');
+          const rg = sh.getRange(ult + 2, 1, 1, r.length); rg.setNumberFormat('@'); rg.setValues([r]);
+          g.slice(0, -1).forEach(function (i) { apagar.push(i + 2); });
+          if (v instanceof Date || typeof v === 'number') datas++;
+        } else if (v instanceof Date || typeof v === 'number') { const c = sh.getRange(ult + 2, 1); c.setNumberFormat('@'); c.setValue(id); datas++; }
+      });
+      apagar.sort(function (a, b) { return b - a; }).forEach(function (n) { sh.deleteRow(n); });
+      sh.getRange(1, 1, sh.getMaxRows(), 1).setNumberFormat('@');
+      if (datas || apagar.length) rel.push(nome + ': ' + datas + ' id(s) corrigido(s), ' + apagar.length + ' cópia(s) removida(s)');
+    });
+  });
+  const msg = rel.length ? rel.join('\n') : 'Nada para corrigir.';
+  Logger.log(msg); return msg;
 }
