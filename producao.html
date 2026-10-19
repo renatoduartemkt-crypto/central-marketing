@@ -63,6 +63,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
 .q.pick{box-shadow:0 0 0 2px var(--navy)}
 .q h4{margin:0;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:6px}
 .q input{background:var(--surface)}
+.q-anx{display:flex;flex-direction:column;gap:4px;border-top:1px dashed var(--line);padding-top:8px}
 .badge{font-size:10.5px;font-weight:800;border-radius:4px;padding:1px 6px;background:var(--ok);color:#fff}
 .pickl{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:700;cursor:pointer}
 .pickl input{width:17px;height:17px;accent-color:var(--navy)}
@@ -138,6 +139,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
 <script src="assets/js/auth.js" charset="utf-8"></script>
 <script src="assets/js/layout.js" charset="utf-8"></script>
 <script src="assets/js/custos.js" charset="utf-8"></script>
+<script src="assets/js/anexos.js" charset="utf-8"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
@@ -213,8 +215,19 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
         el("h4",null,`Orçamento ${i+1}`+(i>=MIN_ORC?" (opcional)":""),el("span",{class:"bdg"})),
         mk2("fornecedor","Fornecedor",{list:"dlForn",maxlength:"100"}),mk2("valor","Valor total (R$)",{inputmode:"decimal",class:"money",placeholder:"0,00"}),
         mk2("prazo","Prazo de entrega",{maxlength:"60",placeholder:"Ex.: 5 dias úteis"}),mk2("condicao","Condição de pagamento",{maxlength:"80",placeholder:"Ex.: 28 dias"}),
-        el("label",{class:"pickl"},el("input",{type:"radio",name:"esc",value:i,checked:draft.escolhido===i?true:null,disabled:dis,onchange:()=>{draft.escolhido=i;refreshCmp();}}),"Escolher este")));});
+        el("label",{class:"pickl"},el("input",{type:"radio",name:"esc",value:i,checked:draft.escolhido===i?true:null,disabled:dis,onchange:()=>{draft.escolhido=i;refreshCmp();}}),"Escolher este"),
+        qAnexos(i)));});
     refreshCmp();}
+  // anexos do orçamento (PDF da proposta, foto): ficam no Drive privado; o pedido guarda só a lista
+  function qAnexos(i){const w=el("div",{class:"q-anx"},el("span",{class:"lab"},"Arquivo do orçamento"));
+    if(!editing){w.append(el("span",{class:"hint"},"Salve o rascunho para anexar."));return w;}
+    const id=editing;
+    w.append(Anexos.widget({compacto:true,podeEditar:!locked(),ref:"produção: "+(draft.titulo||"")+" · orçamento "+(i+1),nome:userName,aviso:toast,
+      lista:()=>((draft&&draft.orcamentos[i])||{}).anexos||[],
+      salvar:async L=>{if(draft&&editing===id&&draft.orcamentos[i])draft.orcamentos[i].anexos=L;
+        const p=pedidos.find(x=>x.id===id)||{};const os=JSON.parse(JSON.stringify(p.orcamentos||[]));while(os.length<=i)os.push(blankQ());os[i].anexos=L;
+        p.orcamentos=os;await col().doc(id).update({orcamentos:os});}}));
+    return w;}
   function refreshCmp(){const os=draft.orcamentos,ci=cheapest(os),filled=os.filter(o=>o.fornecedor&&+o.valor>0);
     [...$("qs").children].forEach((q,i)=>{q.classList.toggle("best",i===ci&&filled.length>1);q.classList.toggle("pick",draft.escolhido===i);const b=q.querySelector(".bdg");b.textContent="";if(i===ci&&filled.length>1)b.append(el("span",{class:"badge"},"MAIS BARATO"));});
     const c=$("cmp");c.textContent="";

@@ -102,7 +102,8 @@ th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em
 th.r,td.r{text-align:right}
 td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 tbody tr:last-child td{border-bottom:0}
-.qt{min-width:820px}
+.qt{min-width:980px}
+.qt td.anx-td{min-width:150px;max-width:220px}
 .qt input{padding:7px 8px;font-size:13.5px}
 .qt td.tot{font-family:var(--mono);white-space:nowrap;font-weight:600}
 .qt tr.best td{background:var(--ok-bg)}
@@ -251,6 +252,7 @@ tbody tr:last-child td{border-bottom:0}
 <script src="assets/js/layout.js" charset="utf-8"></script>
 <script src="assets/js/custos.js" charset="utf-8"></script>
 <script src="assets/js/relatorio.js" charset="utf-8"></script>
+<script src="assets/js/anexos.js" charset="utf-8"></script>
 <script>
 (function(){
   const EMP=[{k:"lopes",n:"Distribuidora Lopes"},{k:"a2j",n:"A2J"},{k:"grupo",n:"Grupo Lopes"}];
@@ -477,6 +479,8 @@ tbody tr:last-child td{border-bottom:0}
       el("td",null,money(q,"unit","Valor unitário")),el("td",null,money(q,"frete","Frete e taxas")),el("td",null,money(q,"desconto","Desconto")),
       el("td",{class:"tot r"},"—"),
       el("td",null,el("input",{type:"text",value:q.cond||"",placeholder:"Ex.: 50% na entrada","aria-label":"Condição / prazo",maxlength:"120",oninput:ev=>{setIt(it.id,x=>{x.cotacoes.find(z=>z.id===q.id).cond=ev.target.value;});q.cond=ev.target.value;}})),
+      el("td",{class:"anx-td"},Anexos.widget({compacto:true,podeEditar:true,ref:"evento: "+(e.nome||"")+" · "+(it.item||"item")+" · "+(q.fornecedor||"orçamento"),nome:userName,aviso:toast,
+        lista:()=>q.anexos||[],salvar:async L=>{q.anexos=L;setIt(it.id,x=>{const y=x.cotacoes.find(z=>z.id===q.id);if(y)y.anexos=L;});}})),
       el("td",null,el("div",{style:"display:flex;gap:4px;align-items:center"},
         el("button",{type:"button",class:"pick","aria-pressed":String(!!q.escolhido),title:"Marcar como fornecedor escolhido",onclick:()=>{const v=!q.escolhido;setIt(it.id,x=>x.cotacoes.forEach(z=>z.escolhido=z.id===q.id?v:false));(it.cotacoes||[]).forEach(z=>z.escolhido=z.id===q.id?v:false);
           tb.querySelectorAll(".pick").forEach(b=>b.setAttribute("aria-pressed",String(b.closest("tr").dataset.q===q.id&&v)));refresh();toast(v?"Fornecedor escolhido":"Escolha desmarcada");}},"Escolher"),
@@ -487,7 +491,7 @@ tbody tr:last-child td{border-bottom:0}
       el("div",{class:"oih"},el("input",{type:"text",class:"nm",value:it.item||"",placeholder:"O que está sendo orçado? Ex.: Buffet para 120 pessoas","aria-label":"Item orçado",maxlength:"120",oninput:ev=>setIt(it.id,x=>{x.item=ev.target.value;})}),
         el("label",{class:"q"},"Quantidade",el("input",{type:"text",inputmode:"decimal",value:String(it.qtd||1).replace(".",","),"aria-label":"Quantidade",oninput:ev=>{const v=parseBR(ev.target.value)||1;setIt(it.id,x=>{x.qtd=v;});it.qtd=v;refresh();}})),
         el("label",{class:"q"},"Unidade",el("input",{type:"text",class:"un",value:it.unidade||"",maxlength:"20",placeholder:"un, pessoa, diária","aria-label":"Unidade",oninput:ev=>setIt(it.id,x=>{x.unidade=ev.target.value;})}))),
-      el("div",{class:"tw"},el("table",{class:"qt"},el("thead",null,el("tr",null,el("th",null,"Fornecedor"),el("th",{class:"r"},"Valor unitário (R$)"),el("th",{class:"r"},"Frete / taxas (R$)"),el("th",{class:"r"},"Desconto (R$)"),el("th",{class:"r"},"Total"),el("th",null,"Condição / prazo"),el("th",null,""))),tb)),
+      el("div",{class:"tw"},el("table",{class:"qt"},el("thead",null,el("tr",null,el("th",null,"Fornecedor"),el("th",{class:"r"},"Valor unitário (R$)"),el("th",{class:"r"},"Frete / taxas (R$)"),el("th",{class:"r"},"Desconto (R$)"),el("th",{class:"r"},"Total"),el("th",null,"Condição / prazo"),el("th",null,"Orçamento anexado"),el("th",null,""))),tb)),
       res,
       el("div",{class:"oif"},el("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},el("button",{class:"btn",type:"button",onclick:()=>{const q={id:uid(),fornecedor:"",unit:0,frete:0,desconto:0,cond:""};setIt(it.id,x=>x.cotacoes.push(Object.assign({},q)));it.cotacoes=(it.cotacoes||[]).concat([q]);const tr=row(q);tb.append(tr);refresh();tr.querySelector("input").focus();}},"+ Orçamento"),
         el("button",{class:"btn",type:"button",onclick:()=>{const q=(it.cotacoes||[]).find(z=>z.escolhido);if(!q)return toast("Marque um fornecedor como escolhido primeiro.");

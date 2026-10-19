@@ -213,6 +213,11 @@ td.tt{font-weight:600;max-width:340px}
       <div class="field"><label for="iDesc">Descrição</label><textarea id="iDesc" maxlength="2000" placeholder="O que precisa ser feito"></textarea></div>
       <div class="field"><label for="iBrief">Briefing</label><textarea id="iBrief" maxlength="6000" style="min-height:120px" placeholder="Objetivo, público, referências, peças, prazos, links..."></textarea></div>
 
+      <div class="sec" id="secAnx">
+        <h3>Anexos <small id="anxInfo">artes, briefings, comprovantes</small></h3>
+        <div id="anxBox"></div>
+      </div>
+
       <div class="sec" id="secSub">
         <h3>Subtarefas <small id="stInfo">checklist com data e responsável</small></h3>
         <div class="st-bar" id="stBar" hidden><i></i></div>
@@ -281,6 +286,7 @@ td.tt{font-weight:600;max-width:340px}
 <script src="assets/js/store.js" charset="utf-8"></script>
 <script src="assets/js/auth.js" charset="utf-8"></script>
 <script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/anexos.js" charset="utf-8"></script>
 <script>
 (function(){
   const FASES=[{k:"ideia",n:"Ideia",c:"--f-ideia"},{k:"planejado",n:"Planejado",c:"--f-plan"},{k:"a_fazer",n:"A fazer",c:"--f-fazer"},{k:"em_andamento",n:"Em andamento",c:"--f-and"},{k:"aguardando",n:"Aguardando alinhamento",c:"--f-agu"},{k:"realizado",n:"Realizado",c:"--f-ok"}];
@@ -309,6 +315,7 @@ td.tt{font-weight:600;max-width:340px}
   const dueEl=t=>t.entrega?el("span",{class:"due"+(isLate(t)?" late":""),title:isLate(t)?"Entrega atrasada":"Data de entrega"},(isLate(t)?"⚠ ":"")+"Entrega "+fd(t.entrega)):null;
   const avs=t=>el("span",{class:"avs"},...(t.responsaveis||[]).map(avatar));
   const cmts=t=>(t.comentarios||[]).length?el("span",{class:"cmt"},`💬 ${(t.comentarios||[]).length}`):null;
+  const anxEl=t=>{const n=(t.anexos||[]).length;return n?el("span",{class:"stk",title:`${n} arquivo${n===1?"":"s"} anexado${n===1?"":"s"}`},`📎 ${n}`):null;};
   const stkEl=t=>{const S=t.subtarefas||[];if(!S.length)return null;const ok=S.filter(x=>x.feito).length,late=S.some(x=>!x.feito&&x.data&&x.data<hoje());
     const prox=S.filter(x=>!x.feito&&x.data).map(x=>x.data).sort()[0];
     return el("span",{class:"stk"+(late?" late":ok===S.length?" all":""),title:`${ok} de ${S.length} subtarefas concluídas`+(prox?` · próxima em ${fd(prox)}`:"")},`☑ ${ok}/${S.length}`);};
@@ -344,7 +351,7 @@ td.tt{font-weight:600;max-width:340px}
   function card(t){const f=faseOf(t);
     return el("div",{class:"card"+(f.k==="realizado"?" done":""),draggable:"true",tabindex:"0",role:"button","aria-label":t.titulo||"Tarefa",
       onclick:()=>openTask(t),onkeydown:e=>{if(e.key==="Enter")openTask(t);},ondragstart:e=>e.dataTransfer.setData("text/plain",t.id)},
-      el("div",{class:"m"},priTag(t),el("span",{style:"display:flex;gap:8px"},stkEl(t),cmts(t))),el("div",{class:"t"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
+      el("div",{class:"m"},priTag(t),el("span",{style:"display:flex;gap:8px"},anxEl(t),stkEl(t),cmts(t))),el("div",{class:"t"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
   function renderKanban(){const k=$("kanban");k.textContent="";const L=sortT(filtered());
     FASES.forEach(f=>{const items=L.filter(t=>faseOf(t).k===f.k);
       const c=el("div",{class:"colk",style:`--c:var(${f.c})`},el("header",null,el("b",null,f.n),el("span",null,items.length)));
@@ -422,7 +429,7 @@ td.tt{font-weight:600;max-width:340px}
     buildPriOpts(); const pk=t?priOf(t).k:"normal"; document.querySelectorAll("input[name=pri]").forEach(i=>i.checked=i.value===pk);
     $("iIni").value=t?t.inicio||"":hoje(); $("iEnt").value=t?t.entrega||"":(preset&&preset.entrega)||"";
     buildRespOpts(t?t.responsaveis:[me.email]); $("iDesc").value=t?t.descricao||"":""; $("iBrief").value=t?t.briefing||"":"";
-    $("cTxt").value=""; $("tNota").value=""; stLoad(t); rpReset(t); syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
+    $("cTxt").value=""; $("tNota").value=""; stLoad(t); anxLoad(t); rpReset(t); syncTransfer(t); renderComments(t); renderHist(t); renderMeta(t); renderDel();
     $("overlay").hidden=false; setTimeout(()=>$("iTitulo").focus(),40);}
   function closeTask(){$("overlay").hidden=true;editingId=null;}
   $("closeBtn").onclick=closeTask;$("newBtn").onclick=()=>openTask(null);
@@ -448,7 +455,7 @@ td.tt{font-weight:600;max-width:340px}
         if(H.length)body.historico=(t.historico||[]).concat(H);
         await col.doc(editingId).update(body);toast("Tarefa salva");}
       else{body.criadoPor=me.email;body.comentarios=[];body.historico=[histItem({tipo:"criada"})];const r=await col.add(body);editingId=r.id;toast("Tarefa criada");
-        const t=Object.assign({id:r.id},body);rpReset(t);syncTransfer(t);renderComments(t);renderHist(t);renderMeta(t);renderDel();}}
+        const t=Object.assign({id:r.id},body);anxLoad(t);rpReset(t);syncTransfer(t);renderComments(t);renderHist(t);renderMeta(t);renderDel();}}
     catch(_){err("Não foi possível salvar. Tente de novo.");}finally{btn.disabled=false;}});
 
   $("cBtn").onclick=async()=>{const txt=$("cTxt").value.trim();if(!txt||!editingId)return;const t=tasks.find(x=>x.id===editingId);
@@ -460,6 +467,15 @@ td.tt{font-weight:600;max-width:340px}
     await patch(t,{responsaveis:resp,fase},{tipo:"transferencia",de,para,faseDe:t.fase,fasePara:fase,nota});
     $("iFase").value=fase;buildRespOpts(resp);$("tNota").value="";toast(`Transferida para ${userName(para)}`);
     const nt=Object.assign({},t,{responsaveis:resp,fase});syncTransfer(nt);};
+
+  /* ---------- anexos (arquivos guardados numa pasta privada do Drive) ---------- */
+  function anxLoad(t){const box=$("anxBox");box.textContent="";
+    if(!t||!t.id){$("anxInfo").textContent="artes, briefings, comprovantes";box.append(el("p",{class:"hint",style:"margin:0"},"Salve a tarefa para anexar arquivos."));return;}
+    const atual=()=>tasks.find(x=>x.id===t.id)||t;
+    const info=()=>{const n=(atual().anexos||[]).length;$("anxInfo").textContent=n?`${n} arquivo${n===1?"":"s"}`:"artes, briefings, comprovantes";};
+    box.append(Anexos.widget({lista:()=>atual().anexos||[],podeEditar:true,ref:"tarefa: "+(t.titulo||""),nome:userName,aviso:toast,
+      salvar:async L=>{const x=atual();x.anexos=L;t.anexos=L;await col.doc(t.id).update({anexos:L});info();renderAnx();}}));info();}
+  const renderAnx=()=>{try{render();}catch(_){}};
 
   /* ---------- subtarefas (checklist com data e responsável) ---------- */
   let subs=[], stTimer=null;
