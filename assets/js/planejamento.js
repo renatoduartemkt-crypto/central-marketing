@@ -220,7 +220,7 @@
     B.append(el("div", { class: "pl-frentes" },
       frente("Cronograma", `${tot ? Math.round(feitos / tot * 100) : 0}%`, `${feitos} de ${tot} itens fechados nas 5 fases`, "cronograma", bar(tot ? feitos / tot * 100 : 0)),
       frente("Plano de trade e cotas", pct(ct.pct), `${brl0(ct.fechado)} de ${brl0(ct.potencial)} · ${brl0(ct.negociacao)} em negociação`, "trade", bar(ct.pct, ct.pct >= 90 ? "--ok" : ct.pct >= 70 ? "--warn" : "--bad")),
-      frente("Eventos", brl0(ev.liq) + " líquido", contaSit("plan_eventos", D.eventos), "eventos", bar(ev.bruto ? ev.pat / ev.bruto * 100 : 0, "--info")),
+      frente("Eventos", brl0(ev.bruto) + " custo bruto", contaSit("plan_eventos", D.eventos), "eventos", bar(ev.bruto ? eventosTot(firme("plan_eventos")).bruto / ev.bruto * 100 : 0, "--info")),
       frente("Ações promocionais", brl0(soma(D.acoes.filter(ativo).map(x => x.custo))), `${D.acoes.filter(ativo).length} ação(ões) · ${contaSit("plan_acoes", D.acoes)}`, "acoes", bar(D.acoes.length ? D.acoes.filter(firme("plan_acoes")).length / D.acoes.filter(ativo).length * 100 : 0, "--accent")),
       frente("Brindes", brl0(brP), `${contaSit("plan_brindes", D.brindes)} · ${pct(b23 ? brP / b23 * 100 : 0)} do planejado ${ANO - 1}`, "brindes", bar(b23 ? brP / b23 * 100 : 0, brP > b23 ? "--warn" : "--ok")),
       frente("Financeiro", brl0(totP), `${brl0(totC)} confirmado · ${brl0(totP - totC)} ainda em planejamento`, "financeiro", bar(totP ? totC / totP * 100 : 0))));
@@ -296,13 +296,15 @@
   function eventos(B){
     const c = cfg(), bl = c.baseline, col = "plan_eventos";
     const vals = Array(12).fill(0), conf = Array(12).fill(0), cont = Array(12).fill(0);
-    D.eventos.filter(ativo).forEach(x => { const m = mesEv(x); if (m) { vals[m - 1] += liqEv(x); cont[m - 1]++; if (firme(col)(x)) conf[m - 1] += liqEv(x); } });
-    B.append(regua({ titulo: `Calendário de eventos ${ANO}`, lede: "Custo líquido (custo bruto − patrocínio) de cada mês. Clique num mês para ver só os eventos dele. Os eventos ainda estão em planejamento: mude a situação no menu de cada linha; só o gerente confirma.",
+    D.eventos.filter(ativo).forEach(x => { const m = mesEv(x); if (m) { vals[m - 1] += +x.custo || 0; cont[m - 1]++; if (firme(col)(x)) conf[m - 1] += +x.custo || 0; } });
+    B.append(regua({ titulo: `Calendário de eventos ${ANO}`, lede: "Custo bruto dos eventos de cada mês, o mesmo valor que entra no centro 200022 do Financeiro. Patrocínios e cotas ficam no Plano de trade. Clique num mês para ver só os eventos dele. Os eventos ainda estão em planejamento: mude a situação no menu de cada linha; só o gerente confirma.",
       vals, conf, cont, legenda: true, sel: F.evMes, onSel: m => { F.evMes = m; render(); }, acoes: [btnNovo("+ Cadastrar evento", () => form(col, null))] }));
     const T = eventosTot(ativo), K = eventosTot(firme(col)), d = (v, b) => `${v - b >= 0 ? "+" : "−"}${curto(Math.abs(v - b))}`;
-    B.append(totais([[`${T.series} / ${T.n}`, "eventos / ocorrências"], [curto(T.bruto), "custo bruto"], [curto(T.pat), `patrocínio (${T.bruto ? Math.round(T.pat / T.bruto * 100) : 0}% de cobertura)`],
-      [curto(T.liq), "custo líquido", "net"], [curto(K.liq), `confirmado (${K.n} ocorrência${K.n === 1 ? "" : "s"})`], [curto(T.meta), "meta de receita somada"]]));
-    B.append(el("p", { class: "pl-ref" }, `${bl.nome}: ${bl.eventos} ocorrências, bruto ${curto(bl.bruto)}, patrocínio ${curto(bl.patrocinio)}, líquido ${curto(bl.liquido)}. Hoje o líquido está ${d(T.liq, bl.liquido)} em relação ao esboço. Cancelados não entram nos totais.`));
+    // conciliação com o Financeiro: o centro 200022 soma o custo bruto dos eventos + outros lançamentos/ações lançados no mesmo centro
+    const CF = custosDe("200022", "previsto"), fin = soma(CF.map(o => o.valor)), evF = soma(CF.filter(o => o.origem === "evento").map(o => o.valor)), outros = fin - evF, bate = Math.abs(evF - T.bruto) < 0.5;
+    B.append(totais([[`${T.series} / ${T.n}`, "eventos / ocorrências"], [curto(T.bruto), "custo bruto total", "net"], [curto(K.bruto), `confirmado (${K.n} ocorrência${K.n === 1 ? "" : "s"})`],
+      [curto(T.bruto - K.bruto), "ainda em planejamento"], [curto(T.meta), "meta de receita somada"]]));
+    B.append(el("p", { class: "pl-ref" }, `${bate ? "✓ Confere com o Financeiro" : "⚠ Não confere com o Financeiro"}: centro 200022 = ${brl0(fin)}${outros >= 0.5 ? ` (${brl0(evF)} destes eventos + ${brl0(outros)} de outros lançamentos e ações no 200022)` : " (só estes eventos)"}. ${bl.nome}: ${bl.eventos} ocorrências, custo bruto ${curto(bl.bruto)}; hoje o custo bruto está ${d(T.bruto, bl.bruto)} em relação ao esboço. Cancelados não entram nos totais.`));
     const ufs = [...new Set(D.eventos.flatMap(x => x.ufs || []))].sort();
     const temF = F.evMes || F.evSit || F.evUf;
     B.append(el("div", { class: "pl-filters" }, el("span", { class: "pl-who" }, "Ver"), seg([["mes", "Por mês"], ["evento", "Por evento"], ["cal", "Calendário anual"]], F.evVer, v => { F.evVer = v; render(); }),
@@ -315,7 +317,7 @@
       el("div", null, el("div", { class: "nm" }, x.nome), el("div", { class: "sb" }, [x.tipo, x.data ? fd(x.data).slice(0, 5) : ""].filter(Boolean).join(", "))),
       el("div", { class: "c2" }, el("div", null, [(x.ufs || []).join(", "), x.cidade].filter(Boolean).join(" | ") || "Praça a definir"), el("div", { class: "sb" }, x.publico ? `${x.publico} pessoas` : "")),
       el("div", { class: "c3" }, el("div", null, x.dri || "Sem responsável"), el("div", { class: "sb" }, "responsável")),
-      el("div", { class: "mo" }, el("div", null, brl0(liqEv(x))), el("div", { class: "sb" }, `bruto ${brl0(x.custo)}`)), sitSelect(col, x));
+      el("div", { class: "mo" }, el("div", null, brl0(+x.custo || 0)), el("div", { class: "sb" }, "custo bruto")), sitSelect(col, x));
     if (F.evVer === "cal") { B.append(calAnual(L)); return; }
     if (F.evVer === "evento") {
       const G = new Map(); L.forEach(x => { const k = String(x.nome || "").trim().toLowerCase(); if (!G.has(k)) G.set(k, []); G.get(k).push(x); });
@@ -326,14 +328,14 @@
           el("div", null, el("div", { class: "nm" }, g[0].nome), el("div", { class: "sb" }, `${g[0].tipo || ""}${g[0].tipo ? ", " : ""}${g.length} ocorrência${g.length === 1 ? "" : "s"}`),
             el("div", { class: "pl-strip" }, ...MESES.map((m, i) => el("span", { class: ms.has(i + 1) ? "on" : "", title: m })))),
           el("div", { class: "c2" }, el("div", null, [...new Set(g.flatMap(x => x.ufs || []))].join(", ") || "—"), el("div", { class: "sb" }, [...new Set(g.map(x => x.cidade).filter(Boolean))].slice(0, 3).join(", "))),
-          el("div", { class: "mo" }, el("div", null, brl0(soma(at.map(liqEv)))), el("div", { class: "sb" }, `bruto ${brl0(soma(at.map(x => x.custo)))}`)),
+          el("div", { class: "mo" }, el("div", null, brl0(soma(at.map(x => x.custo)))), el("div", { class: "sb" }, "custo bruto")),
           el("div", { class: "sb st" }, st)), el("ul", { class: "pl-rows in" }, ...g.map(linha)));
         ul.append(el("li", null, det)); });
       B.append(ul); return;
     }
     const by = {}; L.forEach(x => (by[mesEv(x)] = by[mesEv(x)] || []).push(x));
     Object.keys(by).map(Number).sort((a, b) => a - b).forEach(m => { const evs = by[m];
-      B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês", el("small", null, `${evs.length} ocorrência${evs.length === 1 ? "" : "s"}, ${brl0(soma(evs.filter(ativo).map(liqEv)))} líquido`)),
+      B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês", el("small", null, `${evs.length} ocorrência${evs.length === 1 ? "" : "s"}, ${brl0(soma(evs.filter(ativo).map(x => x.custo)))} de custo bruto`)),
         el("ul", { class: "pl-rows" }, ...evs.map(linha)))); });
   }
 
@@ -771,7 +773,7 @@
         el("div", { class: "pl-tw" }, el("table", { class: "pl-t", style: "min-width:720px" }, el("thead", null, el("tr", null, el("th", null, "Tipo"), el("th", null, "Item"), el("th", { class: "r" }, "Valor"), el("th", null, ""))), tb))));
     }
     // eventos e brindes ainda não confirmados (não contam no aviso de pendências: estão em planejamento)
-    const E = D.eventos.filter(x => ativo(x) && !firme("plan_eventos")(x)).sort((a, b) => String(a.data).localeCompare(String(b.data))).map(x => ({ col: "plan_eventos", x, tipo: "Evento", txt: `${x.nome} · ${x.cidade || ""} · ${fd(x.data)}`, val: liqEv(x) }))
+    const E = D.eventos.filter(x => ativo(x) && !firme("plan_eventos")(x)).sort((a, b) => String(a.data).localeCompare(String(b.data))).map(x => ({ col: "plan_eventos", x, tipo: "Evento", txt: `${x.nome} · ${x.cidade || ""} · ${fd(x.data)}`, val: +x.custo || 0 }))
       .concat(D.acoes.filter(x => ativo(x) && !firme("plan_acoes")(x)).sort((a, b) => mesAc(a) - mesAc(b)).map(x => ({ col: "plan_acoes", x, tipo: "Ação promocional", txt: `${x.nome} · ${mesAc(x) ? MESES_L[mesAc(x) - 1] : "sem mês"}`, val: +x.custo || 0 })))
       .concat(D.brindes.filter(x => ativo(x) && !firme("plan_brindes")(x)).map(x => ({ col: "plan_brindes", x, tipo: "Brinde", txt: `${x.descricao} · pagamento em ${x.mesPagamento ? MESES_L[x.mesPagamento - 1] : "?"}`, val: totBr(x) })));
     const tb2 = el("tbody");
@@ -825,7 +827,7 @@
       ["base2026", "Situação em 2026 (ex.: Diamante)", "text"], ["contato", "Contato", "text", null, "w2"], ["obs", "Observação", "textarea", null, "w2"]] },
     plan_eventos: { t: "Evento", f: [
       ["nome", "Evento", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_eventos], ["data", "Data", "date"], ["tipo", "Tipo", "text"], ["cidade", "Cidade", "text"], ["ufsTxt", "UF(s) (ex.: MS ou RO/AC)", "text"],
-      ["publico", "Público estimado", "number"], ["custo", "Custo bruto (R$)", "money"], ["patrocinio", "Patrocínio previsto (R$)", "money"], ["custo2026", "Custo em 2026 (R$)", "money"],
+      ["publico", "Público estimado", "number"], ["custo", "Custo bruto (R$)", "money"], ["custo2026", "Custo em 2026 (R$)", "money"],
       ["metaReceita", "Meta de receita (R$)", "money"], ["dri", "Responsável", "text"], ["patrocinadores", "Indústrias patrocinadoras", "text", null, "w2"], ["obs", "Observação", "textarea", null, "w2"]] },
     plan_acoes: { t: "Ação promocional", f: [
       ["nome", "Ação (ex.: Aniversário da Lopes, Zera Estoque)", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_acoes], ["tipo", "Tipo de ação", "select", TIPOS_AC],
@@ -903,8 +905,8 @@
     }
     if (col === "plan_eventos") {
       const prev = el("p", { class: "pl-prev w2" }); bd.append(prev);
-      const calc = () => { const c = lerR(ins.custo.value), p = lerR(ins.patrocinio.value), c26 = lerR(ins.custo2026.value);
-        prev.textContent = `Custo líquido: ${brl(Math.max(0, c - p))}${c ? ` · cobertura de ${Math.round(p / c * 100)}%` : ""}${c26 && c ? ` · ${c >= c26 ? "+" : ""}${Math.round((c - c26) / c26 * 100)}% em relação a 2026` : ""}`; };
+      const calc = () => { const c = lerR(ins.custo.value), c26 = lerR(ins.custo2026.value);
+        prev.textContent = `Custo bruto: ${brl(c)}${c26 && c ? ` · ${c >= c26 ? "+" : ""}${Math.round((c - c26) / c26 * 100)}% em relação a 2026` : ""} · entra no centro 200022 do Financeiro. Patrocínios e cotas ficam no Plano de trade.`; };
       bd.addEventListener("input", calc); calc();
     }
     const err = el("p", { class: "pl-err", hidden: true }); bd.append(err);
