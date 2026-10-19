@@ -127,15 +127,20 @@ td.tt{font-weight:600;max-width:340px}
 .rp-tag{font-size:11px;font-weight:700;color:var(--accent);margin-left:4px}
 .st-bar{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden}.st-bar i{display:block;height:100%;background:var(--ok,#2e9e5b);border-radius:99px}
 .st-list{display:flex;flex-direction:column;gap:6px}
-.st-row{display:grid;grid-template-columns:22px minmax(0,1fr) 140px 170px 30px;gap:6px;align-items:center}
+.st-row{display:grid;grid-template-columns:22px minmax(0,1fr) 30px;gap:6px 8px;align-items:start;padding:8px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.st-row>input[type=checkbox],.st-row>.x{margin-top:6px}
+.st-meta{grid-column:2/3;display:flex;flex-wrap:wrap;gap:6px}
+.st-meta input[type=date]{width:150px}.st-meta select{flex:1 1 170px;max-width:240px}
+.st-txt{width:100%;min-height:38px;resize:vertical;overflow:hidden;line-height:1.4;font:inherit}
 .st-row input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
-.panel .st-row input[type=text],.panel .st-row input[type=date],.panel .st-row select{padding:6px 8px;font-size:13px}
-.st-row.ok input[type=text]{text-decoration:line-through;color:var(--muted)}
+.panel .st-row textarea,.panel .st-row input[type=date],.panel .st-row select,.panel .st-new textarea{padding:7px 9px;font-size:13.5px}
+.st-row.ok .st-txt{text-decoration:line-through;color:var(--muted)}
 .st-row.late input[type=date]{border-color:var(--bad);color:var(--bad)}
 .st-row .x{width:28px;height:28px;font-size:16px}
-.st-new{display:grid;grid-template-columns:minmax(0,1fr) 140px 170px auto;gap:6px;align-items:center;border-top:1px dashed var(--line);padding-top:10px}
+.st-new{display:grid;grid-template-columns:150px minmax(0,240px) auto;gap:6px;align-items:center;border-top:1px dashed var(--line);padding-top:10px}
+.st-new .st-txt{grid-column:1/-1;min-height:64px}
 .stk{font-size:11.5px;font-weight:700;color:var(--muted);white-space:nowrap}.stk.late{color:var(--bad)}.stk.all{color:var(--ok,#2e9e5b)}
-@media (max-width:640px){.st-row{grid-template-columns:22px minmax(0,1fr) 30px}.st-row input[type=date],.st-row select{grid-column:2/3}.st-new{grid-template-columns:1fr}}
+@media (max-width:640px){.st-new{grid-template-columns:1fr}.st-meta input[type=date],.st-meta select{flex:1 1 100%;max-width:none;width:auto}}
 .comments{display:flex;flex-direction:column;gap:10px}
 .cm{display:grid;grid-template-columns:28px minmax(0,1fr);gap:8px}
 .cm .av{margin:0;width:28px;height:28px;font-size:10.5px;border:0}
@@ -213,7 +218,7 @@ td.tt{font-weight:600;max-width:340px}
         <div class="st-bar" id="stBar" hidden><i></i></div>
         <div class="st-list" id="stList"></div>
         <div class="st-new">
-          <input type="text" id="stTxt" maxlength="300" placeholder="Nova subtarefa" aria-label="Nova subtarefa">
+          <textarea id="stTxt" class="st-txt" rows="2" maxlength="1000" placeholder="Nova subtarefa: descreva a etapa (Enter adiciona, Shift+Enter quebra linha)" aria-label="Nova subtarefa"></textarea>
           <input type="date" id="stData" aria-label="Data da subtarefa">
           <select id="stResp" aria-label="Responsável pela subtarefa"></select>
           <button class="btn" type="button" id="stAdd">+ Adicionar</button>
@@ -473,15 +478,23 @@ td.tt{font-weight:600;max-width:340px}
     subs.forEach(x=>{const late=!x.feito&&x.data&&x.data<hoje();
       L.append(el("div",{class:"st-row"+(x.feito?" ok":"")+(late?" late":"")},
         el("input",{type:"checkbox","aria-label":"Concluir "+(x.texto||"subtarefa"),checked:x.feito?true:null,onchange:e=>{x.feito=e.target.checked;x.feitoEm=x.feito?new Date().toISOString():"";x.feitoPor=x.feito?me.email:"";stRender();stSave({tipo:"subtarefa",texto:x.texto,feito:x.feito});}}),
-        el("input",{type:"text",value:x.texto||"",maxlength:"300","aria-label":"Subtarefa",oninput:e=>{x.texto=e.target.value;stSaveLater();},onchange:e=>{x.texto=e.target.value.trim()||x.texto;clearTimeout(stTimer);stSave();}}),
-        el("input",{type:"date",value:x.data||"","aria-label":"Data","title":late?"Subtarefa atrasada":"Data",onchange:e=>{x.data=e.target.value;stRender();stSave();}}),
-        el("select",{"aria-label":"Responsável",onchange:e=>{x.resp=e.target.value;stSave();}},...stOpts(x.resp)),
-        el("button",{type:"button",class:"x","aria-label":"Remover subtarefa",title:"Remover",onclick:()=>{subs=subs.filter(y=>y!==x);stRender();stSave();}},"×")));});}
+        stArea(x),
+        el("button",{type:"button",class:"x","aria-label":"Remover subtarefa",title:"Remover",onclick:()=>{subs=subs.filter(y=>y!==x);stRender();stSave();}},"×"),
+        el("div",{class:"st-meta"},
+          el("input",{type:"date",value:x.data||"","aria-label":"Data","title":late?"Subtarefa atrasada":"Data",onchange:e=>{x.data=e.target.value;stRender();stSave();}}),
+          el("select",{"aria-label":"Responsável",onchange:e=>{x.resp=e.target.value;stSave();}},...stOpts(x.resp)))));});
+    requestAnimationFrame(()=>L.querySelectorAll(".st-txt").forEach(stGrow));}
+  // campo de texto da subtarefa: várias linhas, cresce conforme o conteúdo
+  const stGrow=t=>{t.style.height="auto";t.style.height=Math.max(38,t.scrollHeight+2)+"px";};
+  function stArea(x){const t=el("textarea",{class:"st-txt",rows:"1",maxlength:"1000","aria-label":"Subtarefa"});t.value=x.texto||"";
+    t.addEventListener("input",()=>{x.texto=t.value;stGrow(t);stSaveLater();});
+    t.addEventListener("change",()=>{x.texto=t.value.trim()||x.texto;clearTimeout(stTimer);stSave();});return t;}
   function stAdd(){const txt=$("stTxt").value.trim();if(!txt){$("stTxt").focus();return toast("Escreva a subtarefa.");}
     subs.push({id:uid(),texto:txt,data:$("stData").value,resp:$("stResp").value,feito:false});
-    $("stTxt").value="";$("stData").value="";stRender();stSave();$("stTxt").focus();}
+    $("stTxt").value="";$("stTxt").style.height="";$("stData").value="";stRender();stSave();$("stTxt").focus();}
   $("stAdd").onclick=stAdd;
-  $("stTxt").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();stAdd();}});
+  $("stTxt").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();stAdd();}});
+  $("stTxt").addEventListener("input",e=>{const t=e.target;t.style.height="auto";t.style.height=Math.max(64,t.scrollHeight+2)+"px";});
 
   /* ---------- repetir tarefa em outras datas ---------- */
   let rpExtras=[];
