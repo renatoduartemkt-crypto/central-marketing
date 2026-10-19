@@ -23,7 +23,7 @@
       ignoreElements: n => !!(n.matches && n.matches(IGNORAR)),
       onclone: doc => {
         const a = doc.getElementById(id); if (!a) return;
-        a.style.width = W + "px"; a.style.maxWidth = "none"; a.style.padding = "28px"; a.style.boxSizing = "border-box"; a.style.background = bg;
+        a.classList.add("exp-on"); a.style.width = W + "px"; a.style.maxWidth = "none"; a.style.padding = "28px"; a.style.boxSizing = "border-box"; a.style.background = bg;
         const h = doc.createElement("div"); h.className = "exp-head";
         const tx = doc.createElement("div");
         const e = doc.createElement("div"); e.className = "e"; e.textContent = o.marca || "Distribuidora Lopes · Marketing";

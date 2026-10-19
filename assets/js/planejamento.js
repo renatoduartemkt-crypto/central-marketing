@@ -608,27 +608,62 @@
           el("td", null, el("b", null, n)), el("td", { class: "r m" }, String(P.length)), el("td", { class: "r m" }, brl0(p)), el("td", { class: "r m" }, brl0(soma(K.map(f)))), el("td", { class: "r m" }, tO ? pct(p / tO * 100) : "—"),
           el("td", { style: "width:22%" }, el("div", { class: "pl-bar" }, el("i", { style: `width:${tO ? p / tO * 100 : 0}%;background:var(--accent)` })))); })),
         el("tfoot", null, el("tr", null, el("td", null, "Total"), el("td"), el("td", { class: "r m" }, brl0(tO)), el("td", { class: "r m" }, brl0(soma(orig.map(o => soma(o[2].map(o[3])))))), el("td"), el("td")))))));
-    // painel por custos: um cartão por centro de custo
-    const maxC = Math.max(1, ...CENTROS.map(ce => Math.max(...(MP[ce.c] || [0]).slice(1))));
-    B.append(card("Painel por centro de custo", el("span", { class: "pl-who" }, mm ? `valores de ${MESES_L[mm - 1]}` : `ano ${ANO} · clique num cartão para ver as categorias`),
-      el("div", { class: "pl-centros" }, ...CENTROS.map(ce => {
-        const p = mm ? (MP[ce.c] || [])[mm] || 0 : soma(MP[ce.c] || []), cf = mm ? (MC[ce.c] || [])[mm] || 0 : soma(MC[ce.c] || []), b = c.base2026[ce.c] || [0, 0];
-        const ref = mm ? b[0] / 12 : b[0], v = ref ? (p - ref) / ref * 100 : NaN, uso = ref ? Math.min(100, p / ref * 100) : (p ? 100 : 0), acima = ref && p > ref;
-        return el("button", { type: "button", class: "pl-cc" + (F.fiCentro === ce.c ? " on" : ""), onclick: () => { F.fiCentro = ce.c; F.fiCat = ""; F.fiAba = "cat"; render(); } },
-          el("div", { class: "hd" }, el("b", null, ce.c), el("span", null, ce.n)),
-          el("strong", null, brl0(p)), el("span", { class: "sb" }, `${brl0(cf)} confirmado${ce.derivado ? ` · inclui a aba ${cap(ce.derivado)}` : ""}`),
-          el("div", { class: "pl-bar" }, el("i", { style: `width:${uso}%;background:var(${acima ? "--bad" : "--ok"})` })),
-          el("span", { class: "sb" + (acima ? " neg" : "") }, ref ? `${mm ? "média mensal" : "planejado"} ${ANO - 1}: ${brl0(ref)} · ${p ? (v > 0 ? "+" : "") + pct(v) : "a planejar"}` : (p ? `novo em ${ANO}` : `sem orçamento em ${ANO - 1}`)),
-          el("div", { class: "pl-spark", "aria-hidden": "true" }, ...MESES.map((_, i) => { const xv = (MP[ce.c] || [])[i + 1] || 0; return el("span", { class: mm === i + 1 ? "sel" : "", style: `height:${xv ? Math.max(3, Math.round(xv / maxC * 34)) : 1}px`, title: `${MESES[i]}: ${brl0(xv)}` }); })));
-      }))));
-    // matriz centro × mês
-    const head = el("tr", null, el("th", null, "Centro de custo"), ...MESES.map((m, i) => el("th", { class: "r" + (mm === i + 1 ? " sel" : "") }, m)), el("th", { class: "r" }, "Ano"), el("th", { class: "r" }, `Plan. ${ANO - 1}`));
+    // painel por centro de custo: uma linha por centro, ordenada pelo valor, com a barra proporcional ao maior centro
+    const num0 = v => Math.round(+v || 0).toLocaleString("pt-BR");
+    const mil = v => ((+v || 0) / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });   // matriz em R$ mil: cabe na tela e no PDF
+    const linhas = CENTROS.map(ce => {
+      const p = mm ? (MP[ce.c] || [])[mm] || 0 : soma(MP[ce.c] || []), cf = mm ? (MC[ce.c] || [])[mm] || 0 : soma(MC[ce.c] || []), b = c.base2026[ce.c] || [0, 0];
+      const ref = mm ? b[0] / 12 : b[0];
+      return { ce, p, cf, ref, v: ref ? (p - ref) / ref * 100 : NaN };
+    }).sort((x, y) => y.p - x.p || String(x.ce.c).localeCompare(y.ce.c));
+    const totCC = soma(linhas.map(l => l.p)), maxP = Math.max(1, ...linhas.map(l => l.p));
+    const comp = l => l.ref ? (l.p ? el("span", { class: "cc-dl " + (l.v > 0.05 ? "up" : l.v < -0.05 ? "down" : "eq") }, (l.v > 0 ? "+" : "") + pct(l.v)) : el("span", { class: "cc-dl eq" }, "a planejar"))
+      : el("span", { class: "cc-dl novo" }, l.p ? `novo em ${ANO}` : `sem custo`);
+    const rows = linhas.map(l => el("button", { type: "button", class: "cc-row" + (F.fiCentro === l.ce.c ? " on" : "") + (l.p ? "" : " zero"), "aria-label": `${l.ce.c} ${l.ce.n}: ${brl0(l.p)}. Ver categorias`,
+        onclick: () => { F.fiCentro = l.ce.c; F.fiCat = ""; F.fiAba = "cat"; render(); } },
+      el("span", { class: "cc-id" }, el("span", { class: "cc-cod" }, l.ce.c), el("span", { class: "cc-nm" }, l.ce.n)),
+      el("span", { class: "cc-val" }, el("span", { class: "cc-n" }, brl0(l.p)), el("span", { class: "cc-sh" }, totCC ? pct(l.p / totCC * 100) + " do total" : "")),
+      el("span", { class: "cc-bar", "aria-hidden": "true" }, el("i", { style: `width:${l.p / maxP * 100}%` }, el("b", { style: `width:${l.p ? Math.min(100, l.cf / l.p * 100) : 0}%` }))),
+      el("span", { class: "cc-cmp" }, comp(l), el("span", { class: "cc-ref" }, l.ref ? `${mm ? "média" : "plan."} ${ANO - 1}: ${brl0(l.ref)}` : (l.ce.derivado ? `inclui a aba ${cap(l.ce.derivado)}` : ""))),
+      el("span", { class: "cc-spk", "aria-hidden": "true" }, ...MESES.map((_, i) => { const xv = (MP[l.ce.c] || [])[i + 1] || 0, mx = Math.max(1, ...(MP[l.ce.c] || [0]).slice(1)); return el("i", { class: mm === i + 1 ? "sel" : "", style: `height:${xv ? Math.max(8, Math.round(xv / mx * 100)) : 4}%`, title: `${MESES[i]}: ${brl0(xv)}` }); }))));
+    // faixa de composição: quanto cada centro pesa no total
+    const faixa = el("div", { class: "cc-mix", role: "img", "aria-label": "Participação de cada centro de custo no total: " + linhas.filter(l => l.p).map(l => `${l.ce.n} ${pct(l.p / totCC * 100)}`).join(", ") },
+      ...linhas.filter(l => l.p).map((l, i) => el("i", { class: "k" + Math.min(i, 5), style: `flex:${l.p}`, title: `${l.ce.c} ${l.ce.n}: ${pct(l.p / totCC * 100)}` })));
+    const leg = el("div", { class: "cc-leg" }, ...linhas.filter(l => l.p).map((l, i) => el("span", null, el("i", { class: "k" + Math.min(i, 5) }), `${l.ce.n} `, el("b", null, pct(l.p / totCC * 100)))));
+    B.append(card("Painel por centro de custo", el("span", { class: "pl-who" }, mm ? `valores de ${MESES_L[mm - 1]}` : `ano ${ANO}, do maior para o menor. Toque numa linha para ver as categorias`),
+      el("div", { class: "cc-top" }, el("div", null, el("span", { class: "cc-tl" }, mm ? `Total de ${MESES_L[mm - 1]}` : `Total previsto ${ANO}`), el("span", { class: "cc-tt" }, brl0(totCC))), el("div", { class: "cc-mixw" }, faixa, leg)),
+      el("div", { class: "cc-head", "aria-hidden": "true" }, el("span", null, "Centro de custo"), el("span", null, "Previsto"), el("span", null, "Peso no total · parte confirmada em laranja"), el("span", null, `Comparação com ${ANO - 1}`), el("span", null, "Jan a dez")),
+      el("div", { class: "cc-list" }, ...rows)));
+
+    // matriz centro × mês: trimestres marcados, intensidade do valor na célula, total e comparação com o ano anterior
+    const maxCel = Math.max(1, ...CENTROS.map(ce => Math.max(...(M[ce.c] || [0]).slice(1))));
+    const heat = v => v ? `background:rgba(240,79,44,${(0.05 + 0.3 * Math.min(1, v / maxCel)).toFixed(3)})` : null;   // rgba direto: a exportação (html2canvas) não entende color-mix
+    const qcl = i => (i % 3 === 0 ? " q0" : "") + (mm === i + 1 ? " sel" : "");
+    const head0 = el("tr", { class: "mx-q" }, el("th", { class: "mx-c" }), ...[1, 2, 3, 4].map(q => el("th", { colspan: "3", class: "q0" }, `${q}º trimestre`)), el("th", { colspan: "3", class: "q0 mx-sum" }, "Ano"));
+    const head = el("tr", null, el("th", { class: "mx-c" }, "Centro de custo"), ...MESES.map((m, i) => el("th", { class: "r" + qcl(i) }, m)), el("th", { class: "r q0 mx-sum" }, ANO), el("th", { class: "r mx-sum" }, `Plan. ${ANO - 1}`), el("th", { class: "r mx-sum" }, "Variação"));
     const tb = el("tbody"); const tot = Array(13).fill(0);
+    const mob = el("div", { class: "mx-mob" });
     CENTROS.forEach(ce => { const r = M[ce.c] || Array(13).fill(0); r.forEach((v, i) => tot[i] += v);
-      tb.append(el("tr", null, el("td", null, el("b", null, ce.c), el("span", null, ce.n)), ...MESES.map((_, i) => el("td", { class: "r m" + (mm === i + 1 ? " sel" : "") }, r[i + 1] ? num(r[i + 1]) : "")), el("td", { class: "r m" }, el("b", null, brl0(soma(r)))), el("td", { class: "r m mut" }, brl0((c.base2026[ce.c] || [0])[0])))); });
+      const ano = soma(r), ref = (c.base2026[ce.c] || [0])[0], vr = ref ? (ano - ref) / ref * 100 : NaN;
+      const vtx = ref ? (ano ? (vr > 0 ? "+" : "") + pct(vr) : "—") : (ano ? "novo" : "—");
+      tb.append(el("tr", { class: ano ? "" : "zero" }, el("th", { class: "mx-c", scope: "row" }, el("b", null, ce.c), el("span", null, ce.n)),
+        ...MESES.map((_, i) => el("td", { class: "r m" + qcl(i), style: heat(r[i + 1]), title: r[i + 1] ? `${ce.n}, ${MESES_L[i]}: ${brl0(r[i + 1])}` : null }, r[i + 1] ? mil(r[i + 1]) : "")),
+        el("td", { class: "r m q0 mx-sum", title: brl0(ano) }, el("b", null, mil(ano))), el("td", { class: "r m mut mx-sum", title: ref ? brl0(ref) : null }, ref ? mil(ref) : "—"),
+        el("td", { class: "r m mx-sum " + (ref && ano > ref ? "neg" : ref && ano < ref ? "pos" : "mut") }, vtx)));
+      // celular: um bloco por centro com os 12 meses em grade
+      mob.append(el("div", { class: "mx-mc" + (ano ? "" : " zero") }, el("div", { class: "mx-mh" }, el("span", null, el("b", null, ce.c), " ", ce.n), el("b", { class: "mx-ma" }, curto(ano))),
+        el("div", { class: "mx-mg" }, ...MESES.map((m, i) => el("span", { class: r[i + 1] ? "" : "vz", style: heat(r[i + 1]) }, el("small", null, m), r[i + 1] ? curto(r[i + 1]).replace("R$ ", "") : "—"))),
+        el("div", { class: "mx-mf" }, ref ? `Plan. ${ANO - 1}: ${curto(ref)} · ${vtx}` : (ano ? `Novo em ${ANO}` : `Sem custo previsto`))));
+    });
+    const totAno = soma(tot), vT = c.total2026[0] ? (totAno - c.total2026[0]) / c.total2026[0] * 100 : NaN;
+    mob.append(el("div", { class: "mx-mc tot" }, el("div", { class: "mx-mh" }, el("span", null, "Total"), el("b", { class: "mx-ma" }, curto(totAno))),
+      el("div", { class: "mx-mg" }, ...MESES.map((m, i) => el("span", null, el("small", null, m), tot[i + 1] ? curto(tot[i + 1]).replace("R$ ", "") : "—")))));
     B.append(card("Centro de custo × mês", modoSeg(),
-      el("div", { class: "pl-tw" }, el("table", { class: "pl-t pl-mx" }, el("thead", null, head), tb,
-        el("tfoot", null, el("tr", null, el("td", null, "Total"), ...MESES.map((_, i) => el("td", { class: "r m" + (mm === i + 1 ? " sel" : "") }, tot[i + 1] ? num(tot[i + 1]) : "")), el("td", { class: "r m" }, brl0(soma(tot))), el("td", { class: "r m" }, brl0(c.total2026[0]))))))));
+      el("p", { class: "pl-who mx-nota" }, "Valores em R$ mil (passe o mouse para ver o valor exato). Quanto mais forte a cor da célula, maior o custo do mês."),
+      el("div", { class: "pl-tw mx-tw" }, el("table", { class: "pl-t pl-mx" }, el("thead", null, head0, head), tb,
+        el("tfoot", null, el("tr", null, el("th", { class: "mx-c", scope: "row" }, "Total"), ...MESES.map((_, i) => el("td", { class: "r m" + qcl(i), title: tot[i + 1] ? brl0(tot[i + 1]) : null }, tot[i + 1] ? mil(tot[i + 1]) : "")),
+          el("td", { class: "r m q0 mx-sum", title: brl0(totAno) }, mil(totAno)), el("td", { class: "r m mx-sum", title: brl0(c.total2026[0]) }, mil(c.total2026[0])), el("td", { class: "r m mx-sum " + (vT > 0 ? "neg" : "pos") }, isFinite(vT) ? (vT > 0 ? "+" : "") + pct(vT) : "—"))))),
+      mob));
   }
 
   function finLanc(B){
