@@ -18,7 +18,14 @@ table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
 th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line)}
 td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
 tr:last-child td{border-bottom:0}
-.av{width:30px;height:30px;border-radius:50%;background:var(--navy);color:var(--bg);display:inline-grid;place-items:center;font-weight:800;font-size:11.5px;margin-right:8px;vertical-align:middle}
+.av{width:36px;height:36px;border-radius:50%;background:var(--navy);color:var(--bg);display:inline-grid;place-items:center;font-weight:800;font-size:13px;margin-right:10px;vertical-align:middle;flex:none}
+.pess{display:flex;align-items:center}
+.fotobox{display:flex;align-items:center;gap:14px;padding:4px 0 6px}
+.fotobox .av{width:84px;height:84px;font-size:28px;margin:0}
+.fotobox .fa{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.fotobox .fa .bts{display:flex;gap:6px;flex-wrap:wrap}
+.fotobox label.btn{position:relative;overflow:hidden;cursor:pointer}
+.fotobox label.btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .pf{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700;background:var(--surface-2);color:var(--muted)}
 .pf.admin{background:var(--accent-soft);color:var(--accent)}
 .field{display:flex;flex-direction:column;gap:5px}
@@ -48,6 +55,13 @@ input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px
     <section class="box">
       <h2 id="fTitle">Meu cadastro</h2>
       <form id="f" novalidate style="display:flex;flex-direction:column;gap:12px">
+        <div class="fotobox" id="fotoF" hidden>
+          <span class="av" id="fotoAv"></span>
+          <div class="fa"><b>Foto de perfil</b>
+            <div class="bts"><label class="btn" id="fotoBtn">Escolher foto<input type="file" id="fotoIn" accept="image/jpeg,image/png,image/webp" aria-label="Escolher foto de perfil"></label>
+              <button class="btn" type="button" id="fotoRm">Remover</button></div>
+            <span class="hint">JPG, PNG ou WEBP. A foto é recortada em quadrado e reduzida.</span></div>
+        </div>
         <div class="field"><label for="uEmail" id="lbLogin">E-mail</label><input type="email" id="uEmail" maxlength="120" autocapitalize="none" spellcheck="false"></div>
         <div class="field"><label for="uNome">Nome</label><input type="text" id="uNome" maxlength="80"></div>
         <div class="field"><label for="uCargo">Cargo</label><input type="text" id="uCargo" maxlength="80"></div>
@@ -91,7 +105,24 @@ input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px
     $("fTitle").textContent=!u?"Cadastrar pessoa":self?"Meu cadastro":"Editar cadastro";
     $("uEmail").value=u?u.email:""; $("uEmail").disabled=!!u; $("uNome").value=u?u.nome||"":""; $("uCargo").value=u?u.cargo||"":""; $("uPerfil").value=u?u.perfil||"editor":"editor";
     $("pfF").hidden=!admin||(!!u&&u.email===me.email); $("novo").hidden=!admin; $("pwF").hidden=!(GASM&&!u); $("uSenha").value=""; $("adminNote").hidden=admin; $("err").hidden=true;
-    [$("uNome"),$("uCargo"),$("save")].forEach(x=>x.disabled=!(admin||self));}
+    [$("uNome"),$("uCargo"),$("save")].forEach(x=>x.disabled=!(admin||self));
+    fotoFill(u);}
+  // foto de perfil: só para cadastro já salvo, pela própria pessoa ou por um administrador
+  function fotoFill(u){const pode=!!u&&(Auth.isAdmin()||u.email===me.email); $("fotoF").hidden=!pode; if(!pode)return;
+    const av=$("fotoAv"); av.replaceWith(Object.assign(Central.avatar(u,84),{id:"fotoAv"})); $("fotoRm").hidden=!u.foto;}
+  function reduzir(file){return new Promise((ok,erro)=>{const img=new Image(),url=URL.createObjectURL(file);
+    img.onload=()=>{const L=192,c=document.createElement("canvas");c.width=c.height=L;const k=Math.min(img.width,img.height),sx=(img.width-k)/2,sy=(img.height-k)/2;
+      const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,L,L);g.drawImage(img,sx,sy,k,k,0,0,L,L);URL.revokeObjectURL(url);ok(c.toDataURL("image/jpeg",.85));};
+    img.onerror=()=>{URL.revokeObjectURL(url);erro(new Error("Não foi possível ler esta imagem."));};img.src=url;});}
+  async function trocarFoto(foto){const alvo=editing||me.email; const b=$("fotoBtn"); b.classList.add("dis");
+    try{const it=await Auth.salvarFoto(alvo,foto);toast(foto?"Foto atualizada":"Foto removida");if(alvo===me.email)Central.mount("usuarios",Auth.current());
+      fotoFill(Object.assign({},users.find(u=>u.email===alvo)||{},it||{},{email:alvo,foto}));}
+    catch(e){toast(e.message||"Não foi possível salvar a foto");}finally{b.classList.remove("dis");}}
+  $("fotoIn").addEventListener("change",async ev=>{const f=ev.target.files&&ev.target.files[0];ev.target.value="";if(!f)return;
+    if(!/^image\/(jpeg|png|webp)$/.test(f.type))return toast("Escolha uma imagem JPG, PNG ou WEBP");
+    if(f.size>15*1024*1024)return toast("Imagem muito grande (máximo 15 MB)");
+    try{await trocarFoto(await reduzir(f));}catch(e){toast(e.message);}});
+  $("fotoRm").onclick=()=>trocarFoto("");
   function render(){
     const tb=$("rows"); tb.textContent=""; const admin=Auth.isAdmin();
     users.slice().sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email)).forEach(u=>{
@@ -108,7 +139,7 @@ input,select{background:var(--bg);border:1px solid var(--line);border-radius:8px
       if(admin&&u.email!==me.email&&resetFor!==u.email){
         if(confirmDel===u.email)acts.append(el("span",{class:"hint"},"Remover? "),el("button",{class:"lnk bad",type:"button",onclick:async()=>{await Auth.removeUser(u.email);confirmDel=null;toast("Usuário removido");}},"Sim"),el("button",{class:"lnk",type:"button",onclick:()=>{confirmDel=null;render();}},"Não"));
         else acts.append(el("button",{class:"lnk bad",type:"button",onclick:()=>{confirmDel=u.email;render();}},"Remover"));}
-      tb.append(el("tr",null,el("td",null,el("span",{class:"av"},ini(u.nome||u.email)),el("b",null,u.nome||"—"),u.email===me.email?el("span",{class:"hint"}," (você)"):null),
+      tb.append(el("tr",null,el("td",null,el("div",{class:"pess"},Central.avatar(u),el("span",null,el("b",null,u.nome||"—"),u.email===me.email?el("span",{class:"hint"}," (você)"):null))),
         el("td",{class:"mono",style:"font-size:13px"},u.email),el("td",null,u.cargo||"—"),
         el("td",null,el("span",{class:"pf "+(u.perfil==="admin"?"admin":"")},u.perfil==="admin"?"Administrador":"Editor"),
           GASM&&u.ativo===false?el("span",{class:"pf",style:"margin-left:4px;color:var(--bad)"},"Bloqueado"):null,
