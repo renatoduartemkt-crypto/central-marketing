@@ -47,7 +47,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-19a';
+const VERSAO_API = '2026-10-21a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -252,6 +252,13 @@ function salvarUsuario_(eu, r) {
     const d = Object.assign({}, a.dados);
     if (r.nome != null) d.nome = String(r.nome).trim() || d.nome;
     if (r.cargo != null) d.cargo = String(r.cargo).trim() || d.cargo;
+    // foto de perfil: imagem pequena (a página reduz para 192 px) guardada no próprio cadastro; "" remove
+    if (r.foto !== undefined && r.foto !== null) {
+      const f = String(r.foto);
+      if (f && !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(f)) return { erro: 'Foto inválida. Envie uma imagem JPG, PNG ou WEBP.' };
+      if (f.length > 80000) return { erro: 'A foto ficou grande demais. Escolha outra imagem.' };
+      d.foto = f;
+    }
     if (isAdmin_(eu) && !self) {
       if (r.perfil) d.perfil = r.perfil === 'admin' ? 'admin' : 'editor';
       if (r.ativo != null) d.ativo = !!r.ativo;
@@ -260,7 +267,8 @@ function salvarUsuario_(eu, r) {
     }
     d.atualizadoEm = new Date().toISOString(); d.atualizadoPor = eu.email;
     gravarLinha_('usuarios', docId_(login), d, eu.email, false);
-    log_(eu.email, 'alterar usuário', 'usuarios', docId_(login), resumo_(publico_(d)));
+    usuarioCacheApagar_(docId_(login));
+    log_(eu.email, 'alterar usuário', 'usuarios', docId_(login), resumo_(Object.assign(publico_(d), { foto: d.foto ? '(com foto)' : '' })));
     return { item: publico_(usuario_(login)) };
   });
 }
