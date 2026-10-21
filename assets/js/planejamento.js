@@ -227,8 +227,8 @@
     // calendário geral: ações promocionais e eventos juntos
     const itG = (F.gCal !== "eventos" ? D.acoes.filter(ativo).map(itemAc) : []).concat(F.gCal !== "acoes" ? D.eventos.filter(ativo).map(itemEv) : []);
     B.append(card(`Calendário geral ${ANO} · ações promocionais e eventos`, seg([["tudo", "Tudo"], ["acoes", "Só ações"], ["eventos", "Só eventos"]], F.gCal, v => { F.gCal = v; render(); }),
-      calendario(itG, { unid: ["item", "itens"], legenda: el("div", { class: "pl-calleg" }, el("span", null, el("em", { class: "tg k-ac" }, "Ação"), "ação promocional"), el("span", null, el("em", { class: "tg k-ev" }, "Evento"), "evento"),
-        el("span", { class: "sb" }, "a cor da faixa mostra a situação: cinza ideia · amarelo em negociação/planejamento · azul confirmado/aprovado · verde realizado · cancelados não aparecem"), ) })));
+      calendario(itG, { chave: "geral", unid: ["item", "itens"], legenda: el("div", { class: "pl-calleg" }, el("span", null, el("em", { class: "tg k-ac" }, "Ação"), "ação promocional"), el("span", null, el("em", { class: "tg k-ev" }, "Evento"), "evento"),
+        el("span", { class: "sb" }, "A barra colorida à esquerda mostra a situação: cinza é ideia, amarelo está em negociação ou planejamento, azul está confirmado ou aprovado e verde já foi realizado. Cancelados não aparecem."), ) })));
     B.append(card("Venda das cotas × regra de decisão", el("span", { class: "pl-who" }, `prazo ${fd(c.prazoVenda)}`),
       el("div", { class: "pl-bar", title: `${pct(ct.pct)} vendido` }, el("i", { style: `width:${Math.min(100, ct.pct)}%;background:var(${ct.pct >= 90 ? "--ok" : ct.pct >= 70 ? "--warn" : "--bad"})` }), el("span", { class: "mk", style: "left:70%" }), el("span", { class: "mk", style: "left:90%" })),
       el("p", { class: "hint", style: "margin:0" }, c.regra.map(f => `${f.min ? "≥ " + f.min + "%" : "abaixo de 70%"}: ${f.txt}`).join(" · "))));
@@ -343,25 +343,108 @@
   const COR_EV = { ideia: "--muted", negociacao: "--warn", confirmado: "--info", realizado: "--ok", cancelado: "--bad" };
   const COR_AC = { ideia: "--muted", planejando: "--warn", aprovado: "--info", executada: "--ok", cancelado: "--bad" };
   const itemEv = x => ({ m: mesEv(x), dia: x.data ? String(x.data).slice(8, 10) : "", nome: x.nome, sub: [(x.ufs || []).join(", "), x.cidade].filter(Boolean).join(" · ") || sitN("plan_eventos", etapa(x)),
-    cor: COR_EV[etapa(x)] || "--muted", cancel: etapa(x) === "cancelado", tag: "Evento", k: "ev", ord: String(x.data || ""), tit: `${x.nome} · ${sitN("plan_eventos", etapa(x))}`, abrir: () => form("plan_eventos", x) });
+    cor: COR_EV[etapa(x)] || "--muted", cancel: etapa(x) === "cancelado", tag: "Evento", k: "ev", ord: String(x.data || ""), ini: x.data || "", fim: x.dataFim || x.data || "", tit: `${x.nome} · ${sitN("plan_eventos", etapa(x))}`, abrir: () => form("plan_eventos", x) });
   const itemAc = x => ({ m: mesAc(x), dia: x.inicio ? String(x.inicio).slice(8, 10) : "", nome: x.nome, sub: (x.canais || []).map(canalN).join(", ") || tipoAcN(x.tipo) || sitN("plan_acoes", etapa(x)),
-    cor: COR_AC[etapa(x)] || "--muted", cancel: etapa(x) === "cancelado", tag: "Ação", k: "ac", ord: String(x.inicio || "00"), tit: `${x.nome} · ${sitN("plan_acoes", etapa(x))}`, abrir: () => form("plan_acoes", x) });
-  function calendario(itens, { legenda, sel, unid } = {}){
+    cor: COR_AC[etapa(x)] || "--muted", cancel: etapa(x) === "cancelado", tag: "Ação", k: "ac", ord: String(x.inicio || "00"), ini: x.inicio || "", fim: x.fim || x.inicio || "", tit: `${x.nome} · ${sitN("plan_acoes", etapa(x))}`, abrir: () => form("plan_acoes", x) });
+  /* calendário: visão Mês (grade de dias, como agenda) e visão Ano (12 meses com miniaturas e a lista de cada mês).
+     itens: { m, dia, ini, fim, nome, sub, cor, k, tag, cancel, tit, abrir }. Itens sem dia aparecem como "sem dia definido". */
+  const DOWS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const hojeISO = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
+  const isoD = (m, d) => `${ANO}-${pad(m)}-${pad(d)}`;
+  // dias (do mês m) em que o item aparece: um dia, ou todos os dias de início a fim
+  function diasDe(x, m){
+    const ok = v => /^\d{4}-\d{2}-\d{2}$/.test(v || "");
+    if (!ok(x.ini)) return x.dia && +x.dia ? [+x.dia] : [];
+    const a = new Date(x.ini + "T12:00:00"), b = new Date((ok(x.fim) && x.fim >= x.ini ? x.fim : x.ini) + "T12:00:00"), out = [];
+    for (let d = new Date(a); d <= b && out.length < 62; d.setDate(d.getDate() + 1)) if (d.getFullYear() === ANO && d.getMonth() + 1 === m) out.push(d.getDate());
+    return out;
+  }
+  function calendario(itens, { legenda, sel, unid, chave } = {}){
+    chave = chave || "geral";
+    const st = F.cal || (F.cal = {});
+    const S = st[chave] || (st[chave] = { vis: "mes", m: hojeISO.slice(0, 4) === String(ANO) ? +hojeISO.slice(5, 7) : 1 });
+    if (sel && S.sel !== sel) { S.m = sel; S.vis = "mes"; } S.sel = sel;
     const by = {}; itens.forEach(x => (by[x.m] = by[x.m] || []).push(x));
-    const g = el("div", { class: "pl-cal" });
-    MESES_L.forEach((nm, i) => { const L = (by[i + 1] || []).slice().sort((a, b) => (a.ord || "").localeCompare(b.ord || "") || a.nome.localeCompare(b.nome)); const n = L.filter(x => !x.cancel).length;
-      g.append(el("section", { class: "pl-cm" + (sel === i + 1 ? " sel" : "") },
-        el("h4", null, cap(nm), el("small", null, L.length ? `${n} ${(unid || ["item", "itens"])[n === 1 ? 0 : 1]}` : "")),
-        ...(L.length ? L.map(x => el("button", { type: "button", class: "pl-ce k-" + x.k + (x.cancel ? " cancel" : ""), style: `--c:var(${x.cor})`, title: x.tit, onclick: x.abrir },
-          el("span", { class: "d" }, x.dia || "—"),
-          el("span", { class: "n" }, x.tag ? el("em", { class: "tg" }, x.tag) : null, x.nome, el("span", { class: "u" }, x.sub)))) : [el("p", { class: "vazio" }, "—")])));
-    });
-    const sem = by[0] || [];
-    return el("div", { class: "pl-calw" }, legenda || null, g, sem.length ? el("p", { class: "pl-who" }, `${sem.length} item(ns) sem mês não aparecem no calendário.`) : null);
+    const ordena = L => L.slice().sort((a, b) => (a.ord || "").localeCompare(b.ord || "") || a.nome.localeCompare(b.nome));
+    const conta = n => `${n} ${(unid || ["item", "itens"])[n === 1 ? 0 : 1]}`;
+    const chip = (x, cont) => el("button", { type: "button", class: "pc-it k-" + x.k + (x.cancel ? " cancel" : "") + (cont ? " cont" : ""), style: `--c:var(${x.cor})`, title: x.tit, onclick: x.abrir },
+      x.tag ? el("span", { class: "pc-k" }, x.tag) : null, el("span", { class: "pc-n" }, x.nome));
+    const linha = x => el("button", { type: "button", class: "pc-li k-" + x.k + (x.cancel ? " cancel" : ""), style: `--c:var(${x.cor})`, title: x.tit, onclick: x.abrir },
+      el("span", { class: "pc-dd" }, x.dia ? x.dia : "—"), el("span", { class: "pc-tx" }, el("span", { class: "pc-nm" }, x.tag ? el("span", { class: "pc-k" }, x.tag) : null, x.nome), x.sub ? el("span", { class: "pc-sb" }, x.sub) : null));
+    const ir = (vis, m) => { S.vis = vis; if (m) { S.m = m; S.dia = null; } render(); };
+
+    // barra de controle: visão + navegação
+    const nav = el("div", { class: "pc-bar" },
+      el("div", { class: "pc-sw", role: "group", "aria-label": "Visão do calendário" },
+        ...[["mes", "Mês"], ["ano", "Ano"]].map(([k, n]) => el("button", { type: "button", "aria-pressed": String(S.vis === k), class: S.vis === k ? "on" : "", onclick: () => ir(k) }, n))),
+      S.vis === "mes" ? el("div", { class: "pc-nav" },
+        el("button", { type: "button", class: "pc-ar", "aria-label": "Mês anterior", disabled: S.m <= 1 ? true : null, onclick: () => ir("mes", S.m - 1) }, "‹"),
+        el("h4", { class: "pc-tt" }, `${cap(MESES_L[S.m - 1])} ${ANO}`),
+        el("button", { type: "button", class: "pc-ar", "aria-label": "Próximo mês", disabled: S.m >= 12 ? true : null, onclick: () => ir("mes", S.m + 1) }, "›"),
+        hojeISO.slice(0, 4) === String(ANO) ? el("button", { type: "button", class: "pc-hj", onclick: () => ir("mes", +hojeISO.slice(5, 7)) }, "Hoje") : null)
+      : el("h4", { class: "pc-tt" }, `Ano de ${ANO}`),
+      el("span", { class: "pc-ct" }, S.vis === "mes" ? conta((by[S.m] || []).filter(x => !x.cancel).length) + " no mês" : conta(itens.filter(x => x.m && !x.cancel).length) + " no ano"));
+
+    let corpo;
+    if (S.vis === "mes") {
+      const m = S.m, L = ordena(by[m] || []), lead = (new Date(ANO, m - 1, 1).getDay() + 6) % 7, nd = new Date(ANO, m, 0).getDate(), ant = new Date(ANO, m - 1, 0).getDate();
+      const semDia = [], comDia = [];
+      L.forEach(x => { const ds = diasDe(x, m); if (ds.length) comDia.push({ x, a: ds[0], b: ds[ds.length - 1] }); else semDia.push(x); });
+      // mais longos primeiro, depois por dia de início: as barras de vários dias ficam em cima
+      comDia.sort((p, q) => p.a - q.a || (q.b - q.a) - (p.b - p.a));
+      const MAXL = 4, semanas = Math.ceil((lead + nd) / 7), sel2 = S.dia && S.dia <= nd ? S.dia : null;
+      const grade = el("div", { class: "pc-grid", role: "grid", "aria-label": `${cap(MESES_L[m - 1])} de ${ANO}` },
+        el("div", { class: "pc-dws", role: "row" }, ...DOWS.map((d, i) => el("div", { class: "pc-dw" + (i >= 5 ? " we" : ""), role: "columnheader" }, d))));
+      for (let w = 0; w < semanas; w++) {
+        const ini = w * 7 - lead + 1, fimW = ini + 6;   // dias do mês nesta semana (podem ser <1 ou >nd)
+        const fundo = el("div", { class: "pc-wbg" }), evs = el("div", { class: "pc-wev" });
+        for (let c = 0; c < 7; c++) { const d = ini + c, dentro = d >= 1 && d <= nd, iso = dentro ? isoD(m, d) : "";
+          fundo.append(el("div", { class: "pc-d" + (c >= 5 ? " we" : "") + (dentro ? "" : " fora") + (iso === hojeISO ? " hj" : "") + (sel2 === d ? " sel" : ""), role: "gridcell" },
+            el("span", { class: "pc-num" }, dentro ? d : d < 1 ? ant + d : d - nd))); }
+        // faixas desta semana, distribuídas em linhas sem sobreposição
+        const lanes = [], extra = Array(7).fill(0);
+        comDia.filter(o => o.a <= fimW && o.b >= ini).forEach(o => {
+          const c0 = Math.max(o.a, ini) - ini, c1 = Math.min(o.b, fimW) - ini;
+          let li = lanes.findIndex(oc => oc.every((v, c) => c < c0 || c > c1 || !v));
+          if (li < 0 && lanes.length < MAXL) { lanes.push(Array(7).fill(false)); li = lanes.length - 1; }
+          if (li < 0) { for (let c = c0; c <= c1; c++) extra[c]++; return; }
+          for (let c = c0; c <= c1; c++) lanes[li][c] = true;
+          const b = chip(o.x); b.classList.add("seg"); if (o.a < ini) b.classList.add("ant"); if (o.b > fimW) b.classList.add("dep");
+          b.style.gridColumn = `${c0 + 1} / span ${c1 - c0 + 1}`; b.style.gridRow = String(li + 1);
+          evs.append(b);
+        });
+        extra.forEach((n, c) => { if (n) evs.append(el("button", { type: "button", class: "pc-mais", style: `grid-column:${c + 1};grid-row:${MAXL + 1}`, onclick: () => { S.dia = ini + c; render(); } }, `+${n} mais`)); });
+        grade.append(el("div", { class: "pc-wk", role: "row" }, fundo, evs));
+      }
+      // agenda (lista por dia): é a visão do celular; no computador mostra o dia escolhido em "+ mais"
+      const porIni = {}; comDia.forEach(o => (porIni[o.a] = porIni[o.a] || []).push(o));
+      const diaLin = d => { const dw = (lead + d - 1) % 7;
+        return el("div", { class: "pc-agd" + (isoD(m, d) === hojeISO ? " hj" : "") }, el("div", { class: "pc-agn" }, el("b", null, d), el("span", null, DOWS[dw])),
+          el("div", { class: "pc-agl" }, ...(porIni[d] || []).map(o => { const li = linha(o.x); if (o.b > o.a) li.querySelector(".pc-tx").append(el("span", { class: "pc-sb" }, `até ${pad(o.b)}/${pad(m)}`)); return li; }))); };
+      const dias = Object.keys(porIni).map(Number).sort((a, b) => a - b);
+      const agenda = el("div", { class: "pc-ag" }, ...dias.map(diaLin), !dias.length && !semDia.length ? el("p", { class: "pc-vz" }, `Nada programado em ${MESES_L[m - 1]}.`) : null);
+      const doDia = sel2 ? comDia.filter(o => o.a <= sel2 && o.b >= sel2) : [];
+      const painelDia = sel2 ? el("div", { class: "pc-dia" }, el("div", { class: "pc-diah" }, el("b", null, `${sel2} de ${MESES_L[m - 1]}`), el("button", { type: "button", class: "pc-x", "aria-label": "Fechar a lista do dia", onclick: () => { S.dia = null; render(); } }, "×")),
+        ...doDia.map(o => linha(o.x))) : null;
+      const sem = semDia.length ? el("div", { class: "pc-sem" }, el("span", { class: "pc-semt" }, `Sem dia definido (${semDia.length})`), el("div", { class: "pc-seml" }, ...semDia.map(x => chip(x)))) : null;
+      corpo = el("div", { class: "pc-mes" }, sem, grade, painelDia, agenda);
+    } else {
+      corpo = el("div", { class: "pc-ano" }, ...MESES_L.map((nm, i) => { const m = i + 1, L = ordena(by[m] || []), n = L.filter(x => !x.cancel).length;
+        const lead = (new Date(ANO, i, 1).getDay() + 6) % 7, nd = new Date(ANO, m, 0).getDate(), marc = {};
+        L.forEach(x => diasDe(x, m).forEach(d => (marc[d] = marc[d] || []).push(x)));
+        const mini = el("div", { class: "pc-mini", "aria-hidden": "true" }, ...DOWS.map(d => el("span", { class: "pc-mdw" }, d[0])), ...Array.from({ length: lead }, () => el("span")),
+          ...Array.from({ length: nd }, (_, j) => { const its = marc[j + 1] || []; return el("span", { class: "pc-md" + (its.some(x => x.k === "ev") ? " ev" : its.length ? " ac" : "") + (isoD(m, j + 1) === hojeISO ? " hj" : "") }, j + 1); }));
+        return el("section", { class: "pc-mo" + (sel === m ? " sel" : "") },
+          el("button", { type: "button", class: "pc-moh", onclick: () => ir("mes", m), title: `Abrir ${MESES_L[i]} na visão Mês` }, el("span", null, cap(nm)), el("small", null, L.length ? conta(n) : "")),
+          mini, L.length ? el("div", { class: "pc-mol" }, ...L.map(linha)) : el("p", { class: "pc-vz" }, "Nada programado"));
+      }));
+    }
+    const semMes = by[0] || [];
+    return el("div", { class: "pl-calw pc" }, nav, legenda || null, corpo, semMes.length ? el("p", { class: "pl-who" }, `${semMes.length} item(ns) sem mês não aparecem no calendário.`) : null);
   }
   const legSit = (col, cores) => el("div", { class: "pl-calleg" }, ...SITUACOES[col].map(([k, n]) => el("span", null, el("i", { style: `background:var(${cores[k]})` }), n)));
   function calAnual(L){
-    return calendario(L.map(itemEv).map(x => Object.assign(x, { tag: null })), { legenda: legSit("plan_eventos", COR_EV), sel: F.evMes, unid: ["evento", "eventos"] });
+    return calendario(L.map(itemEv).map(x => Object.assign(x, { tag: null })), { chave: "eventos", legenda: legSit("plan_eventos", COR_EV), sel: F.evMes, unid: ["evento", "eventos"] });
   }
 
   /* ---------- ações promocionais (campanhas comerciais para o cliente, mês a mês) ---------- */
@@ -382,7 +465,7 @@
       temF ? el("button", { type: "button", class: "pl-link", onclick: () => { F.acMes = null; F.acSit = F.acCanal = ""; render(); } }, "Limpar filtros") : null));
     const L = D.acoes.filter(x => (!F.acMes || mesAc(x) === F.acMes) && (!F.acSit || etapa(x) === F.acSit) && (!F.acCanal || (x.canais || []).includes(F.acCanal)))
       .sort((a, b) => mesAc(a) - mesAc(b) || String(a.inicio || "").localeCompare(String(b.inicio || "")) || String(a.nome).localeCompare(b.nome));
-    if (F.acVer === "cal") { B.append(calendario(L.map(itemAc).map(x => Object.assign(x, { tag: null })), { legenda: legSit(col, COR_AC), sel: F.acMes, unid: ["ação", "ações"] })); return; }
+    if (F.acVer === "cal") { B.append(calendario(L.map(itemAc).map(x => Object.assign(x, { tag: null })), { chave: "acoes", legenda: legSit(col, COR_AC), sel: F.acMes, unid: ["ação", "ações"] })); return; }
     if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.acoes.length ? "Nenhuma ação com esses filtros." : "Nenhuma ação cadastrada ainda. Ex.: Janeiro · Aniversário da Lopes (tabloide, post no Instagram, sorteio, spot de rádio); Fevereiro · Zera Estoque.")); return; }
     const per = x => x.inicio ? (x.fim && x.fim !== x.inicio ? `${fd(x.inicio).slice(0, 5)} a ${fd(x.fim).slice(0, 5)}` : fd(x.inicio).slice(0, 5)) : "data a definir";
     const linha = x => el("li", { class: "pl-row pl-acrow" + (etapa(x) === "cancelado" ? " cancel" : ""), tabindex: "0", onclick: () => form(col, x), onkeydown: e => { if (e.key === "Enter") form(col, x); } },

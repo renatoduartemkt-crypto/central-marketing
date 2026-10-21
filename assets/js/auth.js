@@ -89,8 +89,14 @@
     },
     async saveUser(u){
       const e = norm(u.email);
-      if (CFG.modo === "gas") { const r = await GAS.api({ acao: "salvarUsuario", id: e, nome: u.nome, cargo: u.cargo, perfil: u.perfil, ativo: u.ativo }); if (me && me.email === e) { me = Object.assign({}, me, r.item); guardarMe(); } await Store.refresh("usuarios"); return r.item; }
+      if (CFG.modo === "gas") { const r = await GAS.api({ acao: "salvarUsuario", id: e, nome: u.nome, cargo: u.cargo, perfil: u.perfil, ativo: u.ativo, foto: u.foto }); if (me && me.email === e) { me = Object.assign({}, me, r.item); guardarMe(); } await Store.refresh("usuarios"); return r.item; }
       await users().doc(docId(e)).set(Object.assign({}, u, { email: e })); if (me && me.email === e) me = Object.assign({}, me, u);
+    },
+    // foto de perfil (data URL pequena) ou "" para remover. A própria pessoa ou um administrador.
+    async salvarFoto(email, foto){
+      const e = norm(email);
+      if (CFG.modo === "gas") { const r = await GAS.api({ acao: "salvarUsuario", id: e, foto: foto || "" }); if (me && me.email === e) { me = Object.assign({}, me, r.item); guardarMe(); } await Store.refresh("usuarios"); return r.item; }
+      await users().doc(docId(e)).update({ foto: foto || "" }); if (me && me.email === e) me = Object.assign({}, me, { foto: foto || "" });
     },
     async createUser(u, senha){ const r = await GAS.api({ acao: "criarUsuario", usuario: norm(u.email), nome: u.nome, cargo: u.cargo, perfil: u.perfil, senha }); await Store.refresh("usuarios"); return r.item; },
     async resetPassword(email, senha){ const r = await GAS.api({ acao: "redefinirSenha", id: norm(email), senha }); await Store.refresh("usuarios"); return r.item; },

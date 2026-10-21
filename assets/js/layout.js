@@ -20,6 +20,14 @@
     { k: "usuarios", href: "usuarios.html", n: "Usuários",         g: "Gestão" }
   ];
   const initials = n => String(n || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+  // avatar: foto de perfil, ou as iniciais do nome quando não há foto
+  function avatar(u, tam){
+    u = u || {}; const e = document.createElement("span"); e.className = "av"; e.setAttribute("aria-hidden", "true");
+    if (tam) { e.style.width = e.style.height = tam + "px"; e.style.fontSize = Math.round(tam * .36) + "px"; }
+    if (u.foto && /^data:image\//.test(u.foto)) { const i = document.createElement("img"); i.src = u.foto; i.alt = ""; e.append(i); e.classList.add("foto"); }
+    else e.textContent = initials(u.nome || u.email);
+    return e;
+  }
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
   function mount(active, user){
@@ -58,8 +66,8 @@
     // quem está usando (rodapé do menu)
     if (user) {
       const who = mk("div", "who");
-      who.innerHTML = '<span class="av" aria-hidden="true"></span><span class="wt"><b></b><small></small></span><button type="button" class="sair">Sair</button>';
-      who.querySelector(".av").textContent = initials(user.nome || user.email);
+      who.innerHTML = '<span class="wt"><b></b><small></small></span><button type="button" class="sair">Sair</button>';
+      who.prepend(avatar(user, 36));
       who.querySelector("b").textContent = user.nome || user.email;
       who.querySelector("small").textContent = user.cargo || "";
       who.querySelector(".sair").onclick = () => Auth.logout();
@@ -122,5 +130,5 @@
   }
   const filtraOpta = L => L.filter(semOpta).map(limpaOpta);
 
-  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro, semOpta, filtraOpta };
+  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro, semOpta, filtraOpta, avatar };
 })();
