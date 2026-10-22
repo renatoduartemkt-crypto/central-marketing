@@ -30,6 +30,7 @@
  *  PLANILHA_ID          id da planilha (se o script NÃO estiver vinculado a ela)
  *  PASTA_RELATORIOS     id da pasta do Drive para os PDFs (senão cria "Central de Marketing - Relatórios")
  *  PASTA_ANEXOS         id da pasta privada dos anexos de tarefas e orçamentos (senão cria "Central de Marketing - Anexos")
+ *  PASTA_PDL            id da pasta privada do PDL, com uma subpasta por colaborador (senão cria "Central de Marketing - PDL")
  *  IMPORTACAO_ID        id da planilha de importação de metas/projetado (usada por importarMetas)
  *
  * IMPORTANTE (armadilhas conhecidas): ao alterar este arquivo, cole-o INTEIRO no editor e crie uma
@@ -47,7 +48,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-21a';
+const VERSAO_API = '2026-10-22a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -96,6 +97,11 @@ function api(req) {
       case 'anexoEnviar':    return anexoEnviar_(eu, req);
       case 'anexoBaixar':    return anexoBaixar_(eu, req.id);
       case 'anexoExcluir':   return anexoExcluir_(eu, req.id);
+      case 'pdlListar':      return pdlListar_(eu);
+      case 'pdlItem':        return pdlItem_(eu, req);
+      case 'pdlItemExcluir': return pdlItemExcluir_(eu, req);
+      case 'pdlCurso':       return pdlCurso_(eu, req);
+      case 'pdlCursoExcluir':return pdlCursoExcluir_(eu, req);
     }
 
     if (req.acao === 'listarVarias') {
@@ -574,16 +580,26 @@ function pastaAnexos_() {
   PropertiesService.getScriptProperties().setProperty('PASTA_ANEXOS', f.getId());
   return f;
 }
-function anexoArquivo_(id) {
+function anexoArquivo_(id, eu) {
   id = String(id || '');
   if (!/^[A-Za-z0-9_-]{10,100}$/.test(id)) throw new Error('Anexo inválido.');
   let f;
   try { f = DriveApp.getFileById(id); } catch (e) { throw new Error('Anexo não encontrado.'); }
-  const pasta = pastaAnexos_().getId(), pais = f.getParents();
-  let naPasta = false;
-  while (pais.hasNext()) if (pais.next().getId() === pasta) { naPasta = true; break; }
-  if (!naPasta || f.isTrashed()) throw new Error('Anexo não encontrado.');
-  return f;
+  if (f.isTrashed()) throw new Error('Anexo não encontrado.');
+  const pasta = pastaAnexos_().getId(), pdl = pastaPdl_().getId(), pais = f.getParents();
+  while (pais.hasNext()) {
+    const p = pais.next();
+    if (p.getId() === pasta) return f;
+    // comprovante do PDL: fica na subpasta do colaborador; só ele ou um administrador abre
+    const avos = p.getParents();
+    while (avos.hasNext()) if (avos.next().getId() === pdl) {
+      let dono = '';
+      try { dono = JSON.parse(f.getDescription() || '{}').pdl || ''; } catch (e) {}
+      if (eu && (isAdmin_(eu) || dono === eu.email)) return f;
+      throw new Error('Anexo não encontrado.');
+    }
+  }
+  throw new Error('Anexo não encontrado.');
 }
 function anexoEnviar_(eu, r) {
   const nome = String(r.nome || 'arquivo').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim().slice(0, 120) || 'arquivo';
@@ -595,24 +611,127 @@ function anexoEnviar_(eu, r) {
   if (!bytes.length) throw new Error('O arquivo está vazio.');
   if (bytes.length > ANEXO_MAX) throw new Error('O arquivo passa de 10 MB.');
   const ref = String(r.ref || '').slice(0, 200);
-  const f = pastaAnexos_().createFile(Utilities.newBlob(bytes, tipo, nome));
-  f.setDescription(JSON.stringify({ por: eu.email, ref: ref }));
+  let destino = pastaAnexos_(), extra = {};
+  if (r.pdl) {   // comprovante de curso do PDL: vai para a subpasta do colaborador
+    const login = pdlAlvo_(eu, r.pdl);
+    if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(tipo)) throw new Error('No PDL, envie o comprovante em PDF ou foto (JPG, PNG ou WEBP).');
+    destino = pastaPdlDe_(login); extra = { pdl: login };
+  }
+  const f = destino.createFile(Utilities.newBlob(bytes, tipo, nome));
+  f.setDescription(JSON.stringify(Object.assign({ por: eu.email, ref: ref }, extra)));
   const a = { id: f.getId(), nome: nome, tipo: tipo, tamanho: bytes.length, por: eu.email, em: new Date().toISOString() };
   log_(eu.email, 'anexo enviado', '', a.id, nome + (ref ? ' · ' + ref : ''));
   return { anexo: a };
 }
 function anexoBaixar_(eu, id) {
-  const f = anexoArquivo_(id), b = f.getBlob();
+  const f = anexoArquivo_(id, eu), b = f.getBlob();
   return { nome: f.getName(), tipo: b.getContentType(), base64: Utilities.base64Encode(b.getBytes()) };
 }
 function anexoExcluir_(eu, id) {
-  const f = anexoArquivo_(id);
+  const f = anexoArquivo_(id, eu);
   let por = '';
   try { por = JSON.parse(f.getDescription() || '{}').por || ''; } catch (e) {}
   if (!isAdmin_(eu) && por !== eu.email) throw new Error('Só quem enviou o arquivo ou um administrador pode removê-lo.');
   f.setTrashed(true);   // vai para a lixeira do Drive: dá para recuperar por 30 dias
   log_(eu.email, 'anexo removido', '', id, f.getName());
   return { ok: true };
+}
+
+/* ======================= PDL (desenvolvimento de cada colaborador) ======================= */
+// Aba "pdl" fora de COLECOES: nunca sai pela listagem genérica. Cada pessoa vê só o próprio PDL; o administrador (gestor) vê todos.
+// Pontos positivos, pontos de melhoria e cursos podem ser incluídos pela própria pessoa ou pelo gestor.
+const PDL_CAMPOS_ = ['positivos', 'melhorias'];
+function pastaPdl_() {
+  const id = prop_('PASTA_PDL');
+  if (id) return DriveApp.getFolderById(id);
+  const it = DriveApp.getFoldersByName('Central de Marketing - PDL');
+  const f = it.hasNext() ? it.next() : DriveApp.createFolder('Central de Marketing - PDL');
+  PropertiesService.getScriptProperties().setProperty('PASTA_PDL', f.getId());
+  return f;
+}
+// subpasta com o nome do colaborador (guardada pelo id: renomear a pessoa não perde a pasta)
+function pastaPdlDe_(login) {
+  const k = 'PDL_' + docId_(login), id = prop_(k);
+  if (id) { try { const f = DriveApp.getFolderById(id); if (!f.isTrashed()) return f; } catch (e) {} }
+  const u = usuario_(login), nome = String((u && u.nome) || login).replace(/[\\/:*?"<>|]/g, '_').trim();
+  const raiz = pastaPdl_(), it = raiz.getFoldersByName(nome);
+  const f = it.hasNext() ? it.next() : raiz.createFolder(nome);
+  PropertiesService.getScriptProperties().setProperty(k, f.getId());
+  return f;
+}
+// de quem é o PDL que está sendo mexido: a própria pessoa, ou qualquer um se for administrador
+function pdlAlvo_(eu, alvo) {
+  const login = String(alvo || '').trim().toLowerCase();
+  if (!login || !usuario_(login)) throw new Error('Colaborador não encontrado.');
+  if (login !== eu.email && !isAdmin_(eu)) throw new Error('Você só pode ver e alterar o seu próprio PDL.');
+  return login;
+}
+function pdlDoc_(login) { const a = ler_('pdl', docId_(login)); return { a: a, d: Object.assign({ usuario: login, positivos: [], melhorias: [], cursos: [] }, a ? a.dados : {}) }; }
+function pdlGravar_(eu, login, x) { gravarLinha_('pdl', docId_(login), x.d, eu.email, !x.a, x.a); return { item: Object.assign({ id: docId_(login) }, x.d) }; }
+const pdlId_ = () => Utilities.getUuid().replace(/-/g, '').slice(0, 16);
+// só aceita (e só apaga) arquivos que estão na subpasta do PDL e pertencem a este colaborador
+function pdlArquivoDe_(id, login, eu) {
+  try { const f = anexoArquivo_(id, eu); return JSON.parse(f.getDescription() || '{}').pdl === login; } catch (e) { return false; }
+}
+function pdlListar_(eu) {
+  if (isAdmin_(eu)) return { itens: listar_('pdl') };
+  const x = pdlDoc_(eu.email); return { itens: x.a ? [Object.assign({ id: docId_(eu.email) }, x.d)] : [] };
+}
+function pdlItem_(eu, r) {
+  const login = pdlAlvo_(eu, r.usuario), campo = String(r.campo || '');
+  if (PDL_CAMPOS_.indexOf(campo) < 0) throw new Error('Campo inválido.');
+  const texto = String(r.texto || '').trim().slice(0, 2000);
+  if (!texto) throw new Error('Escreva o ponto antes de adicionar.');
+  return comLock_(function () {
+    const x = pdlDoc_(login);
+    x.d[campo] = (x.d[campo] || []).concat([{ id: pdlId_(), texto: texto, por: eu.email, em: new Date().toISOString() }]);
+    log_(eu.email, 'PDL: ponto incluído', 'pdl', docId_(login), campo);
+    return pdlGravar_(eu, login, x);
+  });
+}
+function pdlItemExcluir_(eu, r) {
+  const login = pdlAlvo_(eu, r.usuario), campo = String(r.campo || '');
+  if (PDL_CAMPOS_.indexOf(campo) < 0) throw new Error('Campo inválido.');
+  return comLock_(function () {
+    const x = pdlDoc_(login), it = (x.d[campo] || []).find(function (o) { return o.id === r.id; });
+    if (!it) return { item: Object.assign({ id: docId_(login) }, x.d) };
+    if (it.por !== eu.email && !isAdmin_(eu)) throw new Error('Só quem escreveu o ponto ou o gestor pode removê-lo.');
+    x.d[campo] = x.d[campo].filter(function (o) { return o.id !== r.id; });
+    log_(eu.email, 'PDL: ponto removido', 'pdl', docId_(login), campo);
+    return pdlGravar_(eu, login, x);
+  });
+}
+// cria ou atualiza um curso (nome, instituição, data, carga horária e os comprovantes já enviados)
+function pdlCurso_(eu, r) {
+  const login = pdlAlvo_(eu, r.usuario), c = r.curso || {};
+  const nome = String(c.nome || '').trim().slice(0, 200);
+  if (!nome) throw new Error('Informe o nome do curso.');
+  const anexos = (Array.isArray(c.anexos) ? c.anexos : []).slice(0, 20).map(function (a) {
+    return { id: String(a.id || ''), nome: String(a.nome || '').slice(0, 120), tipo: String(a.tipo || ''), tamanho: +a.tamanho || 0, por: String(a.por || ''), em: String(a.em || '') };
+  }).filter(function (a) { return pdlArquivoDe_(a.id, login, eu); });
+  return comLock_(function () {
+    const x = pdlDoc_(login), L = x.d.cursos || [], i = c.id ? L.findIndex(function (o) { return o.id === c.id; }) : -1;
+    const base = i >= 0 ? L[i] : { id: pdlId_(), por: eu.email, em: new Date().toISOString() };
+    const novo = Object.assign({}, base, { nome: nome, instituicao: String(c.instituicao || '').trim().slice(0, 200), data: /^\d{4}-\d{2}-\d{2}$/.test(c.data || '') ? c.data : '',
+      horas: Math.max(0, Math.min(9999, +c.horas || 0)), anexos: anexos });
+    if (i >= 0) L[i] = novo; else L.push(novo);
+    x.d.cursos = L;
+    log_(eu.email, i >= 0 ? 'PDL: curso alterado' : 'PDL: curso incluído', 'pdl', docId_(login), nome);
+    return pdlGravar_(eu, login, x);
+  });
+}
+function pdlCursoExcluir_(eu, r) {
+  const login = pdlAlvo_(eu, r.usuario);
+  return comLock_(function () {
+    const x = pdlDoc_(login), c = (x.d.cursos || []).find(function (o) { return o.id === r.id; });
+    if (!c) return { item: Object.assign({ id: docId_(login) }, x.d) };
+    if (c.por !== eu.email && !isAdmin_(eu)) throw new Error('Só quem cadastrou o curso ou o gestor pode removê-lo.');
+    // os comprovantes vão para a lixeira do Drive (recuperáveis por 30 dias)
+    (c.anexos || []).forEach(function (a) { if (pdlArquivoDe_(a.id, login, eu)) try { DriveApp.getFileById(a.id).setTrashed(true); } catch (e) {} });
+    x.d.cursos = x.d.cursos.filter(function (o) { return o.id !== r.id; });
+    log_(eu.email, 'PDL: curso removido', 'pdl', docId_(login), c.nome);
+    return pdlGravar_(eu, login, x);
+  });
 }
 
 /* ======================= instalação ======================= */
