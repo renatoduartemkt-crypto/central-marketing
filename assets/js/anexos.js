@@ -39,7 +39,7 @@
     return { file, tipo };
   }
 
-  async function enviar(file, ref){
+  async function enviar(file, ref, extra){
     let tipo = tipoDe(file);
     if (!TIPOS.test(tipo)) throw new Error(`“${file.name}”: tipo de arquivo não permitido. Envie imagem, PDF, Word, Excel, PowerPoint, CSV, TXT ou ZIP.`);
     const r = await reduzir(file, tipo); const f = r.file; tipo = r.tipo;
@@ -53,7 +53,7 @@
       catch (_) { throw new Error("Sem espaço neste navegador para guardar o arquivo (modo de teste)."); }
       a = { id, nome: f.name, tipo, tamanho: f.size, por: eu().email || "", em: new Date().toISOString() };
     } else {
-      a = (await GAS.api({ acao: "anexoEnviar", nome: f.name, tipo, base64: b64, ref: String(ref || "").slice(0, 200) })).anexo;
+      a = (await GAS.api(Object.assign({ acao: "anexoEnviar", nome: f.name, tipo, base64: b64, ref: String(ref || "").slice(0, 200) }, extra || {}))).anexo;
     }
     if (f.size < file.size) a.original = file.size;
     return a;
@@ -110,7 +110,7 @@
           h("span", { class: "anx-tx" }, h("b", null, file.name), h("span", { class: "anx-bar" }, h("i")), h("small", null, "Enviando…")));
         ul.append(tmp); ocupado++;
         try {
-          const a = await enviar(file, opts.ref);
+          const a = await enviar(file, opts.ref, opts.pdl ? { pdl: opts.pdl } : null);
           await opts.salvar(lista().concat([a]));
         } catch (e) { aviso((e && e.message) || `Não foi possível enviar “${file.name}”.`); }
         finally { ocupado--; tmp.remove(); }
@@ -134,16 +134,16 @@
       if (!L.length && !pode) ul.append(h("li", { class: "anx-vz" }, "Nenhum arquivo anexado."));
       box.append(ul);
       if (!pode) return;
-      const inp = h("input", { type: "file", multiple: true, accept: ACEITA, class: "anx-in", "aria-label": "Escolher arquivos para anexar", onchange: ev => { receber(ev.target.files); ev.target.value = ""; } });
+      const inp = h("input", { type: "file", multiple: true, accept: opts.aceita || ACEITA, class: "anx-in", "aria-label": "Escolher arquivos para anexar", onchange: ev => { receber(ev.target.files); ev.target.value = ""; } });
       const drop = h("label", { class: "anx-d" });
       if (opts.compacto) drop.innerHTML = ICO_CLIP + "<span>Anexar</span>";
-      else drop.innerHTML = ICO_UP + "<b>Arraste arquivos ou clique para enviar</b><small>Imagens, PDF, Word, Excel, PowerPoint · até 10 MB · fotos grandes são reduzidas</small>";
+      else drop.innerHTML = ICO_UP + "<b>" + (opts.titulo || "Arraste arquivos ou clique para enviar") + "</b><small>" + (opts.dica || "Imagens, PDF, Word, Excel, PowerPoint · até 10 MB · fotos grandes são reduzidas") + "</small>";
       drop.append(inp);
       ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, ev => { ev.preventDefault(); drop.classList.add("on"); }));
       ["dragleave", "drop"].forEach(t => drop.addEventListener(t, ev => { ev.preventDefault(); drop.classList.remove("on"); }));
       drop.addEventListener("drop", ev => receber(ev.dataTransfer && ev.dataTransfer.files));
       box.append(drop);
-      if (!opts.compacto) box.append(h("p", { class: "anx-lk" }, "Só quem tem login na Central abre estes arquivos."));
+      if (!opts.compacto) box.append(h("p", { class: "anx-lk" }, opts.privacidade || "Só quem tem login na Central abre estes arquivos."));
     }
     draw();
     box.atualizar = () => { if (!ocupado) draw(); };

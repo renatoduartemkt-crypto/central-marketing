@@ -17,6 +17,7 @@
     { k: "planejamento", href: "planejamento.html", n: "Planejamento 2027", g: "Planejamento" },
     { k: "metas",    href: "metas.html",    n: "Metas e custos",   g: "Planejamento" },
     { k: "aprovacoes", href: "aprovacoes.html", n: "Aprovações",   g: "Gestão", admin: true },
+    { k: "pdl",      href: "pdl.html",      n: "PDL",              g: "Gestão" },
     { k: "usuarios", href: "usuarios.html", n: "Usuários",         g: "Gestão" }
   ];
   const initials = n => String(n || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();
