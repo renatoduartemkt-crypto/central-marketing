@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>PDL · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.lede{margin:6px 0 0;color:var(--muted);max-width:720px}
+.pdl{display:grid;grid-template-columns:270px minmax(0,1fr);gap:18px;align-items:start}
+.pdl.so{grid-template-columns:minmax(0,1fr)}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.box h2{font-size:17px;margin:0}
+.pess{display:flex;flex-direction:column;gap:4px}
+.pess button{display:flex;align-items:center;gap:10px;border:0;background:none;border-radius:10px;padding:8px;text-align:left;font:inherit;color:var(--fg);cursor:pointer;width:100%}
+.pess button:hover{background:var(--surface-2)}
+.pess button[aria-current="true"]{background:var(--accent-soft)}
+.pess .av{width:38px;height:38px;border-radius:50%;background:var(--navy);color:var(--bg);display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.pess .tx{display:flex;flex-direction:column;min-width:0}
+.pess .tx b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pess .tx small{font-size:12px;color:var(--muted)}
+.pess .tx small.ct{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+.cab{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cab .av{width:64px;height:64px;border-radius:50%;background:var(--navy);color:var(--bg);display:grid;place-items:center;font-weight:800;font-size:22px;flex:none}
+.cab h2{font-size:22px}
+.cab .sub{color:var(--muted);font-size:14px}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.col{border-radius:12px;border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.col h3{margin:0;font-size:15.5px;display:flex;align-items:center;gap:8px}
+.col h3 i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.col.pos h3 i{background:var(--ok)}.col.mel h3 i{background:var(--warn)}
+.col.pos{border-top:4px solid var(--ok)}.col.mel{border-top:4px solid var(--warn)}
+.its{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.it{display:flex;gap:8px;align-items:flex-start;background:var(--bg);border-radius:10px;padding:10px}
+.it .t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.it .t p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.45}
+.it .t small{font-size:12px;color:var(--muted)}
+.x{flex:none;width:30px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--fg);font-weight:700;cursor:pointer}
+.x.conf{width:auto;padding:0 8px;color:var(--bad);border-color:var(--bad);font-size:12px}
+.vz{color:var(--muted);font-size:13px;margin:0}
+.add{display:flex;flex-direction:column;gap:6px}
+textarea,input[type=text],input[type=date],input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;font:inherit;color:var(--fg)}
+textarea{min-height:70px;resize:vertical}
+.add .r{display:flex;justify-content:flex-end}
+.cursos{display:flex;flex-direction:column;gap:10px}
+.curso{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.curso .h{display:flex;gap:10px;align-items:flex-start}
+.curso .h .t{flex:1;min-width:0}
+.curso .h b{font-size:15px}
+.curso .h small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.fcurso{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) 160px 120px;gap:8px;align-items:end;border:1px dashed var(--line);border-radius:12px;padding:12px}
+.fcurso label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.fcurso .acts{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+.err{color:var(--bad);font-size:13px;font-weight:600;margin:0}
+.pasta{font-size:12.5px;color:var(--muted);margin:0}
+.priv{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:3px 10px}
+@media (max-width:900px){.pdl{grid-template-columns:1fr}.pess{flex-direction:row;overflow-x:auto;padding-bottom:4px}.pess button{width:auto;flex:none}.pess .tx small,.pess .ct{display:none}}
+@media (max-width:720px){.cols{grid-template-columns:1fr}.fcurso{grid-template-columns:1fr 1fr}.fcurso label:first-child{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow">Desenvolvimento da equipe</div><h1>PDL</h1>
+      <p class="lede">Pontos positivos, pontos de melhoria e cursos de cada colaborador. A própria pessoa e o gestor podem incluir.</p></div>
+    <span class="priv"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Só o colaborador e o gestor veem</span>
+  </div>
+  <div class="pdl" id="pdl">
+    <aside class="box" id="lado" hidden><h2>Equipe</h2><div class="pess" id="pess" role="list"></div></aside>
+    <main id="main" class="box" aria-live="polite"><p class="vz">Carregando…</p></main>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/anexos.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const GASM=Store.modo()==="gas";
+  let me=null, users=[], docs={}, alvo=null, confirma=null, cursoAberto=false;
+  let tt; const toast=m=>{const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600);};
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?"":v);}kids.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
+  const fd=s=>{const d=new Date(s);return isNaN(d)?"":d.toLocaleDateString("pt-BR");};
+  const fdi=s=>s&&/^\d{4}-\d{2}-\d{2}$/.test(s)?`${s.slice(8,10)}/${s.slice(5,7)}/${s.slice(0,4)}`:"";
+  const nomeDe=e=>{const u=users.find(x=>x.email===e);return u?(u.nome||e):(e||"").split("@")[0];};
+  const admin=()=>Auth.isAdmin();
+  const vazio=login=>({usuario:login,positivos:[],melhorias:[],cursos:[]});
+  const doc=login=>docs[login]||vazio(login);
+
+  /* ---------- acesso aos dados: no servidor as regras de quem vê e quem altera são conferidas pelo backend ---------- */
+  const LK="central-mkt:pdl-teste";
+  const lerLocal=()=>{try{return JSON.parse(localStorage.getItem(LK)||"{}");}catch(_){return {};}};
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  async function api(acao,r){
+    if(GASM)return GAS.api(Object.assign({acao},r||{}));
+    // modo de teste: mesmas regras, guardado só neste navegador
+    const D=lerLocal(), pode=l=>l===me.email||admin();
+    const salva=l=>{localStorage.setItem(LK,JSON.stringify(D));return {item:D[l]};};
+    if(acao==="pdlListar")return {itens:Object.values(D).filter(d=>pode(d.usuario))};
+    const l=String(r.usuario||"").toLowerCase(); if(!pode(l))throw new Error("Você só pode ver e alterar o seu próprio PDL.");
+    D[l]=Object.assign(vazio(l),D[l]||{});
+    if(acao==="pdlItem"){if(!String(r.texto||"").trim())throw new Error("Escreva o ponto antes de adicionar.");D[l][r.campo].push({id:uid(),texto:String(r.texto).trim(),por:me.email,em:new Date().toISOString()});return salva(l);}
+    if(acao==="pdlItemExcluir"){D[l][r.campo]=D[l][r.campo].filter(o=>o.id!==r.id);return salva(l);}
+    if(acao==="pdlCurso"){const c=r.curso;if(!String(c.nome||"").trim())throw new Error("Informe o nome do curso.");const L=D[l].cursos,i=c.id?L.findIndex(o=>o.id===c.id):-1;
+      const n=Object.assign(i>=0?L[i]:{id:uid(),por:me.email,em:new Date().toISOString()},{nome:c.nome.trim(),instituicao:c.instituicao||"",data:c.data||"",horas:+c.horas||0,anexos:c.anexos||[]});if(i>=0)L[i]=n;else L.push(n);return salva(l);}
+    if(acao==="pdlCursoExcluir"){D[l].cursos=D[l].cursos.filter(o=>o.id!==r.id);return salva(l);}
+  }
+  const guarda=r=>{if(r&&r.item){docs[r.item.usuario]=r.item;}render();};
+  async function acao(nome,r,ok){try{guarda(await api(nome,r));if(ok)toast(ok);return true;}catch(e){toast(e.message||"Não foi possível salvar");return false;}}
+
+  /* ---------- tela ---------- */
+  function pessoas(){
+    const lista=admin()?users.filter(u=>u.ativo!==false).sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email)):users.filter(u=>u.email===me.email);
+    return lista.length?lista:[me];
+  }
+  function renderLado(){
+    const L=pessoas(); $("lado").hidden=!admin(); $("pdl").classList.toggle("so",!admin());
+    const box=$("pess"); box.textContent="";
+    L.forEach(u=>{const d=doc(u.email);
+      box.append(el("button",{type:"button",role:"listitem","aria-current":String(u.email===alvo),onclick:()=>{alvo=u.email;confirma=null;cursoAberto=false;render();}},
+        Central.avatar(u),el("span",{class:"tx"},el("b",null,u.nome||u.email),el("small",null,u.cargo||""),
+          el("small",{class:"ct"},`${d.positivos.length} positivo${d.positivos.length===1?"":"s"} · ${d.melhorias.length} melhoria${d.melhorias.length===1?"":"s"} · ${d.cursos.length} curso${d.cursos.length===1?"":"s"}`))));});
+  }
+  const podeApagar=o=>admin()||o.por===me.email;
+  function btnX(chave,rotulo,fn){
+    if(confirma===chave)return el("button",{type:"button",class:"x conf","aria-label":"Confirmar remoção de "+rotulo,onclick:()=>{confirma=null;fn();}},"Remover?");
+    return el("button",{type:"button",class:"x","aria-label":"Remover "+rotulo,title:"Remover",onclick:()=>{confirma=chave;render();setTimeout(()=>{if(confirma===chave){confirma=null;render();}},4000);}},"×");
+  }
+  function coluna(campo,titulo,cls,dica){
+    const d=doc(alvo), L=(d[campo]||[]).slice().sort((a,b)=>String(b.em).localeCompare(String(a.em)));
+    const ta=el("textarea",{maxlength:"2000",placeholder:dica,"aria-label":"Novo: "+titulo});
+    const enviar=async()=>{const t=ta.value.trim();if(!t)return toast("Escreva o ponto antes de adicionar");b.disabled=true;
+      if(await acao("pdlItem",{usuario:alvo,campo,texto:t},"Ponto incluído"))ta.value="";b.disabled=false;};
+    const b=el("button",{type:"button",class:"btn primary",onclick:enviar},"Adicionar");
+    ta.addEventListener("keydown",e=>{if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();enviar();}});
+    return el("section",{class:"col "+cls},el("h3",null,el("i"),titulo,el("small",{class:"hint",style:"margin-left:auto"},String(L.length))),
+      L.length?el("ul",{class:"its"},...L.map(o=>el("li",{class:"it"},el("div",{class:"t"},el("p",null,o.texto),el("small",null,`${nomeDe(o.por)}${o.por===alvo?" (o próprio colaborador)":""} · ${fd(o.em)}`)),
+        podeApagar(o)?btnX(campo+o.id,"este ponto",()=>acao("pdlItemExcluir",{usuario:alvo,campo,id:o.id},"Ponto removido")):null))):el("p",{class:"vz"},"Nada registrado ainda."),
+      el("div",{class:"add"},ta,el("div",{class:"r"},b)));
+  }
+  function cursos(){
+    const d=doc(alvo), L=(d.cursos||[]).slice().sort((a,b)=>String(b.data||b.em).localeCompare(String(a.data||a.em)));
+    const lista=el("div",{class:"cursos"},...L.map(c=>{
+      const info=[c.instituicao,c.data?"concluído em "+fdi(c.data):"",c.horas?c.horas+" h":""].filter(Boolean).join(" · ");
+      const w=Anexos.widget({pdl:alvo,podeEditar:true,ref:"PDL: "+nomeDe(alvo)+" · "+c.nome,aceita:"application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp",
+        titulo:"Enviar comprovante (PDF ou foto)",privacidade:"Só o colaborador e o gestor abrem estes arquivos.",dica:"PDF, JPG, PNG ou WEBP · até 10 MB · fotos grandes são reduzidas",nome:nomeDe,aviso:toast,
+        lista:()=>((doc(alvo).cursos||[]).find(x=>x.id===c.id)||{}).anexos||[],
+        salvar:async A=>{const atual=(doc(alvo).cursos||[]).find(x=>x.id===c.id)||c;const r=await api("pdlCurso",{usuario:alvo,curso:Object.assign({},atual,{anexos:A})});if(r&&r.item)docs[alvo]=r.item;renderLado();}});
+      return el("article",{class:"curso"},el("div",{class:"h"},el("div",{class:"t"},el("b",null,c.nome),info?el("small",null,info):null,el("small",null,`cadastrado por ${nomeDe(c.por)} em ${fd(c.em)}`)),
+        podeApagar(c)?btnX("c"+c.id,"o curso "+c.nome,()=>acao("pdlCursoExcluir",{usuario:alvo,id:c.id},"Curso removido")):null),w);}),
+      !L.length?el("p",{class:"vz"},"Nenhum curso cadastrado ainda."):null);
+    let form=null;
+    if(cursoAberto){const n=el("input",{type:"text",maxlength:"200",required:true}),i=el("input",{type:"text",maxlength:"200"}),dt=el("input",{type:"date"}),h=el("input",{type:"number",min:"0",max:"9999",step:"1",inputmode:"numeric"});
+      const er=el("p",{class:"err",hidden:true});
+      form=el("div",{class:"fcurso"},el("label",null,"Nome do curso",n),el("label",null,"Instituição",i),el("label",null,"Data de conclusão",dt),el("label",null,"Carga horária (h)",h),er,
+        el("div",{class:"acts"},el("button",{type:"button",class:"btn",onclick:()=>{cursoAberto=false;render();}},"Cancelar"),
+          el("button",{type:"button",class:"btn primary",onclick:async ev=>{if(!n.value.trim()){er.textContent="Informe o nome do curso.";er.hidden=false;n.focus();return;}
+            ev.currentTarget.disabled=true;if(await acao("pdlCurso",{usuario:alvo,curso:{nome:n.value,instituicao:i.value,data:dt.value,horas:h.value,anexos:[]}},"Curso cadastrado. Agora envie o comprovante."))cursoAberto=false;render();}},"Salvar curso")));
+      setTimeout(()=>n.focus(),0);}
+    return el("section",{class:"box",style:"padding:0;border:0;gap:10px"},
+      el("div",{style:"display:flex;align-items:center;gap:10px;flex-wrap:wrap"},el("h2",null,"Cursos e certificados"),
+        !cursoAberto?el("button",{type:"button",class:"btn",style:"margin-left:auto",onclick:()=>{cursoAberto=true;render();}},"+ Cadastrar curso"):null),
+      form,lista,el("p",{class:"pasta"},`Os comprovantes ficam guardados no Drive, na pasta “Central de Marketing - PDL”, dentro da subpasta “${nomeDe(alvo)}”.`));
+  }
+  function render(){
+    renderLado(); const M=$("main"); M.textContent="";
+    const u=users.find(x=>x.email===alvo)||me;
+    M.append(el("div",{class:"cab"},Central.avatar(u,64),el("div",null,el("h2",null,u.nome||u.email),el("div",{class:"sub"},[u.cargo,alvo===me.email?"este é o seu PDL":""].filter(Boolean).join(" · ")))),
+      el("div",{class:"cols"},coluna("positivos","Pontos positivos","pos","Algo que a pessoa faz bem, com um exemplo…"),coluna("melhorias","Pontos de melhoria","mel","O que pode melhorar e como…")),
+      cursos());
+  }
+  async function carregar(){try{const r=await api("pdlListar");docs={};(r.itens||[]).forEach(d=>{if(d.usuario)docs[d.usuario]=d;});}catch(e){toast(e.message||"Não foi possível carregar o PDL");}render();}
+
+  Central.boot("pdl",user=>{me=user;alvo=user.email;
+    Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>Object.assign({},d.data()));if(!users.some(u=>u.email===alvo))alvo=me.email;render();});
+    carregar();});
+})();
+</script>
+</body>
+</html>
