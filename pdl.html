@@ -55,6 +55,8 @@ textarea{min-height:70px;resize:vertical}
 .fcurso{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) 160px 120px;gap:8px;align-items:end;border:1px dashed var(--line);border-radius:12px;padding:12px}
 .fcurso label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700;color:var(--muted)}
 .fcurso .acts{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+.fcurso .fc-arq,.fcurso .err,.fcurso .pasta{grid-column:1/-1}
+.fc-novo{padding:22px}
 .err{color:var(--bad);font-size:13px;font-weight:600;margin:0}
 .pasta{font-size:12.5px;color:var(--muted);margin:0}
 .priv{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:3px 10px}
@@ -152,24 +154,51 @@ textarea{min-height:70px;resize:vertical}
     const d=doc(alvo), L=(d.cursos||[]).slice().sort((a,b)=>String(b.data||b.em).localeCompare(String(a.data||a.em)));
     const lista=el("div",{class:"cursos"},...L.map(c=>{
       const info=[c.instituicao,c.data?"concluído em "+fdi(c.data):"",c.horas?c.horas+" h":""].filter(Boolean).join(" · ");
-      const w=Anexos.widget({pdl:alvo,podeEditar:true,ref:"PDL: "+nomeDe(alvo)+" · "+c.nome,aceita:"application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp",
-        titulo:"Enviar comprovante (PDF ou foto)",privacidade:"Só o colaborador e o gestor abrem estes arquivos.",dica:"PDF, JPG, PNG ou WEBP · até 10 MB · fotos grandes são reduzidas",nome:nomeDe,aviso:toast,
+      const w=Anexos.widget({pdl:alvo,compacto:true,podeEditar:true,ref:"PDL: "+nomeDe(alvo)+" · "+c.nome,aceita:"application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp",
+        titulo:"Adicionar outro comprovante",privacidade:"Só o colaborador e o gestor abrem estes arquivos.",dica:"PDF, JPG, PNG ou WEBP · até 10 MB · fotos grandes são reduzidas",nome:nomeDe,aviso:toast,
         lista:()=>((doc(alvo).cursos||[]).find(x=>x.id===c.id)||{}).anexos||[],
         salvar:async A=>{const atual=(doc(alvo).cursos||[]).find(x=>x.id===c.id)||c;const r=await api("pdlCurso",{usuario:alvo,curso:Object.assign({},atual,{anexos:A})});if(r&&r.item)docs[alvo]=r.item;renderLado();}});
       return el("article",{class:"curso"},el("div",{class:"h"},el("div",{class:"t"},el("b",null,c.nome),info?el("small",null,info):null,el("small",null,`cadastrado por ${nomeDe(c.por)} em ${fd(c.em)}`)),
         podeApagar(c)?btnX("c"+c.id,"o curso "+c.nome,()=>acao("pdlCursoExcluir",{usuario:alvo,id:c.id},"Curso removido")):null),w);}),
       !L.length?el("p",{class:"vz"},"Nenhum curso cadastrado ainda."):null);
+    // envio do certificado: escolhe o arquivo (PDF ou foto), preenche os dados do curso e salva tudo de uma vez
+    const ACE="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp";
+    const okTipo=f=>/^(application\/pdf|image\/(jpeg|png|webp))$/.test(f.type)||/\.(pdf|jpe?g|png|webp)$/i.test(f.name);
+    const escolher=f=>{if(!f)return;if(!okTipo(f))return toast("Envie o certificado em PDF ou foto (JPG, PNG ou WEBP)");if(f.size>15*1024*1024)return toast("Arquivo muito grande (máximo 10 MB)");cursoAberto=f;render();};
     let form=null;
-    if(cursoAberto){const n=el("input",{type:"text",maxlength:"200",required:true}),i=el("input",{type:"text",maxlength:"200"}),dt=el("input",{type:"date"}),h=el("input",{type:"number",min:"0",max:"9999",step:"1",inputmode:"numeric"});
-      const er=el("p",{class:"err",hidden:true});
-      form=el("div",{class:"fcurso"},el("label",null,"Nome do curso",n),el("label",null,"Instituição",i),el("label",null,"Data de conclusão",dt),el("label",null,"Carga horária (h)",h),er,
+    if(cursoAberto){const arq=cursoAberto instanceof File?cursoAberto:null;
+      const sugerido=arq?arq.name.replace(/\.[a-z0-9]+$/i,"").replace(/[-_]+/g," ").trim():"";
+      const n=el("input",{type:"text",maxlength:"200",required:true,value:sugerido}),i=el("input",{type:"text",maxlength:"200"}),dt=el("input",{type:"date"}),h=el("input",{type:"number",min:"0",max:"9999",step:"1",inputmode:"numeric"});
+      const er=el("p",{class:"err",hidden:true}), st=el("p",{class:"pasta",hidden:true});
+      const fin=el("input",{type:"file",accept:ACE,class:"anx-in","aria-label":"Escolher o certificado",onchange:ev=>{const f=ev.target.files&&ev.target.files[0];if(f&&okTipo(f)){cursoAberto=f;render();}else if(f)toast("Envie o certificado em PDF ou foto");}});
+      const arqBox=el("label",{class:"anx-d fc-arq"},arq?el("b",null,"📎 "+arq.name):el("b",null,"Escolher o certificado (PDF ou foto)"),el("small",null,arq?`${Anexos.tam(arq.size)} · toque para trocar`:"PDF, JPG, PNG ou WEBP · até 10 MB"),fin);
+      const salvar=async ev=>{const bt=ev.currentTarget;er.hidden=true;
+        if(!arq){er.textContent="Escolha o arquivo do certificado.";er.hidden=false;return;}
+        if(!n.value.trim()){er.textContent="Informe o nome do curso.";er.hidden=false;n.focus();return;}
+        bt.disabled=true;st.hidden=false;st.textContent="Enviando o certificado…";
+        let anexo;
+        try{anexo=await Anexos.enviar(arq,"PDL: "+nomeDe(alvo)+" · "+n.value.trim(),{pdl:alvo});}
+        catch(e){bt.disabled=false;st.hidden=true;er.textContent=(e&&e.message)||"Não foi possível enviar o arquivo.";er.hidden=false;return;}
+        st.textContent="Salvando o curso…";
+        if(await acao("pdlCurso",{usuario:alvo,curso:{nome:n.value,instituicao:i.value,data:dt.value,horas:h.value,anexos:[anexo]}},"Curso e certificado salvos"))cursoAberto=false;
+        else{bt.disabled=false;st.hidden=true;}
+        render();};
+      form=el("div",{class:"fcurso"},arqBox,el("label",null,"Nome do curso",n),el("label",null,"Instituição",i),el("label",null,"Data de conclusão",dt),el("label",null,"Carga horária (h)",h),er,st,
         el("div",{class:"acts"},el("button",{type:"button",class:"btn",onclick:()=>{cursoAberto=false;render();}},"Cancelar"),
-          el("button",{type:"button",class:"btn primary",onclick:async ev=>{if(!n.value.trim()){er.textContent="Informe o nome do curso.";er.hidden=false;n.focus();return;}
-            ev.currentTarget.disabled=true;if(await acao("pdlCurso",{usuario:alvo,curso:{nome:n.value,instituicao:i.value,data:dt.value,horas:h.value,anexos:[]}},"Curso cadastrado. Agora envie o comprovante."))cursoAberto=false;render();}},"Salvar curso")));
-      setTimeout(()=>n.focus(),0);}
+          el("button",{type:"button",class:"btn primary",onclick:salvar},"Salvar curso e certificado")));
+      setTimeout(()=>{if(arq)n.focus();},0);}
+    else {
+      // área sempre visível para enviar um certificado novo
+      const fin=el("input",{type:"file",accept:ACE,class:"anx-in","aria-label":"Enviar certificado de curso",onchange:ev=>{escolher(ev.target.files&&ev.target.files[0]);ev.target.value="";}});
+      form=el("label",{class:"anx-d fc-novo"});
+      form.innerHTML='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg><b>Enviar certificado de curso</b><small>Arraste o PDF ou a foto do certificado aqui, ou toque para escolher</small>';
+      form.append(fin);
+      ["dragenter","dragover"].forEach(t=>form.addEventListener(t,e=>{e.preventDefault();form.classList.add("on");}));
+      ["dragleave","drop"].forEach(t=>form.addEventListener(t,e=>{e.preventDefault();form.classList.remove("on");}));
+      form.addEventListener("drop",e=>escolher(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]));
+    }
     return el("section",{class:"box",style:"padding:0;border:0;gap:10px"},
-      el("div",{style:"display:flex;align-items:center;gap:10px;flex-wrap:wrap"},el("h2",null,"Cursos e certificados"),
-        !cursoAberto?el("button",{type:"button",class:"btn",style:"margin-left:auto",onclick:()=>{cursoAberto=true;render();}},"+ Cadastrar curso"):null),
+      el("div",{style:"display:flex;align-items:center;gap:10px;flex-wrap:wrap"},el("h2",null,"Cursos e certificados")),
       form,lista,el("p",{class:"pasta"},`Os comprovantes ficam guardados no Drive, na pasta “Central de Marketing - PDL”, dentro da subpasta “${nomeDe(alvo)}”.`));
   }
   function render(){
