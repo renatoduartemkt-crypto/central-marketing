@@ -762,6 +762,13 @@ function entradaRedes_(j) {
     const id = 'alcance-' + mes, a = ler_('metas_mensais', id), d = Object.assign({ tipo: 'alcance', mes: mes }, a ? a.dados : {});
     const em = new Date().toISOString();
     chaves.forEach(function (k) { d[k] = Object.assign({}, d[k] || {}, { realizado: numOk_(v[k]), auto: { fonte: String(j.fonte || 'mLabs').slice(0, 40), em: em, ate: String(j.ate || '').slice(0, 10) } }); });
+    // histórico do mês: uma leitura por dia (a mais recente do dia substitui a anterior), para o gráfico de evolução
+    const ate = /^\d{4}-\d{2}-\d{2}$/.test(j.ate || '') ? j.ate : em.slice(0, 10);
+    const serie = (Array.isArray(d.serie) ? d.serie : []).filter(function (x) { return x && x.ate !== ate; });
+    const ant = (Array.isArray(d.serie) ? d.serie : []).find(function (x) { return x && x.ate === ate; }) || {};
+    const ponto = Object.assign({}, ant, { ate: ate });
+    chaves.forEach(function (k) { ponto[k] = d[k].realizado; });
+    d.serie = serie.concat([ponto]).sort(function (x, y) { return x.ate < y.ate ? -1 : 1; }).slice(-62);
     d.atualizadoEm = em; d.atualizadoPor = ROTINA_;
     gravarLinha_('metas_mensais', id, d, ROTINA_, !a, a);
     return 'redes ' + mes + ': ' + chaves.map(function (k) { return k + '=' + d[k].realizado; }).join(', ');
