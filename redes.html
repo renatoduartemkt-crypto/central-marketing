@@ -204,6 +204,7 @@ textarea{min-height:76px;resize:vertical}
   <div id="anoBox" hidden></div>
 
   <section class="summary" id="summary" aria-label="Resumo do mês"></section>
+  <section class="resbox" aria-labelledby="resRT"><div class="reshd"><h2 id="resRT">Desempenho do mês</h2><a href="metas.html">Ver metas ›</a></div><div id="resRedes"></div></section>
 
   <div class="filters" aria-label="Filtros">
     <span class="eyebrow">Filtrar</span>
@@ -274,6 +275,7 @@ textarea{min-height:76px;resize:vertical}
 <script src="assets/js/store.js" charset="utf-8"></script>
 <script src="assets/js/auth.js" charset="utf-8"></script>
 <script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/resultados.js" charset="utf-8"></script>
 <script src="assets/js/custos.js" charset="utf-8"></script>
 <script>
 (function(){
@@ -391,7 +393,9 @@ textarea{min-height:76px;resize:vertical}
     l.append(el("span",null,"IG Instagram · FB Facebook · WA WhatsApp · IN LinkedIn"));
     if(canWrite)l.append(el("span",null,"Arraste os posts para trocar a data (calendário) ou o status (kanban)."));}
 
-  function render(){
+  let mensais={};
+  function renderRes(){const b=$("resRedes");if(!b||!window.Resultados)return;b.textContent="";b.append(Resultados.redes(mensais[`alcance-${Y}-${String(M+1).padStart(2,"0")}`],{ano:Y,mes:M+1}));}
+  function render(){renderRes();
     $("monthTitle").textContent=`${MESES[M]} ${Y}`;
     [...$("viewSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
     $("calView").hidden=view!=="cal"; $("kanView").hidden=view!=="kan";
@@ -524,6 +528,7 @@ textarea{min-height:76px;resize:vertical}
   Central.boot("redes",user=>{
     Custos.painel(document.getElementById("custosPanel"),{origem:"redes",titulo:"Custos com produção e impulsionamento",centroPadrao:"propaganda",tipos:[{k:"producao",n:"Produção"},{k:"impulsionamento",n:"Impulsionamento"}],refLabel:"Post (opcional)",refs:()=>posts.slice().sort((a,b)=>(b.data||"").localeCompare(a.data||"")).slice(0,80).map(p=>({id:p.id,nome:`${(p.data||"").slice(8,10)}/${(p.data||"").slice(5,7)} · ${p.titulo||"Post"}`}))});
     col=Store.collection("posts"); canWrite=true;
+    Store.collection("metas_mensais").onSnapshot(sn=>{mensais={};sn.docs.forEach(d=>mensais[d.id]=d.data());renderRes();});
     col.onSnapshot(sn=>{posts=Central.filtraOpta(sn.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data())));render();},()=>notice("Não foi possível carregar os posts. Recarregue a página."));
     render();
   });

@@ -209,6 +209,7 @@ textarea{min-height:76px;resize:vertical}
   </div>
 
   <section class="summary" id="summary" aria-label="Resumo do mês"></section>
+  <section class="resbox" aria-labelledby="resET"><div class="reshd"><h2 id="resET">Resultados do mês</h2><span class="hint">RD Station</span></div><div id="resEmails"></div></section>
 
   <div class="toolbar">
     <div class="filters">
@@ -305,6 +306,7 @@ textarea{min-height:76px;resize:vertical}
 <script src="assets/js/store.js" charset="utf-8"></script>
 <script src="assets/js/auth.js" charset="utf-8"></script>
 <script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/resultados.js" charset="utf-8"></script>
 <script>
 (function(){
   const NOW=new Date(); let YEAR=NOW.getFullYear(), MONTH=NOW.getMonth();
@@ -441,7 +443,8 @@ textarea{min-height:76px;resize:vertical}
     l.append(el("span",null,"★ segunda e quarta tiveram o melhor CTR no semestre"));
   }
 
-  function render(){
+  function renderRes(){const b=$("resEmails");if(!b||!window.Resultados)return;b.textContent="";b.append(Resultados.emails(emails,{ano:YEAR,mes:MONTH+1}));}
+  function render(){renderRes();
     $("monthTitle").textContent=`${MESES[MONTH]} ${YEAR}`;
     renderFilters(); renderSummary();
     [...$("viewSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
