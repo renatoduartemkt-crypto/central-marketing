@@ -177,6 +177,9 @@ textarea{min-height:76px;resize:vertical}
   .row2{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.res{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2)}
+.resg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.resg span{display:flex;flex-direction:column;font-weight:700;font-size:14px}.resg small{font-weight:600;color:var(--muted);font-size:11.5px}
 </style>
 </head>
 <body>
@@ -279,6 +282,7 @@ textarea{min-height:76px;resize:vertical}
     </div>
     <div class="field"><label for="fNotas">Observações</label>
       <textarea id="fNotas" maxlength="1000" placeholder="Oferta, link, responsável, briefing..."></textarea></div>
+      <div id="fRes" class="res" hidden></div>
 
     <p class="err" id="formErr" hidden></p>
 
@@ -497,6 +501,11 @@ textarea{min-height:76px;resize:vertical}
     document.querySelectorAll("input[name=seg]").forEach(i=>i.checked=sg.includes(i.value));
     document.querySelectorAll("input[name=uf]").forEach(i=>i.checked=uf.includes(i.value));
     $("fNome").value=e?(e.nome||""):""; $("fAssunto").value=e?(e.assunto||""):""; $("fNotas").value=e?(e.notas||""):""; setRadio("exec",e&&!asCopy?execOf(e):"nao_enviado");
+    // resultados do disparo, trazidos do RD Station pela rotina automática
+    const R=e&&!asCopy?e.resultados:null, fr=$("fRes"); fr.hidden=!R; fr.textContent="";
+    if(R){const n=v=>(+v||0).toLocaleString("pt-BR"); fr.append(el("b",null,"Resultado no RD Station"),
+      el("div",{class:"resg"},...[["Entregues",n(R.entregues||R.enviados)],["Aberturas",`${n(R.aberturas)} · ${String(R.taxaAbertura||0).replace(".",",")}%`],["Cliques",`${n(R.cliques)} · ${String(R.taxaClique||0).replace(".",",")}%`]].map(([a,b])=>el("span",null,el("small",null,a),b))),
+      el("small",{class:"hint"},`Atualizado automaticamente em ${new Date(R.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`));}
     $("fRep").value="nao"; $("fRepAte").value=""; document.querySelectorAll("input[name=rdow]").forEach(i=>i.checked=false);
     $("repLabel").textContent=editingId?"Repetir a partir desta data":"Repetir este e-mail";
     syncAll(); dayHint(); syncRepeat(); renderDel();
@@ -529,7 +538,7 @@ textarea{min-height:76px;resize:vertical}
     const body={data,hora:$("fHora").value||"",empresa:get("empresa"),tipo:get("tipo"),segs,estados,
       nome:$("fNome").value.trim(),assunto:$("fAssunto").value.trim(),notas:$("fNotas").value.trim(),execucao:get("exec")||"nao_enviado",atualizadoEm:new Date().toISOString()};
     const btn=$("saveBtn"); btn.disabled=true; const wasEdit=!!editingId;
-    try{ if(editingId){const prev=emails.find(e=>e.id===editingId);body.criadoEm=(prev&&prev.criadoEm)||body.atualizadoEm;await col.doc(editingId).set(body);}
+    try{ if(editingId){const prev=emails.find(e=>e.id===editingId);body.criadoEm=(prev&&prev.criadoEm)||body.atualizadoEm;if(prev&&prev.resultados)body.resultados=prev.resultados;await col.doc(editingId).set(body);}
          else{body.criadoEm=body.atualizadoEm;await col.add(body);}
          const {dates}=repeatDates(); let made=0;
          if(dates.length){const serie="s"+Date.now().toString(36);

@@ -294,10 +294,11 @@ table.cc{min-width:760px}
             el("div",{class:"gh"},el("b",null,g.n),el("span",{class:"pct"})),g.h?el("span",{class:"hint"},g.h):null,
             el("div",{class:"meter"},el("i")),
             el("div",{class:"row2"},el("div",{class:"field"},el("label",{for:g.k+"m"},g.dec?"Meta de ROAS":"Meta de "+g.mt),im),el("div",{class:"field"},el("label",{for:g.k+"r"},g.dec?"ROAS realizado":"Realizado ("+g.mt+")"),ir)),
-            el("div",{class:"rest"})));});
+            el("div",{class:"rest"}),el("span",{class:"hint auto"})));});
         mx.append(el("div",{class:"emp",style:`--ec:var(${e.c});--eb:var(${e.b})`},el("header",null,el("b",null,e.n),el("span",{class:"eyebrow",style:"color:inherit"},e.sub)),body));});}
     ALC.forEach(g=>{const box=mx.querySelector(`[data-g="${g.k}"]`); const v=val(g.k), meta=+v.meta||0, real=+v.realizado||0, p=meta?real/meta*100:0;
       box.querySelector(".pct").textContent=meta?pct(p):"—";
+      const au=box.querySelector(".auto"); if(au)au.textContent=v.auto&&v.auto.em?`Realizado atualizado automaticamente pelo ${v.auto.fonte||"mLabs"} em ${new Date(v.auto.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`:"";
       const bar=box.querySelector(".meter i"); bar.className=p>=100?"ok":""; bar.style.width=Math.min(100,p)+"%";
       box.querySelector(".rest").textContent=meta?(real>=meta?`Meta batida · ${fmtG(g,real-meta)} acima`:(g.dec?`Faltam ${fmtG(g,meta-real)} de ROAS (meta ${fmtG(g,meta)})`:`Faltam ${fmtG(g,meta-real)} ${g.un} (${pct(100-p)})`)):"Defina a meta do mês";
       const im=$(g.k+"m"), ir=$(g.k+"r"); if(document.activeElement!==im)im.value=meta?mostra(meta,g.dec||0):""; if(document.activeElement!==ir)ir.value=real?mostra(real,g.dec||0):"";});
