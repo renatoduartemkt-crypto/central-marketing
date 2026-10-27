@@ -31,6 +31,7 @@
  *  PASTA_RELATORIOS     id da pasta do Drive para os PDFs (senão cria "Central de Marketing - Relatórios")
  *  PASTA_ANEXOS         id da pasta privada dos anexos de tarefas e orçamentos (senão cria "Central de Marketing - Anexos")
  *  PASTA_PDL            id da pasta privada do PDL, com uma subpasta por colaborador (senão cria "Central de Marketing - PDL")
+ *  PASTA_ENTRADA        id da pasta onde a rotina automática (Claude Cowork) deixa os arquivos JSON de dados (senão cria "Central de Marketing - Entrada automática")
  *  IMPORTACAO_ID        id da planilha de importação de metas/projetado (usada por importarMetas)
  *
  * IMPORTANTE (armadilhas conhecidas): ao alterar este arquivo, cole-o INTEIRO no editor e crie uma
@@ -48,7 +49,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-22a';
+const VERSAO_API = '2026-10-23a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -732,6 +733,95 @@ function pdlCursoExcluir_(eu, r) {
     log_(eu.email, 'PDL: curso removido', 'pdl', docId_(login), c.nome);
     return pdlGravar_(eu, login, x);
   });
+}
+
+/* ======================= entrada automática (rotina diária do Claude Cowork) ======================= */
+// A rotina agendada lê o mLabs e o RD Station pelos conectores e grava um arquivo JSON na pasta "Central de Marketing - Entrada automática".
+// Este backend confere a pasta de hora em hora (gatilho criado por instalarGatilhos), valida e importa. Nada é apagado:
+// o arquivo vai para a subpasta "processados" (ou "com erro", com o motivo na descrição do arquivo).
+const ROTINA_ = 'rotina automática';
+const ENTRADA_REDES_ = ['ig_lopes', 'in_lopes'];   // mesmas chaves da página Metas (Instagram Lopes · alcance, LinkedIn Lopes · interações)
+function pastaEntrada_() {
+  const id = prop_('PASTA_ENTRADA');
+  if (id) return DriveApp.getFolderById(id);
+  const it = DriveApp.getFoldersByName('Central de Marketing - Entrada automática');
+  const f = it.hasNext() ? it.next() : DriveApp.createFolder('Central de Marketing - Entrada automática');
+  PropertiesService.getScriptProperties().setProperty('PASTA_ENTRADA', f.getId());
+  return f;
+}
+function subpasta_(pai, nome) { const it = pai.getFoldersByName(nome); return it.hasNext() ? it.next() : pai.createFolder(nome); }
+const numOk_ = v => { const n = Number(v); if (!isFinite(n) || n < 0) throw new Error('número inválido: ' + v); return n; };
+
+// números do mês das redes (mLabs): grava o "realizado" na página Metas, mantendo a meta definida pelo gestor
+function entradaRedes_(j) {
+  const mes = String(j.mes || '');
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error('mês inválido (use AAAA-MM).');
+  const v = j.valores || {}, chaves = Object.keys(v).filter(function (k) { return ENTRADA_REDES_.indexOf(k) >= 0; });
+  if (!chaves.length) throw new Error('nenhum valor reconhecido (use ' + ENTRADA_REDES_.join(', ') + ').');
+  return comLock_(function () {
+    const id = 'alcance-' + mes, a = ler_('metas_mensais', id), d = Object.assign({ tipo: 'alcance', mes: mes }, a ? a.dados : {});
+    const em = new Date().toISOString();
+    chaves.forEach(function (k) { d[k] = Object.assign({}, d[k] || {}, { realizado: numOk_(v[k]), auto: { fonte: String(j.fonte || 'mLabs').slice(0, 40), em: em, ate: String(j.ate || '').slice(0, 10) } }); });
+    d.atualizadoEm = em; d.atualizadoPor = ROTINA_;
+    gravarLinha_('metas_mensais', id, d, ROTINA_, !a, a);
+    return 'redes ' + mes + ': ' + chaves.map(function (k) { return k + '=' + d[k].realizado; }).join(', ');
+  });
+}
+// resultados dos disparos (RD Station): encontra o e-mail planejado do mesmo dia e grava os números nele
+const normT_ = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(function (w) { return w.length > 2; });
+function parecido_(a, b) { const A = normT_(a), B = normT_(b); if (!A.length || !B.length) return 0; const S = {}; B.forEach(function (w) { S[w] = 1; }); return A.filter(function (w) { return S[w]; }).length / Math.min(A.length, B.length); }
+function entradaEmails_(j) {
+  const itens = Array.isArray(j.itens) ? j.itens.slice(0, 200) : [];
+  if (!itens.length) throw new Error('lista "itens" vazia.');
+  return comLock_(function () {
+    const todos = listar_('emails'), feitos = [], soltos = [];
+    itens.forEach(function (it) {
+      const data = String(it.data || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { soltos.push((it.nome || '?') + ' (data inválida)'); return; }
+      const doDia = todos.filter(function (e) { return e.data === data; });
+      let melhor = null, nota = 0;
+      doDia.forEach(function (e) { const n = Math.max(parecido_(it.nome, e.nome), parecido_(it.assunto, e.assunto), parecido_(it.nome, e.assunto), parecido_(it.assunto, e.nome)); if (n > nota) { nota = n; melhor = e; } });
+      if (!melhor && doDia.length === 1) melhor = doDia[0];
+      if (!melhor || (doDia.length > 1 && nota < 0.5)) { soltos.push((it.nome || it.assunto || '?') + ' em ' + data); return; }
+      const env = numOk_(it.enviados || it.entregues || 0), ent = numOk_(it.entregues || it.enviados || 0), ab = numOk_(it.aberturas || 0), cl = numOk_(it.cliques || 0);
+      const a = ler_('emails', melhor.id), d = Object.assign({}, a ? a.dados : {});
+      d.resultados = { enviados: env, entregues: ent, aberturas: ab, cliques: cl, taxaAbertura: ent ? Math.round(ab / ent * 1000) / 10 : 0, taxaClique: ent ? Math.round(cl / ent * 1000) / 10 : 0,
+        nomeRd: String(it.nome || '').slice(0, 200), fonte: 'RD Station', em: new Date().toISOString() };
+      if (ent > 0) d.execucao = 'enviado';
+      d.atualizadoEm = d.resultados.em; d.atualizadoPor = ROTINA_;
+      gravarLinha_('emails', melhor.id, d, ROTINA_, !a, a);
+      feitos.push(d.nome || d.assunto || melhor.id);
+    });
+    return 'e-mails: ' + feitos.length + ' atualizado(s)' + (soltos.length ? '; sem correspondência no planejador: ' + soltos.join('; ') : '');
+  });
+}
+/** Executada pelo gatilho de hora em hora (e pode ser rodada à mão pelo editor). */
+function importarEntrada() {
+  const raiz = pastaEntrada_(), ok = subpasta_(raiz, 'processados'), ruim = subpasta_(raiz, 'com erro'), it = raiz.getFiles(), out = [];
+  while (it.hasNext()) {
+    const f = it.next();
+    if (!/\.json$/i.test(f.getName())) continue;
+    let msg, deu = true;
+    try {
+      const j = JSON.parse(f.getBlob().getDataAsString('UTF-8'));
+      if (j.tipo === 'redes_mensal') msg = entradaRedes_(j);
+      else if (j.tipo === 'emails_resultados') msg = entradaEmails_(j);
+      else throw new Error('tipo desconhecido: ' + j.tipo);
+    } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
+    f.setDescription(msg.slice(0, 1000));
+    f.moveTo(deu ? ok : ruim);
+    log_(ROTINA_, deu ? 'importar' : 'importar com erro', 'entrada', f.getId(), (f.getName() + ' · ' + msg).slice(0, 300));
+    out.push(f.getName() + ' → ' + msg);
+  }
+  return out.length ? out.join('\n') : 'nenhum arquivo novo';
+}
+/** Rode UMA vez pelo editor (Executar → instalarGatilhos). O Google vai pedir para autorizar os gatilhos automáticos. */
+function instalarGatilhos() {
+  soEditor_();
+  pastaEntrada_();
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'importarEntrada') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('importarEntrada').timeBased().everyHours(1).create();
+  return 'gatilho criado: importarEntrada de hora em hora · pasta de entrada: ' + pastaEntrada_().getUrl();
 }
 
 /* ======================= instalação ======================= */
