@@ -40,7 +40,8 @@
 
 const COLECOES = ['usuarios', 'emails', 'trafego_campanhas', 'posts', 'eventos', 'custos', 'centros_custo', 'brindes', 'brindes_mov',
                   'producao', 'metas_ecommerce', 'metas_mensais', 'tarefas', 'trafego_recargas', 'trafego_relatorios',
-                  'plan_config', 'plan_fases', 'plan_cotas', 'plan_eventos', 'plan_orcamento', 'plan_brindes', 'plan_acoes', 'plan_bi'];
+                  'plan_config', 'plan_fases', 'plan_cotas', 'plan_eventos', 'plan_orcamento', 'plan_brindes', 'plan_acoes', 'plan_bi',
+                  'rd_segmentacoes'];
 // coleções de dinheiro das contas de anúncio: quem criou fica registrado pelo servidor; só o autor ou um administrador apaga
 const COL_AUTORIA_ = ['trafego_recargas', 'trafego_relatorios'];
 const CHUNK = 45000;           // limite seguro por célula (o Sheets aceita 50.000 caracteres)
@@ -49,7 +50,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-23a';
+const VERSAO_API = '2026-10-28a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -794,12 +795,29 @@ function entradaEmails_(j) {
       const a = ler_('emails', melhor.id), d = Object.assign({}, a ? a.dados : {});
       d.resultados = { enviados: env, entregues: ent, aberturas: ab, cliques: cl, taxaAbertura: ent ? Math.round(ab / ent * 1000) / 10 : 0, taxaClique: ent ? Math.round(cl / ent * 1000) / 10 : 0,
         nomeRd: String(it.nome || '').slice(0, 200), fonte: 'RD Station', em: new Date().toISOString() };
+      // segmentações que o RD realmente usou no disparo (quando a rotina informa)
+      if (Array.isArray(it.segmentacoes)) d.resultados.segmentacoes = it.segmentacoes.slice(0, 30).map(function (x) {
+        return typeof x === 'object' && x ? { id: String(x.id || '').slice(0, 30), nome: String(x.nome || x.name || '').slice(0, 150) } : { id: '', nome: String(x).slice(0, 150) };
+      }).filter(function (x) { return x.nome; });
       if (ent > 0) d.execucao = 'enviado';
       d.atualizadoEm = d.resultados.em; d.atualizadoPor = ROTINA_;
       gravarLinha_('emails', melhor.id, d, ROTINA_, !a, a);
       feitos.push(d.nome || d.assunto || melhor.id);
     });
     return 'e-mails: ' + feitos.length + ' atualizado(s)' + (soltos.length ? '; sem correspondência no planejador: ' + soltos.join('; ') : '');
+  });
+}
+// lista de segmentações do RD Station: substitui a lista usada no formulário de e-mails (documento "lista")
+function entradaSegmentacoes_(j) {
+  const itens = (Array.isArray(j.itens) ? j.itens : []).slice(0, 500).map(function (x) {
+    return { id: String(x.id || '').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 30), nome: String(x.nome || x.name || '').trim().slice(0, 150), padrao: !!(x.padrao || x.standard) };
+  }).filter(function (x) { return x.id && x.nome; });
+  if (!itens.length) throw new Error('lista "itens" vazia ou sem id/nome.');
+  return comLock_(function () {
+    const a = ler_('rd_segmentacoes', 'lista');
+    const d = { itens: itens, total: itens.length, fonte: 'RD Station', atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ };
+    gravarLinha_('rd_segmentacoes', 'lista', d, ROTINA_, !a, a);
+    return 'segmentações do RD: ' + itens.length;
   });
 }
 /** Executada pelo gatilho de hora em hora (e pode ser rodada à mão pelo editor). */
@@ -813,6 +831,7 @@ function importarEntrada() {
       const j = JSON.parse(f.getBlob().getDataAsString('UTF-8'));
       if (j.tipo === 'redes_mensal') msg = entradaRedes_(j);
       else if (j.tipo === 'emails_resultados') msg = entradaEmails_(j);
+      else if (j.tipo === 'rd_segmentacoes') msg = entradaSegmentacoes_(j);
       else throw new Error('tipo desconhecido: ' + j.tipo);
     } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
     f.setDescription(msg.slice(0, 1000));
