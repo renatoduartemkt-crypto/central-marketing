@@ -317,7 +317,7 @@
       el("div", null, el("div", { class: "nm" }, x.nome), el("div", { class: "sb" }, [x.tipo, x.data ? fd(x.data).slice(0, 5) : ""].filter(Boolean).join(", "))),
       el("div", { class: "c2" }, el("div", null, [(x.ufs || []).join(", "), x.cidade].filter(Boolean).join(" | ") || "Praça a definir"), el("div", { class: "sb" }, x.publico ? `${x.publico} pessoas` : "")),
       el("div", { class: "c3" }, el("div", null, x.dri || "Sem responsável"), el("div", { class: "sb" }, "responsável")),
-      el("div", { class: "mo" }, el("div", null, brl0(+x.custo || 0)), el("div", { class: "sb" }, "custo bruto")), sitSelect(col, x));
+      el("div", { class: "mo" }, el("div", null, brl0(+x.custo || 0)), el("div", { class: "sb" }, Array.isArray(x.itensCusto) && x.itensCusto.length ? `${x.itensCusto.length} gasto${x.itensCusto.length === 1 ? "" : "s"} previsto${x.itensCusto.length === 1 ? "" : "s"}` : "custo bruto")), sitSelect(col, x));
     if (F.evVer === "cal") { B.append(calAnual(L)); return; }
     if (F.evVer === "evento") {
       const G = new Map(); L.forEach(x => { const k = String(x.nome || "").trim().toLowerCase(); if (!G.has(k)) G.set(k, []); G.get(k).push(x); });
@@ -945,14 +945,16 @@
       ["base2026", "Situação em 2026 (ex.: Diamante)", "text"], ["contato", "Contato", "text", null, "w2"], ["obs", "Observação", "textarea", null, "w2"]] },
     plan_eventos: { t: "Evento", f: [
       ["nome", "Evento", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_eventos], ["data", "Data", "date"], ["tipo", "Tipo", "text"], ["cidade", "Cidade", "text"], ["ufsTxt", "UF(s) (ex.: MS ou RO/AC)", "text"],
-      ["publico", "Público estimado", "number"], ["custo", "Custo bruto (R$)", "money"], ["custo2026", "Custo em 2026 (R$)", "money"],
-      ["metaReceita", "Meta de receita (R$)", "money"], ["dri", "Responsável", "text"], ["patrocinadores", "Indústrias patrocinadoras", "text", null, "w2"], ["obs", "Observação", "textarea", null, "w2"]] },
+      ["publico", "Público estimado", "number"], ["custo2026", "Custo em 2026 (R$)", "money"],
+      ["metaReceita", "Meta de receita (R$)", "money"], ["dri", "Responsável", "text"], ["patrocinadores", "Indústrias patrocinadoras", "text", null, "w2"],
+      ["itensCusto", "Orçamento do evento", "itens", null, "w2"], ["obs", "Observação", "textarea", null, "w2"]] },
     plan_acoes: { t: "Ação promocional", f: [
       ["nome", "Ação (ex.: Aniversário da Lopes, Zera Estoque)", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_acoes], ["tipo", "Tipo de ação", "select", TIPOS_AC],
       ["mes", "Mês", "select", mesesOpt], ["dri", "Responsável", "text"], ["inicio", "Início (opcional)", "date"], ["fim", "Fim (opcional)", "date"],
       ["canais", "Canais e peças", "multi", CANAIS, "w2"], ["objetivo", "Objetivo / mecânica (ofertas, prêmios, regras)", "textarea", null, "w2"],
       ["publico", "Público e praças (ex.: revendas MS e MT)", "text", null, "w2"], ["centro", "Centro de custo", "select", CENTROS.map(c => [c.c, `${c.c} · ${c.n}`])],
-      ["custo", "Custo previsto (R$)", "money"], ["verba", "Verba de indústria / parceiros (R$)", "money"], ["metaVendas", "Meta de vendas (R$)", "money"],
+      ["verba", "Verba de indústria / parceiros (R$)", "money"], ["metaVendas", "Meta de vendas (R$)", "money"],
+      ["itensCusto", "Orçamento da ação", "itens", null, "w2"],
       ["obs", "Observação", "textarea", null, "w2"]] },
     plan_brindes: { t: "Brinde", f: [
       ["descricao", "Descrição do brinde", "text", null, "w2"], ["etapa", "Situação", "select", SITUACOES.plan_brindes], ["finalidade", "Finalidade", "select", FIN.map(f => [f, f])],
@@ -963,6 +965,41 @@
       ["centro", "Centro de custo", "select", CENTROS.map(c => [c.c, `${c.c} · ${c.n}`])], ["categoria", "Categoria", "text"],
       ["descricao", "Descrição", "text", null, "w2"], ["valor", "Valor (R$)", "money"], ["mes", "Mês", "select", mesesOpt]] } };
   const REPETE = { plan_orcamento: "mes", plan_brindes: "mesPagamento", plan_acoes: "mes" };
+
+  /* orçamento de evento/ação: lista de gastos previstos; a soma vira o custo do item (é o que entra no Financeiro) */
+  const CATS_ORC = ["Estrutura e locação", "Alimentação e bebidas", "Brindes e prêmios", "Produção gráfica", "Mídia e divulgação", "Som, luz e palco", "Atrações e equipe", "Viagem e logística", "Taxas e serviços", "Outros"];
+  function orcamentoItens(col, v, travar){
+    let itens = Array.isArray(v.itensCusto) ? v.itensCusto.map(o => Object.assign({}, o)) : [];
+    if (!itens.length && +v.custo) itens = [{ descricao: "Valor previsto (lançado antes do orçamento detalhado)", categoria: "Outros", qtd: 1, unit: +v.custo }];
+    const box = el("div", { class: "pl-orc" }), corpo = el("div", { class: "pl-orc-l" }), tot = el("b", { class: "pl-orc-t" });
+    const dl = el("datalist", { id: "plOrcCats" }, ...CATS_ORC.map(c => el("option", { value: c })));
+    const totalDe = o => Math.round((+o.qtd || 0) * (+o.unit || 0) * 100) / 100;
+    const soma = () => Math.round(itens.reduce((t, o) => t + totalDe(o), 0) * 100) / 100;
+    const atual = () => { tot.textContent = brl(soma()); };
+    function linha(o, idx){
+      const d = el("input", { type: "text", maxlength: "160", placeholder: "Ex.: locação do espaço", value: o.descricao || "", "aria-label": "Descrição do gasto" });
+      const c = el("input", { type: "text", maxlength: "60", list: "plOrcCats", placeholder: "Categoria", value: o.categoria || "", "aria-label": "Categoria" });
+      const q = el("input", { type: "text", inputmode: "decimal", class: "q", value: o.qtd != null ? num(o.qtd).replace(/,00$/, "") : "1", "aria-label": "Quantidade" });
+      const u = el("input", { type: "text", inputmode: "decimal", class: "money", placeholder: "0,00", value: o.unit ? num(o.unit) : "", "aria-label": "Valor unitário" });
+      const t = el("span", { class: "pl-orc-v" }, brl(totalDe(o)));
+      const sync = () => { o.descricao = d.value.trim(); o.categoria = c.value.trim(); o.qtd = lerR(q.value) || 0; o.unit = lerR(u.value) || 0; t.textContent = brl(totalDe(o)); atual(); };
+      [d, c, q, u].forEach(x => { x.addEventListener("input", sync); if (travar) x.readOnly = true; });
+      const rm = travar ? null : el("button", { type: "button", class: "pl-orc-x", "aria-label": "Remover este gasto", title: "Remover", onclick: () => { itens.splice(itens.indexOf(o), 1); desenha(); } }, "×");
+      return el("div", { class: "pl-orc-r" }, d, c, q, u, t, rm);
+    }
+    function desenha(){ corpo.textContent = "";
+      if (!itens.length) corpo.append(el("p", { class: "pl-orc-vz" }, "Nenhum gasto previsto ainda. Adicione os orçamentos ou gastos do " + (col === "plan_eventos" ? "evento" : "ação") + "."));
+      itens.forEach((o, i) => corpo.append(linha(o, i))); atual(); }
+    box.append(el("div", { class: "pl-orc-h" }, el("span", null, col === "plan_eventos" ? "Orçamento do evento" : "Orçamento da ação"), el("small", null, "a soma é o custo que entra no Financeiro")),
+      el("div", { class: "pl-orc-cab", "aria-hidden": "true" }, el("span", null, "Descrição"), el("span", null, "Categoria"), el("span", null, "Qtd."), el("span", null, "Valor unit. (R$)"), el("span", null, "Total"), el("span")),
+      corpo, dl,
+      el("div", { class: "pl-orc-f" }, travar ? el("span") : el("button", { type: "button", class: "pl-btn", onclick: () => { itens.push({ descricao: "", categoria: "", qtd: 1, unit: 0 }); desenha(); const L = corpo.querySelectorAll(".pl-orc-r"); if (L.length) L[L.length - 1].querySelector("input").focus(); } }, "+ Adicionar gasto"),
+        el("span", { class: "pl-orc-tt" }, "Total ", tot)));
+    desenha();
+    box.ler = () => itens.filter(o => o.descricao || totalDe(o)).map(o => ({ descricao: o.descricao || "Sem descrição", categoria: o.categoria || "", qtd: +o.qtd || 0, unit: +o.unit || 0, total: totalDe(o) }));
+    box.total = soma;
+    return box;
+  }
 
   function form(col, x, preset){
     if (col === "plan_brindes") return formBrinde(x);
@@ -992,7 +1029,9 @@
       else if (tipo === "check") { i = el("input", { type: "checkbox", style: "width:auto" }); i.checked = !!v[k]; }
       else if (tipo === "multi") { i = el("div", { class: "pl-meses pl-multi" }, ...opts.map(([a, b]) => el("label", null, el("input", { type: "checkbox", value: a, checked: (v[k] || []).includes(a) ? true : null }), b))); }
       else if (tipo === "money") i = el("input", { type: "text", class: "money", inputmode: "decimal", placeholder: "0,00", value: v[k] ? num(v[k]) : "" });
+      else if (tipo === "itens") i = orcamentoItens(col, v, !pode(k));
       else i = el("input", { type: tipo === "number" ? "text" : tipo, inputmode: tipo === "number" ? "numeric" : null, value: v[k] != null ? String(v[k]) : "" });
+      if (tipo === "itens") { ins[k] = i; bd.append(el("div", { class: "w2" }, i)); return; }
       if (!pode(k)) { i.readOnly = true; if (i.tagName === "SELECT" || i.type === "checkbox") i.disabled = true; if (tipo === "multi") i.querySelectorAll("input").forEach(c => c.disabled = true); }
       ins[k] = i;
       bd.append(tipo === "multi" ? el("div", { class: cls || "w2" }, el("label", null, lab), i) : el("label", { class: cls || (tipo === "check" ? "w2" : "") }, lab, i));
@@ -1017,19 +1056,21 @@
     }
     if (col === "plan_acoes") {
       const prev = el("p", { class: "pl-prev w2" }); bd.append(prev);
-      const calc = () => { const c = lerR(ins.custo.value), vb = lerR(ins.verba.value), mv = lerR(ins.metaVendas.value);
-        prev.textContent = `Custo líquido: ${brl(Math.max(0, c - vb))}${c && mv ? ` · custo = ${pct(c / mv * 100)} da meta de vendas` : ""} · o custo previsto entra no Painel financeiro do planejamento (centro ${ins.centro.value}).`; };
+      const calc = () => { const c = ins.itensCusto.total(), vb = lerR(ins.verba.value), mv = lerR(ins.metaVendas.value);
+        prev.textContent = `Custo previsto: ${brl(c)}${vb ? ` · líquido de verba: ${brl(Math.max(0, c - vb))}` : ""}${c && mv ? ` · custo = ${pct(c / mv * 100)} da meta de vendas` : ""} · entra no Financeiro (centro ${ins.centro.value}).`; };
       bd.addEventListener("input", calc); bd.addEventListener("change", calc); calc();
     }
     if (col === "plan_eventos") {
       const prev = el("p", { class: "pl-prev w2" }); bd.append(prev);
-      const calc = () => { const c = lerR(ins.custo.value), c26 = lerR(ins.custo2026.value);
+      const calc = () => { const c = ins.itensCusto.total(), c26 = lerR(ins.custo2026.value);
         prev.textContent = `Custo bruto: ${brl(c)}${c26 && c ? ` · ${c >= c26 ? "+" : ""}${Math.round((c - c26) / c26 * 100)}% em relação a 2026` : ""} · entra no centro 200022 do Financeiro. Patrocínios e cotas ficam no Plano de trade.`; };
-      bd.addEventListener("input", calc); calc();
+      bd.addEventListener("input", calc); bd.addEventListener("click", () => setTimeout(calc, 0)); calc();
     }
+    if (col === "plan_acoes") bd.addEventListener("click", () => setTimeout(() => bd.dispatchEvent(new Event("change")), 0));
     const err = el("p", { class: "pl-err", hidden: true }); bd.append(err);
     const ler = () => { const o = {};
       sp.f.forEach(([k, , tipo]) => { const i = ins[k]; if (!pode(k)) return;
+        if (tipo === "itens") { o.itensCusto = i.ler(); o.custo = i.total(); return; }
         o[k] = tipo === "multi" ? [...i.querySelectorAll("input:checked")].map(c => c.value) : tipo === "money" ? lerR(i.value) : tipo === "number" ? (i.value.trim() === "" ? null : Math.round(lerR(i.value))) : tipo === "check" ? i.checked : i.value.trim(); });
       if (col === "plan_fases" && o.fase != null) o.fase = +o.fase;
       if (col === "plan_orcamento" && o.mes != null) { o.mes = +o.mes; const f = (CATS[o.centro] || []).find(c => c[1] === o.categoria); if (f) o.categoria = f[0]; }
