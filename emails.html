@@ -105,6 +105,11 @@ h1 span{color:var(--accent)}
 .chip.sent .l2{text-decoration:line-through}
 .chip .segs{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
 .chip .sg{font-size:10px;font-weight:700;line-height:1.3;border-radius:4px;padding:1px 5px;background:var(--surface);color:var(--fg);white-space:nowrap}
+.chip .sg-rd{background:var(--surface);color:var(--fg);max-width:100%;white-space:normal;overflow-wrap:anywhere;text-align:left}.chip .sg-ok{background:var(--ok-bg);color:var(--ok)}
+.seglist{display:flex;flex-direction:column;gap:2px;max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--surface)}
+.segop{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:13.5px;cursor:pointer}.segop:hover{background:var(--surface-2)}.segop.velha span{color:var(--muted);font-style:italic}
+.segop input{width:18px;height:18px;flex:none;accent-color:var(--accent)}
+#segBusca{margin-bottom:6px}
 .chip .sg-engajados{background:var(--accent-soft);color:var(--accent)}.chip .sg-novos{background:var(--info-bg);color:var(--info)}.chip .sg-indeterminados{background:var(--surface-2);color:var(--muted)}
 .chip:hover{filter:brightness(.97)}
 .warnday{font-size:10.5px;color:var(--warn);font-weight:600}
@@ -259,8 +264,10 @@ textarea{min-height:76px;resize:vertical}
     <div class="field"><span class="lab">Tipo de e-mail</span><div class="opts" id="oTipo"></div></div>
     <div class="field"><span class="lab">Estados <span class="hint">(marque um ou mais)</span></span>
       <div class="opts" id="oUF"></div></div>
-    <div class="field"><span class="lab">Segmentações <span class="hint">(marque uma ou mais)</span></span>
-      <div class="opts" id="oSeg"></div></div>
+    <div class="field"><span class="lab">Segmentações do RD Station <span class="hint">(marque uma ou mais)</span></span>
+      <input type="search" id="segBusca" placeholder="Buscar segmentação…" aria-label="Buscar segmentação" autocomplete="off">
+      <div class="seglist" id="oSeg" role="group" aria-label="Segmentações"></div>
+      <span class="hint" id="segInfo"></span></div>
 
     <div class="field"><label for="fNome">Nome / tema da campanha</label>
       <input type="text" id="fNome" maxlength="120" placeholder="Ex.: Ofertas da Semana MS"></div>
@@ -341,7 +348,13 @@ textarea{min-height:76px;resize:vertical}
   const todayIso=()=>{const n=new Date();return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;};
   const inMonth=e=>(e.data||"").slice(0,7)===`${YEAR}-${pad(MONTH+1)}`;
   const ufLabel=e=>{const u=ufsOf(e);return u.length===UFS.length?"Todos os estados":(u.join(", ")||"—");};
-  const segNames=e=>segsOf(e).map(k=>(by(SEGS,k)||{short:k}).short).join(", ")||"—";
+  // segmentações do RD Station (lista atualizada pela rotina diária); as 3 antigas do site continuam valendo nos e-mails antigos
+  let RD={itens:[],atualizadoEm:""};
+  const segNome=(e,k)=>{const l=by(SEGS,k); if(l)return l.short; if(String(k).startsWith("rd:")){const r=RD.itens.find(x=>"rd:"+x.id===k); if(r)return r.nome; const g=(e&&e.segsNomes)||{}; return g[k]||"Segmentação "+k.slice(3);} return k;};
+  // o que mostrar: o que o RD informou no disparo (foi) ou, antes disso, o que foi planejado (será)
+  const segsVer=e=>{const R=e.resultados&&Array.isArray(e.resultados.segmentacoes)&&e.resultados.segmentacoes.length?e.resultados.segmentacoes:null;
+    return R?{rd:true,itens:R.map(x=>({k:x.id?"rd:"+x.id:"", n:x.nome}))}:{rd:false,itens:segsOf(e).map(k=>({k,n:segNome(e,k)}))};};
+  const segNames=e=>segsVer(e).itens.map(x=>x.n).join(", ")||"—";
   const segLabel=e=>`${ufLabel(e)} · ${segNames(e)}`;
   const vars=(c,b)=>`--c:var(${c});--cbg:var(${b})`;
 
@@ -371,7 +384,9 @@ textarea{min-height:76px;resize:vertical}
     s.append(block("Por empresa",EMPRESAS,(e,it)=>e.empresa===it.k,it=>`var(${it.c})`));
     s.append(block("Por tipo",TIPOS.map(t=>Object.assign({},t,{short:t.k==="descadastramento"?"Descadastro":t.n})),(e,it)=>e.tipo===it.k,it=>`var(${it.c})`));
     s.append(block("Por estado",UFS.map(u=>({k:u,n:u})),(e,it)=>ufsOf(e).includes(it.k),()=>"var(--navy)"));
-    s.append(block("Por segmentação",SEGS,(e,it)=>segsOf(e).includes(it.k),()=>"var(--accent)"));
+    const usadas={}; list.forEach(e=>segsVer(e).itens.forEach(x=>{usadas[x.n]=(usadas[x.n]||0)+1;}));
+    const topS=Object.entries(usadas).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n])=>({k:n,n,short:n.length>22?n.slice(0,21)+"…":n}));
+    s.append(block("Por segmentação",topS,(e,it)=>segsVer(e).itens.some(x=>x.n===it.k),()=>"var(--accent)"));
   }
 
   // calendário
@@ -383,7 +398,9 @@ textarea{min-height:76px;resize:vertical}
       el("span",{class:"flagx",style:`--sc:var(${ex.c})`},"● "+ex.n),
       el("span",{class:"l2"},e.nome||e.assunto||segNames(e)),
       el("span",{class:"l2 h",style:"font-family:var(--mono);font-size:10.5px;color:var(--muted)"},ufLabel(e)),
-      segsOf(e).length?el("span",{class:"segs","aria-label":"Segmentações: "+segNames(e)},...segsOf(e).map(k=>el("span",{class:"sg sg-"+k},(by(SEGS,k)||{short:k}).short))):null);
+      (()=>{const V=segsVer(e);return V.itens.length?el("span",{class:"segs","aria-label":(V.rd?"Segmentações usadas no RD: ":"Segmentações planejadas: ")+segNames(e)},
+        V.rd?el("span",{class:"sg sg-ok",title:"Segmentação confirmada pelo RD Station no disparo"},"✓ RD"):null,
+        ...V.itens.map(x=>el("span",{class:"sg "+(by(SEGS,x.k)?"sg-"+x.k:"sg-rd"),title:x.n},x.n))):null;})());
   }
   function renderCal(){
     const dow=$("dow"); dow.textContent="";
@@ -460,7 +477,18 @@ textarea{min-height:76px;resize:vertical}
   function buildOpts(host,items,name,type){host.textContent="";items.forEach(it=>{const k=typeof it==="string"?it:it.k, n=typeof it==="string"?it:it.n;const style=it.c?vars(it.c,it.b):null;host.append(el("label",{class:"opt",style},el("input",{type,name,value:k,id:`${name}-${k}`}),el("span",null,n)));});}
   buildOpts($("oEmpresa"),EMPRESAS,"empresa","radio");
   buildOpts($("oTipo"),TIPOS,"tipo","radio");
-  buildOpts($("oSeg"),SEGS,"seg","checkbox");
+  // lista de segmentações no formulário: as do RD (com busca) + as antigas do site que o e-mail já usa
+  let segEdit=null;
+  function montarSegs(sel){const host=$("oSeg"); const marcadas=new Set(sel||[...host.querySelectorAll("input:checked")].map(i=>i.value)); host.textContent="";
+    const ops=RD.itens.map(x=>({k:"rd:"+x.id,n:x.nome,pad:x.padrao}));
+    marcadas.forEach(k=>{if(!ops.some(o=>o.k===k))ops.unshift({k,n:segNome(segEdit,k)+(by(SEGS,k)?" (antiga, do site)":" (não está mais no RD)"),velha:true});});
+    ops.sort((a,b)=>(marcadas.has(b.k)-marcadas.has(a.k))||(!!a.pad-!!b.pad)||a.n.localeCompare(b.n,"pt-BR"));
+    ops.forEach(o=>host.append(el("label",{class:"segop"+(o.velha?" velha":""),"data-n":o.n.toLowerCase()},el("input",{type:"checkbox",name:"seg",value:o.k,checked:marcadas.has(o.k)?true:null}),el("span",null,o.n))));
+    if(!ops.length)host.append(el("p",{class:"hint",style:"margin:6px"},"A lista de segmentações chega pela rotina diária do RD Station."));
+    $("segInfo").textContent=RD.atualizadoEm?`${RD.itens.length} segmentações do RD · lista atualizada em ${new Date(RD.atualizadoEm).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`:"";
+    filtraSegs();}
+  const filtraSegs=()=>{const q=$("segBusca").value.trim().toLowerCase(); $("oSeg").querySelectorAll(".segop").forEach(l=>{l.hidden=!!q&&!l.dataset.n.includes(q)&&!l.querySelector("input").checked;});};
+  $("segBusca").addEventListener("input",filtraSegs);
   buildOpts($("oUF"),UFS,"uf","checkbox");
   $("oUF").append(el("label",{class:"opt all"},el("input",{type:"checkbox",id:"uf-all"}),el("span",null,"Todos")));
   $("uf-all").addEventListener("change",ev=>{document.querySelectorAll("input[name=uf]").forEach(i=>i.checked=ev.target.checked);});
@@ -504,14 +532,15 @@ textarea{min-height:76px;resize:vertical}
     editingId=e&&!asCopy?e.id:null; $("formTitle").textContent=asCopy?"Duplicar e-mail":e?"Editar e-mail":"Novo e-mail"; $("formErr").hidden=true;
     $("fData").value=date||(e?e.data:iso(Math.min(31,Math.max(1,new Date().getMonth()===MONTH?new Date().getDate():1))));
     $("fHora").value=e?(e.hora||""):"06:00";
-    setRadio("empresa",e?e.empresa:"lopes"); setRadio("tipo",e?e.tipo:"ofertas"); const sg=e?segsOf(e):["engajados"], uf=e?ufsOf(e):[];
-    document.querySelectorAll("input[name=seg]").forEach(i=>i.checked=sg.includes(i.value));
+    setRadio("empresa",e?e.empresa:"lopes"); setRadio("tipo",e?e.tipo:"ofertas"); const sg=e?segsOf(e):[], uf=e?ufsOf(e):[]; segEdit=e;
+    montarSegs(sg);
     document.querySelectorAll("input[name=uf]").forEach(i=>i.checked=uf.includes(i.value));
     $("fNome").value=e?(e.nome||""):""; $("fAssunto").value=e?(e.assunto||""):""; $("fNotas").value=e?(e.notas||""):""; setRadio("exec",e&&!asCopy?execOf(e):"nao_enviado");
     // resultados do disparo, trazidos do RD Station pela rotina automática
     const R=e&&!asCopy?e.resultados:null, fr=$("fRes"); fr.hidden=!R; fr.textContent="";
     if(R){const n=v=>(+v||0).toLocaleString("pt-BR"); fr.append(el("b",null,"Resultado no RD Station"),
       el("div",{class:"resg"},...[["Entregues",n(R.entregues||R.enviados)],["Aberturas",`${n(R.aberturas)} · ${String(R.taxaAbertura||0).replace(".",",")}%`],["Cliques",`${n(R.cliques)} · ${String(R.taxaClique||0).replace(".",",")}%`]].map(([a,b])=>el("span",null,el("small",null,a),b))),
+      Array.isArray(R.segmentacoes)&&R.segmentacoes.length?el("span",{class:"hint"},"Segmentação usada no RD: "+R.segmentacoes.map(x=>x.nome).join(", ")):null,
       el("small",{class:"hint"},`Atualizado automaticamente em ${new Date(R.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`));}
     $("fRep").value="nao"; $("fRepAte").value=""; document.querySelectorAll("input[name=rdow]").forEach(i=>i.checked=false);
     $("repLabel").textContent=editingId?"Repetir a partir desta data":"Repetir este e-mail";
@@ -542,7 +571,8 @@ textarea{min-height:76px;resize:vertical}
     if(!data){$("formErr").hidden=false;$("formErr").textContent="Escolha a data de envio.";return;}
     if(!estados.length){$("formErr").hidden=false;$("formErr").textContent="Marque pelo menos um estado.";return;}
     if(!segs.length){$("formErr").hidden=false;$("formErr").textContent="Marque pelo menos uma segmentação.";return;}
-    const body={data,hora:$("fHora").value||"",empresa:get("empresa"),tipo:get("tipo"),segs,estados,
+    const segsNomes={}; segs.forEach(k=>{segsNomes[k]=segNome(segEdit,k);});
+    const body={data,hora:$("fHora").value||"",empresa:get("empresa"),tipo:get("tipo"),segs,segsNomes,estados,
       nome:$("fNome").value.trim(),assunto:$("fAssunto").value.trim(),notas:$("fNotas").value.trim(),execucao:get("exec")||"nao_enviado",atualizadoEm:new Date().toISOString()};
     const btn=$("saveBtn"); btn.disabled=true; const wasEdit=!!editingId;
     try{ if(editingId){const prev=emails.find(e=>e.id===editingId);body.criadoEm=(prev&&prev.criadoEm)||body.atualizadoEm;if(prev&&prev.resultados)body.resultados=prev.resultados;await col.doc(editingId).set(body);}
@@ -557,7 +587,7 @@ textarea{min-height:76px;resize:vertical}
   // copiar tabela (cola direto no Excel / Sheets)
   $("copyBtn").onclick=async()=>{
     const rows=[["Data","Dia","Hora","Empresa","Tipo","Estados","Segmentações","Campanha","Assunto","Execução","Observações"]];
-    sorted(filtered()).forEach(e=>rows.push([fmtDate(e.data)+"/"+e.data.slice(0,4),DOW[dowIdx(e.data)],e.hora||"",(by(EMPRESAS,e.empresa)||{}).n||"",(by(TIPOS,e.tipo)||{}).n||"",ufLabel(e),segsOf(e).map(k=>(by(SEGS,k)||{n:k}).n).join(", "),e.nome||"",e.assunto||"",by(EXEC,execOf(e)).n,(e.notas||"").replace(/\s+/g," ")]));
+    sorted(filtered()).forEach(e=>rows.push([fmtDate(e.data)+"/"+e.data.slice(0,4),DOW[dowIdx(e.data)],e.hora||"",(by(EMPRESAS,e.empresa)||{}).n||"",(by(TIPOS,e.tipo)||{}).n||"",ufLabel(e),segNames(e),e.nome||"",e.assunto||"",by(EXEC,execOf(e)).n,(e.notas||"").replace(/\s+/g," ")]));
     const tsv=rows.map(r=>r.map(c=>String(c).replace(/\t/g," ")).join("\t")).join("\n");
     try{await navigator.clipboard.writeText(tsv);toast(`${rows.length-1} e-mails copiados. Cole no Excel ou Sheets`);}
     catch(_){const ta=el("textarea",{style:"position:fixed;top:10px;left:10px;width:80vw;height:40vh;z-index:40"});ta.value=tsv;document.body.append(ta);ta.select();toast("Pressione Ctrl+C para copiar");ta.addEventListener("blur",()=>ta.remove());}
@@ -570,6 +600,7 @@ textarea{min-height:76px;resize:vertical}
 
   Central.boot("emails",user=>{
     col=Store.collection("emails"); canWrite=true;
+    Store.collection("rd_segmentacoes").onSnapshot(sn=>{const d=sn.docs.find(x=>x.id==="lista");RD=d?Object.assign({itens:[]},d.data()):{itens:[],atualizadoEm:""};if(!$("overlay").hidden)montarSegs();render();});
     col.onSnapshot(snap=>{emails=Central.filtraOpta(snap.docs.filter(d=>d.exists).map(d=>Object.assign({id:d.id},d.data())));render(); if(!$("overlay").hidden)dayHint();},
       ()=>notice("Não foi possível carregar os e-mails. Recarregue a página."));
   });
