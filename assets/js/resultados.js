@@ -91,9 +91,18 @@
     if (L.length) {
       box.append(h("div", { class: "rs-gt" }, "Taxa de abertura de cada disparo (dia do mês)"), grafBarras(L, { alto: compacto ? 100 : 150 }));
       if (!compacto) {
-        const top = L.slice().sort((a, b) => (+b.resultados.taxaAbertura || 0) - (+a.resultados.taxaAbertura || 0)).slice(0, 3);
-        box.append(h("div", { class: "rs-top" }, h("small", null, "Melhores aberturas do mês"),
-          ...top.map(e => h("div", { class: "rs-tl" }, h("span", null, `${(e.data || "").slice(8, 10)}/${(e.data || "").slice(5, 7)} · ${e.nome || e.assunto || "E-mail"}`), h("b", null, pctTx(e.resultados.taxaAbertura))))));
+        // ranking: só entram e-mails com pelo menos 50 entregues (envios de teste distorcem a taxa)
+        const MIN = 50, ok = L.filter(e => (+(e.resultados.entregues || e.resultados.enviados) || 0) >= MIN);
+        const ord = ok.slice().sort((a, b) => (+b.resultados.taxaAbertura || 0) - (+a.resultados.taxaAbertura || 0) || (+b.resultados.taxaClique || 0) - (+a.resultados.taxaClique || 0));
+        const melhores = ord.slice(0, 5), piores = ord.slice().reverse().filter(e => !melhores.includes(e) || ord.length <= 5).slice(0, 5);
+        const linhaR = (e, i) => { const r = e.resultados, n = (r.envios || []).length;
+          return h("div", { class: "rs-rk" }, h("span", { class: "rs-rn" }, String(i + 1)),
+            h("span", { class: "rs-rt" }, h("b", null, e.nome || e.assunto || "E-mail"),
+              h("small", null, `${(e.data || "").slice(8, 10)}/${(e.data || "").slice(5, 7)} · ${curto(r.entregues || r.enviados)} entregues${n > 1 ? ` em ${n} disparos` : ""} · ${pctTx(r.taxaClique)} de cliques`)),
+            h("b", { class: "rs-rv" }, pctTx(r.taxaAbertura))); };
+        const col = (tit, cls, lista) => h("section", { class: "rs-rkc " + cls }, h("h4", null, tit), lista.length ? lista.map(linhaR) : h("p", { class: "rs-vz" }, "Sem e-mails suficientes ainda."));
+        box.append(h("div", { class: "rs-rks" }, col("5 melhores aberturas", "bom", melhores), col("5 piores aberturas", "ruim", piores)));
+        if (ok.length < L.length) box.append(h("p", { class: "rs-ft" }, `${L.length - ok.length} e-mail(s) com menos de ${MIN} entregues ficaram fora do ranking (envios de teste ou listas muito pequenas).`));
       }
       const ult = L.reduce((m, e) => (e.resultados.em > m ? e.resultados.em : m), "");
       box.append(h("p", { class: "rs-ft" }, `Números do RD Station, atualizados automaticamente em ${dataHora(ult)}.`));
