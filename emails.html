@@ -188,6 +188,7 @@ textarea{min-height:76px;resize:vertical}
 .res{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface-2)}
 .resg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .resg span{display:flex;flex-direction:column;font-weight:700;font-size:14px}.resg small{font-weight:600;color:var(--muted);font-size:11.5px}
+.resenv{display:flex;flex-direction:column;gap:3px;font-size:12.5px}.resenv>div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:3px}.resenv span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -541,6 +542,7 @@ textarea{min-height:76px;resize:vertical}
     if(R){const n=v=>(+v||0).toLocaleString("pt-BR"); fr.append(el("b",null,"Resultado no RD Station"),
       el("div",{class:"resg"},...[["Entregues",n(R.entregues||R.enviados)],["Aberturas",`${n(R.aberturas)} · ${String(R.taxaAbertura||0).replace(".",",")}%`],["Cliques",`${n(R.cliques)} · ${String(R.taxaClique||0).replace(".",",")}%`]].map(([a,b])=>el("span",null,el("small",null,a),b))),
       Array.isArray(R.segmentacoes)&&R.segmentacoes.length?el("span",{class:"hint"},"Segmentação usada no RD: "+R.segmentacoes.map(x=>x.nome).join(", ")):null,
+      Array.isArray(R.envios)&&R.envios.length>1?el("div",{class:"resenv"},el("small",{class:"hint"},`${R.envios.length} disparos no RD`),...R.envios.map(x=>el("div",null,el("span",null,x.nome),el("b",null,`${String(x.taxaAbertura||0).replace(".",",")}% · ${(+x.entregues||0).toLocaleString("pt-BR")}`)))):null,
       el("small",{class:"hint"},`Atualizado automaticamente em ${new Date(R.em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}`));}
     $("fRep").value="nao"; $("fRepAte").value=""; document.querySelectorAll("input[name=rdow]").forEach(i=>i.checked=false);
     $("repLabel").textContent=editingId?"Repetir a partir desta data":"Repetir este e-mail";
