@@ -508,10 +508,12 @@
     if (!L.length) { B.append(el("div", { class: "pl-empty" }, "Nenhuma compra com esses filtros.")); return; }
     const todos = gruposBr(D.brindes);
     const contaN = x => (CONTAS_BR.find(k => k[0] === (x.conta || "200023")) || ["", "Outra conta"])[1];
+    const fotosDe = x => { const g = todos.get(bid(x)) || [x], f = (g.find(d => Array.isArray(d.fotos) && d.fotos.length) || {}).fotos || [];
+      return f.length ? el("div", { class: "pl-thumbs", "aria-label": `${f.length} foto${f.length === 1 ? "" : "s"} do brinde` }, ...f.slice(0, 3).map(o => el("img", { src: o.thumb, alt: "" }))) : null; };
     const linha = x => { const g = todos.get(bid(x)) || [x], n = g.length, pos = g.indexOf(x) + 1;
       return el("li", { class: "pl-row" + (etapa(x) === "cancelado" ? " cancel" : ""), tabindex: "0", onclick: () => formBrinde(x), onkeydown: e => { if (e.key === "Enter") formBrinde(x); } },
-        el("div", null, el("div", { class: "nm" }, x.descricao), el("div", { class: "sb" }, [x.finalidade, x.evento].filter(Boolean).join(", ")),
-          el("div", { class: "pl-chips" }, n > 1 ? el("span", { class: "pl-chip serie" }, `${pos} de ${n}`) : null, x.mesUso ? el("span", { class: "pl-chip" }, `uso em ${MESES[x.mesUso - 1]}`) : null, ...(x.icps || []).map(i => el("span", { class: "pl-chip" }, icpN(i))))),
+        el("div", { class: "pl-bnm" }, fotosDe(x), el("div", null, el("div", { class: "nm" }, x.descricao), el("div", { class: "sb" }, [x.finalidade, x.evento].filter(Boolean).join(", ")),
+          el("div", { class: "pl-chips" }, n > 1 ? el("span", { class: "pl-chip serie" }, `${pos} de ${n}`) : null, x.mesUso ? el("span", { class: "pl-chip" }, `uso em ${MESES[x.mesUso - 1]}`) : null, ...(x.icps || []).map(i => el("span", { class: "pl-chip" }, icpN(i)))))),
         el("div", { class: "c2" }, el("div", null, `${x.quantidade != null ? (+x.quantidade).toLocaleString("pt-BR") : "—"} × ${brl(x.custoUnit)}`), el("div", { class: "sb" }, x.fornecedor || "Fornecedor a definir")),
         el("div", { class: "c3" }, el("div", null, contaN(x)), em23(x) ? null : el("div", { class: "pl-out" }, "não soma na 200023")),
         el("div", { class: "mo" }, el("div", null, brl(totBr(x))), el("div", { class: "sb" }, x.verba ? "líquido " + brl(liqBr(x)) : "")), sitSelect(col, x)); };
@@ -522,8 +524,8 @@
         B.append(el("section", { class: "pl-month" }, el("h3", null, f, el("small", null, `${G.length} ite${G.length === 1 ? "m" : "ns"}, ${brl(soma(G.flat().filter(ativo).filter(em23).map(totBr)))} na 200023`)),
           el("ul", { class: "pl-rows" }, ...G.map(g => { const at = g.filter(ativo), ms = new Set(at.map(mesBr)), r = g[0];
             return el("li", null, el("details", { class: "pl-grp" }, el("summary", null,
-              el("div", null, el("div", { class: "nm" }, r.descricao), el("div", { class: "sb" }, `${g.length} compra${g.length === 1 ? "" : "s"}${r.evento ? ", " + r.evento : ""}`),
-                el("div", { class: "pl-strip", "aria-label": "Meses de pagamento" }, ...MESES.map((m, i) => el("span", { class: ms.has(i + 1) ? "on" : "", title: m })))),
+              el("div", { class: "pl-bnm" }, fotosDe(r), el("div", null, el("div", { class: "nm" }, r.descricao), el("div", { class: "sb" }, `${g.length} compra${g.length === 1 ? "" : "s"}${r.evento ? ", " + r.evento : ""}`),
+                el("div", { class: "pl-strip", "aria-label": "Meses de pagamento" }, ...MESES.map((m, i) => el("span", { class: ms.has(i + 1) ? "on" : "", title: m }))))),
               el("div", { class: "c2" }, el("div", null, `${soma(at.map(x => x.quantidade)).toLocaleString("pt-BR")} unidades`), el("div", { class: "sb" }, r.fornecedor || "Fornecedor a definir")),
               el("div", { class: "c3" }, el("div", null, r.dri || "Sem responsável"), el("div", { class: "sb" }, "responsável")),
               el("div", { class: "mo" }, el("div", null, brl(soma(at.map(totBr)))), el("div", { class: "sb" }, em23(r) ? "200023" : "fora da 200023"))), el("ul", { class: "pl-rows in" }, ...g.map(linha)))); }))));
@@ -551,6 +553,31 @@
       evento: sel("evento", [["", "Nenhum"]].concat(evs)), fornecedor: inp("fornecedor", { maxlength: "120" }), prazo: inp("prazo", { inputmode: "numeric", placeholder: "Ex.: 30" }),
       dri: inp("dri", { maxlength: "80", placeholder: "Um nome só" }), obs: el("textarea", { maxlength: "1500" }, v.obs || "") };
     const icps = el("div", { class: "pl-checks" }, ...ICPS.map(([k, n]) => { const cb = el("input", { type: "checkbox", value: k }); cb.checked = (v.icps || []).includes(k); if (travItem) cb.disabled = true; return el("label", null, cb, n); }));
+    // fotos do brinde (até 3): a imagem inteira vai para a pasta privada de anexos no Drive; o item guarda uma miniatura pequena para os cartões
+    let fotos = Array.isArray(v.fotos) ? v.fotos.map(f => Object.assign({}, f)) : []; const fotosFora = [];
+    const fotoBox = el("div", { class: "pl-fotos w2" });
+    const miniatura = file => new Promise((ok, erro) => { const img = new Image(), u = URL.createObjectURL(file);
+      img.onload = () => { const L = 160, k = Math.min(1, L / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const g2 = c.getContext("2d"); g2.fillStyle = "#fff"; g2.fillRect(0, 0, c.width, c.height); g2.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL("image/jpeg", .72)); };
+      img.onerror = () => { URL.revokeObjectURL(u); erro(new Error("Não foi possível ler esta imagem.")); }; img.src = u; });
+    const abrirFoto = async f => { const w = window.open("", "_blank"); try { const url = URL.createObjectURL(await Anexos.baixarBlob(f)); if (w) w.location.href = url; } catch (e) { if (w) w.close(); toast((e && e.message) || "Não foi possível abrir a foto."); } };
+    function desenhaFotos(){ fotoBox.textContent = "";
+      fotos.forEach((f, i) => fotoBox.append(el("div", { class: "pl-foto" },
+        el("button", { type: "button", class: "pl-foto-img", title: "Ver a foto em tamanho real", onclick: () => abrirFoto(f) }, el("img", { src: f.thumb, alt: `Foto ${i + 1} do brinde` })),
+        travItem ? null : el("button", { type: "button", class: "pl-foto-x", "aria-label": `Remover a foto ${i + 1}`, title: "Remover", onclick: () => { fotosFora.push(f); fotos.splice(i, 1); desenhaFotos(); } }, "×"))));
+      if (!travItem && fotos.length < 3) { const inp = el("input", { type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Adicionar foto do brinde" });
+        const lb = el("label", { class: "pl-foto pl-foto-add" }, el("span", null, "+"), el("small", null, "Adicionar foto"), inp);
+        inp.addEventListener("change", async () => { const file = inp.files && inp.files[0]; inp.value = ""; if (!file) return;
+          if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { toast("Envie uma foto em JPG, PNG ou WEBP."); return; }
+          lb.classList.add("enviando"); lb.querySelector("small").textContent = "Enviando…";
+          try { const thumb = await miniatura(file), a = await Anexos.enviar(file, "brinde: " + (I.descricao.value.trim() || "sem nome"));
+            fotos.push({ id: a.id, nome: a.nome, tipo: a.tipo, tamanho: a.tamanho, por: a.por, em: a.em, thumb }); }
+          catch (e) { toast((e && e.message) || "Não foi possível enviar a foto."); }
+          desenhaFotos(); });
+        fotoBox.append(lb); }
+      if (!fotos.length && travItem) fotoBox.append(el("p", { class: "pl-hint2" }, "Sem fotos."));
+    }
+    desenhaFotos();
     const evHint = el("span", { class: "pl-evh" });
     const upHint = () => { const s = seriesEv().get(I.evento.value); if (!s) { evHint.textContent = ""; return; } const at = s.filter(ativo), pub = soma(at.map(e => e.publico));
       evHint.textContent = `${at.length} ${at.length === 1 ? "edição ativa" : "edições ativas"} em ${[...new Set(at.map(e => MESES[mesEv(e) - 1]))].join(", ")}. Público total informado: ${pub ? pub.toLocaleString("pt-BR") : "não informado"}.`; };
@@ -609,6 +636,7 @@
     bd.append(el("h3", { class: "pl-leg" }, "Item"), el("p", { class: "pl-hint2" }, "Estes campos valem para todas as compras do item."),
       lbl("Descrição do brinde *", I.descricao, "w2"), lbl("Finalidade", I.finalidade), lbl("Conta contábil", I.conta), lbl("Evento vinculado", I.evento, "w2", evHint),
       lbl("Fornecedor", I.fornecedor), lbl("Prazo de produção (dias)", I.prazo), lbl("Responsável (DRI)", I.dri), el("div", { class: "w2 pl-fl" }, el("span", null, "Para quem"), icps),
+      el("h3", { class: "pl-leg" }, "Fotos do brinde"), el("p", { class: "pl-hint2" }, "Envie de 2 a 3 fotos para mostrar como é o brinde cotado (até 3). Clique numa foto para ver em tamanho real. Só quem tem login na Central abre as imagens."), fotoBox,
       el("h3", { class: "pl-leg" }, "Compras"), el("p", { class: "pl-hint2" }, "Uma linha para cada compra. O mês de pagamento é o que entra no orçamento. Com um evento vinculado, \"Puxar do evento\" cria uma compra por edição, com a quantidade igual ao público e o pagamento antecipado pelo prazo de produção."),
       lista, tools, prev, el("h3", { class: "pl-leg" }, "Observações"), lbl("", I.obs, "w2"), err);
     if (g.length) g.forEach(d => addRow(d, d)); else addRow({ mesPagamento: F.brMes || null });
@@ -627,7 +655,7 @@
       const ns = [...lista.children], semMes = ns.findIndex(n => !ler(n).mesPagamento);
       if (semMes >= 0) { showErr(`Escolha o mês de pagamento da compra ${semMes + 1}.`); return; }
       const sh = { descricao: desc, finalidade: I.finalidade.value, conta: I.conta.value, evento: I.evento.value, fornecedor: I.fornecedor.value.trim(), dri: I.dri.value.trim(),
-        prazo: I.prazo.value.trim() === "" ? null : Math.round(lerR(I.prazo.value)), icps: [...icps.querySelectorAll("input:checked")].map(cb => cb.value), obs: I.obs.value.trim() };
+        prazo: I.prazo.value.trim() === "" ? null : Math.round(lerR(I.prazo.value)), icps: [...icps.querySelectorAll("input:checked")].map(cb => cb.value), obs: I.obs.value.trim(), fotos };
       const itemId = x ? bid(x) : "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       const keep = new Set(ns.map(n => n._doc && n._doc.id).filter(Boolean));
       save.disabled = true;
@@ -643,6 +671,7 @@
           }
         }
         for (const d of g) if (!keep.has(d.id)) await C[col].doc(d.id).delete();
+        for (const f of fotosFora) { try { await Anexos.excluir(f); } catch (_) {} }   // fotos removidas vão para a lixeira do Drive
         toast(ns.length > 1 ? `${ns.length} compras salvas` : (x ? "Alterações salvas" : "Brinde salvo")); fechar();
       } catch (e) { showErr((e && e.message) || "Não foi possível salvar tudo. Confira e tente de novo."); save.disabled = false; }
     };
