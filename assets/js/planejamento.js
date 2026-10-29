@@ -509,7 +509,8 @@
     const todos = gruposBr(D.brindes);
     const contaN = x => (CONTAS_BR.find(k => k[0] === (x.conta || "200023")) || ["", "Outra conta"])[1];
     const fotosDe = x => { const g = todos.get(bid(x)) || [x], f = (g.find(d => Array.isArray(d.fotos) && d.fotos.length) || {}).fotos || [];
-      return f.length ? el("div", { class: "pl-thumbs", "aria-label": `${f.length} foto${f.length === 1 ? "" : "s"} do brinde` }, ...f.slice(0, 3).map(o => el("img", { src: o.thumb, alt: "" }))) : null; };
+      return f.length ? el("button", { type: "button", class: "pl-thumbs", title: "Ver as fotos", "aria-label": `Ver ${f.length} foto${f.length === 1 ? "" : "s"} do brinde`,
+        onclick: e => { e.stopPropagation(); Anexos.ver(f, 0); }, onkeydown: e => e.stopPropagation() }, ...f.slice(0, 3).map(o => el("img", { src: o.thumb, alt: "" }))) : null; };
     const orcChip = x => { const g = todos.get(bid(x)) || [x], n = ((g.find(d => Array.isArray(d.orcamentosArq) && d.orcamentosArq.length) || {}).orcamentosArq || []).length;
       return n ? el("span", { class: "pl-chip orc", title: "Orçamentos anexados" }, `📎 ${n} orçamento${n === 1 ? "" : "s"}`) : null; };
     const linha = x => { const g = todos.get(bid(x)) || [x], n = g.length, pos = g.indexOf(x) + 1;
@@ -562,10 +563,10 @@
       img.onload = () => { const L = 160, k = Math.min(1, L / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
         const g2 = c.getContext("2d"); g2.fillStyle = "#fff"; g2.fillRect(0, 0, c.width, c.height); g2.drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL("image/jpeg", .72)); };
       img.onerror = () => { URL.revokeObjectURL(u); erro(new Error("Não foi possível ler esta imagem.")); }; img.src = u; });
-    const abrirFoto = async f => { const w = window.open("", "_blank"); try { const url = URL.createObjectURL(await Anexos.baixarBlob(f)); if (w) w.location.href = url; } catch (e) { if (w) w.close(); toast((e && e.message) || "Não foi possível abrir a foto."); } };
+    const abrirFoto = f => Anexos.ver(fotos, Math.max(0, fotos.indexOf(f)));   // abre na própria página, com setas entre as fotos
     function desenhaFotos(){ fotoBox.textContent = "";
       fotos.forEach((f, i) => fotoBox.append(el("div", { class: "pl-foto" },
-        el("button", { type: "button", class: "pl-foto-img", title: "Ver a foto em tamanho real", onclick: () => abrirFoto(f) }, el("img", { src: f.thumb, alt: `Foto ${i + 1} do brinde` })),
+        el("button", { type: "button", class: "pl-foto-img", title: "Ver a foto ampliada", onclick: () => abrirFoto(f) }, el("img", { src: f.thumb, alt: `Foto ${i + 1} do brinde` })),
         travItem ? null : el("button", { type: "button", class: "pl-foto-x", "aria-label": `Remover a foto ${i + 1}`, title: "Remover", onclick: () => { fotosFora.push(f); fotos.splice(i, 1); desenhaFotos(); } }, "×"))));
       if (!travItem && fotos.length < 3) { const inp = el("input", { type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Adicionar foto do brinde" });
         const lb = el("label", { class: "pl-foto pl-foto-add" }, el("span", null, "+"), el("small", null, "Adicionar foto"), inp);
@@ -645,7 +646,7 @@
     bd.append(el("h3", { class: "pl-leg" }, "Item"), el("p", { class: "pl-hint2" }, "Estes campos valem para todas as compras do item."),
       lbl("Descrição do brinde *", I.descricao, "w2"), lbl("Finalidade", I.finalidade), lbl("Conta contábil", I.conta), lbl("Evento vinculado", I.evento, "w2", evHint),
       lbl("Fornecedor", I.fornecedor), lbl("Prazo de produção (dias)", I.prazo), lbl("Responsável (DRI)", I.dri), el("div", { class: "w2 pl-fl" }, el("span", null, "Para quem"), icps),
-      el("h3", { class: "pl-leg" }, "Fotos do brinde"), el("p", { class: "pl-hint2" }, "Envie de 2 a 3 fotos para mostrar como é o brinde cotado (até 3). Clique numa foto para ver em tamanho real. Só quem tem login na Central abre as imagens."), fotoBox,
+      el("h3", { class: "pl-leg" }, "Fotos do brinde"), el("p", { class: "pl-hint2" }, "Envie de 2 a 3 fotos para mostrar como é o brinde cotado (até 3). Clique numa foto para ver ampliada. Só quem tem login na Central abre as imagens."), fotoBox,
       el("h3", { class: "pl-leg" }, "Orçamentos recebidos"), el("p", { class: "pl-hint2" }, "Anexe o PDF ou a imagem de cada orçamento realizado com os fornecedores. Clique no nome do arquivo para abrir."), orcBox,
       el("h3", { class: "pl-leg" }, "Compras"), el("p", { class: "pl-hint2" }, "Uma linha para cada compra. O mês de pagamento é o que entra no orçamento. Com um evento vinculado, \"Puxar do evento\" cria uma compra por edição, com a quantidade igual ao público e o pagamento antecipado pelo prazo de produção."),
       lista, tools, prev, el("h3", { class: "pl-leg" }, "Observações"), lbl("", I.obs, "w2"), err);

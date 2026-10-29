@@ -70,6 +70,35 @@
     if (local()) { try { localStorage.removeItem(LK + a.id); } catch (_) {} return; }
     await GAS.api({ acao: "anexoExcluir", id: a.id });
   }
+  /* visualizador na própria página (sem abrir outra aba): imagens e PDF; setas para passar entre os arquivos */
+  const podeVer = a => /^image\//.test(a.tipo || "") || a.tipo === "application/pdf" || /\.(pdf|jpe?g|png|webp|gif)$/i.test(a.nome || "");
+  function ver(lista, idx){
+    lista = (lista || []).filter(Boolean); if (!lista.length) return; let i = Math.max(0, Math.min(idx || 0, lista.length - 1));
+    const urls = {}, antes = document.activeElement;
+    const titulo = h("b", { class: "anx-lb-t" }), cont = h("span", { class: "anx-lb-c" }), palco = h("div", { class: "anx-lb-p" });
+    const fechar = () => { document.removeEventListener("keydown", tecla, true); ov.remove(); Object.values(urls).forEach(u => URL.revokeObjectURL(u)); if (antes && antes.focus) antes.focus(); };
+    const btnX = h("button", { type: "button", class: "anx-lb-b", "aria-label": "Fechar" }, "×"); btnX.onclick = fechar;
+    const btnD = h("button", { type: "button", class: "anx-lb-b", "aria-label": "Baixar" }, "↓");
+    const ant = h("button", { type: "button", class: "anx-lb-n prev", "aria-label": "Anterior" }, "‹"), prox = h("button", { type: "button", class: "anx-lb-n next", "aria-label": "Próxima" }, "›");
+    const ov = h("div", { class: "anx-lb", role: "dialog", "aria-modal": "true", "aria-label": "Visualizar arquivo" },
+      h("div", { class: "anx-lb-h" }, titulo, cont, btnD, btnX), palco, lista.length > 1 ? ant : null, lista.length > 1 ? prox : null);
+    ov.addEventListener("click", e => { if (e.target === ov || e.target === palco) fechar(); });
+    async function mostra(){ const a = lista[i]; titulo.textContent = a.nome || "Arquivo"; cont.textContent = lista.length > 1 ? `${i + 1} de ${lista.length}` : "";
+      palco.textContent = ""; palco.append(h("div", { class: "anx-lb-load" }, "Carregando…"));
+      try { if (!urls[a.id]) urls[a.id] = URL.createObjectURL(await baixarBlob(a)); if (lista[i] !== a) return; palco.textContent = "";
+        const pdf = a.tipo === "application/pdf" || /\.pdf$/i.test(a.nome || "");
+        palco.append(pdf ? h("iframe", { src: urls[a.id], title: a.nome || "PDF", class: "anx-lb-pdf" }) : h("img", { src: urls[a.id], alt: a.nome || "Imagem", class: "anx-lb-img" }));
+      } catch (e) { palco.textContent = ""; palco.append(h("div", { class: "anx-lb-load" }, (e && e.message) || "Não foi possível abrir o arquivo.")); } }
+    btnD.onclick = async () => { const a = lista[i]; try { if (!urls[a.id]) urls[a.id] = URL.createObjectURL(await baixarBlob(a)); const l = h("a", { href: urls[a.id], download: a.nome || "arquivo" }); document.body.append(l); l.click(); l.remove(); } catch (_) {} };
+    const vai = d => { i = (i + d + lista.length) % lista.length; mostra(); };
+    ant.onclick = () => vai(-1); prox.onclick = () => vai(1);
+    // as teclas ficam só com o visualizador (o Esc não fecha o formulário que está por trás)
+    function tecla(e){ const k = e.key; if (k !== "Escape" && k !== "ArrowLeft" && k !== "ArrowRight") return;
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+      if (k === "Escape") fechar(); else if (lista.length > 1) vai(k === "ArrowLeft" ? -1 : 1); }
+    document.addEventListener("keydown", tecla, true);
+    document.body.append(ov); btnX.focus(); mostra();
+  }
   const podeRemover = a => admin() || !a.por || a.por === eu().email;
 
   function h(tag, attrs, ...kids){ const e = document.createElement(tag);
@@ -86,6 +115,7 @@
     let ocupado = 0;
     const lista = () => (opts.lista() || []).slice();
     async function abrir(a, baixar){
+      if (!baixar && podeVer(a)) { const L = lista().filter(podeVer); return ver(L, Math.max(0, L.findIndex(x => x.id === a.id))); }
       // a janela precisa abrir no clique (senão o navegador bloqueia); o conteúdo chega em seguida
       const w = baixar || !(ehImg(a) || a.tipo === "application/pdf" || /^text\//.test(a.tipo || "")) ? null : window.open("", "_blank");
       if (w) { try { w.document.title = a.nome; w.document.body.style.cssText = "font:15px system-ui,sans-serif;padding:24px;color:#16233A"; w.document.body.textContent = "Abrindo " + a.nome + "…"; } catch (_) {} }
@@ -150,5 +180,5 @@
     return box;
   }
 
-  window.Anexos = { widget, enviar, baixarBlob, excluir, tam, MAX };
+  window.Anexos = { widget, enviar, baixarBlob, excluir, ver, tam, MAX };
 })();
