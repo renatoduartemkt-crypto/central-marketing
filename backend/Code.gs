@@ -50,7 +50,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-28a';
+const VERSAO_API = '2026-10-29a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -776,35 +776,65 @@ function entradaRedes_(j) {
   });
 }
 // resultados dos disparos (RD Station): encontra o e-mail planejado do mesmo dia e grava os números nele
-const normT_ = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(function (w) { return w.length > 2; });
+// palavras que não ajudam a reconhecer o e-mail (marca, estados, cópias)
+const NOME_IGNORA_ = ['lopes', 'opta', 'duplicado', 'copia', 'para', 'com', 'das', 'dos'];
+const normT_ = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(function (w) { return w.length > 2 && NOME_IGNORA_.indexOf(w) < 0; });
 function parecido_(a, b) { const A = normT_(a), B = normT_(b); if (!A.length || !B.length) return 0; const S = {}; B.forEach(function (w) { S[w] = 1; }); return A.filter(function (w) { return S[w]; }).length / Math.min(A.length, B.length); }
+// Um e-mail do planejador costuma virar vários disparos no RD (um por estado, por exemplo "26/10 - Novidades - MS", "- MT"...).
+// Cada disparo é guardado em resultados.envios (pelo id da campanha do RD, sem duplicar ao reimportar) e os totais são a soma deles.
+const empresaDe_ = s => /opta/i.test(String(s || '')) ? 'opta' : 'lopes';
+const ufDe_ = s => { const L = []; (String(s || '').toUpperCase().match(/\b(MS|MT|RO|AC)\b/g) || []).forEach(function (u) { if (L.indexOf(u) < 0) L.push(u); }); return L.join('/'); };
+function dataDoNome_(nome, envio) {
+  const m = String(nome || '').match(/(\d{1,2})[\/.](\d{1,2})/), ano = String(envio || '').slice(0, 4) || String(new Date().getFullYear());
+  if (m && +m[1] >= 1 && +m[1] <= 31 && +m[2] >= 1 && +m[2] <= 12) return ano + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return '';
+}
+const difDias_ = (a, b) => Math.abs((new Date(a + 'T12:00:00') - new Date(b + 'T12:00:00')) / 864e5);
+function somaEnvios_(L) {
+  const t = L.reduce(function (o, e) { o.enviados += e.enviados; o.entregues += e.entregues; o.aberturas += e.aberturas; o.cliques += e.cliques; return o; }, { enviados: 0, entregues: 0, aberturas: 0, cliques: 0 });
+  t.taxaAbertura = t.entregues ? Math.round(t.aberturas / t.entregues * 1000) / 10 : 0;
+  t.taxaClique = t.entregues ? Math.round(t.cliques / t.entregues * 1000) / 10 : 0;
+  return t;
+}
 function entradaEmails_(j) {
-  const itens = Array.isArray(j.itens) ? j.itens.slice(0, 200) : [];
+  const itens = Array.isArray(j.itens) ? j.itens.slice(0, 300) : [];
   if (!itens.length) throw new Error('lista "itens" vazia.');
   return comLock_(function () {
-    const todos = listar_('emails'), feitos = [], soltos = [];
+    const todos = listar_('emails'), mexidos = {}, soltos = [];
     itens.forEach(function (it) {
-      const data = String(it.data || '');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { soltos.push((it.nome || '?') + ' (data inválida)'); return; }
-      const doDia = todos.filter(function (e) { return e.data === data; });
-      let melhor = null, nota = 0;
-      doDia.forEach(function (e) { const n = Math.max(parecido_(it.nome, e.nome), parecido_(it.assunto, e.assunto), parecido_(it.nome, e.assunto), parecido_(it.assunto, e.nome)); if (n > nota) { nota = n; melhor = e; } });
-      if (!melhor && doDia.length === 1) melhor = doDia[0];
-      if (!melhor || (doDia.length > 1 && nota < 0.5)) { soltos.push((it.nome || it.assunto || '?') + ' em ' + data); return; }
-      const env = numOk_(it.enviados || it.entregues || 0), ent = numOk_(it.entregues || it.enviados || 0), ab = numOk_(it.aberturas || 0), cl = numOk_(it.cliques || 0);
-      const a = ler_('emails', melhor.id), d = Object.assign({}, a ? a.dados : {});
-      d.resultados = { enviados: env, entregues: ent, aberturas: ab, cliques: cl, taxaAbertura: ent ? Math.round(ab / ent * 1000) / 10 : 0, taxaClique: ent ? Math.round(cl / ent * 1000) / 10 : 0,
-        nomeRd: String(it.nome || '').slice(0, 200), fonte: 'RD Station', em: new Date().toISOString() };
-      // segmentações que o RD realmente usou no disparo (quando a rotina informa)
-      if (Array.isArray(it.segmentacoes)) d.resultados.segmentacoes = it.segmentacoes.slice(0, 30).map(function (x) {
-        return typeof x === 'object' && x ? { id: String(x.id || '').slice(0, 30), nome: String(x.nome || x.name || '').slice(0, 150) } : { id: '', nome: String(x).slice(0, 150) };
-      }).filter(function (x) { return x.nome; });
-      if (ent > 0) d.execucao = 'enviado';
-      d.atualizadoEm = d.resultados.em; d.atualizadoPor = ROTINA_;
-      gravarLinha_('emails', melhor.id, d, ROTINA_, !a, a);
-      feitos.push(d.nome || d.assunto || melhor.id);
+      const nome = String(it.nome || it.assunto || '').trim(), envio = String(it.data || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(envio)) { soltos.push((nome || '?') + ' (data inválida)'); return; }
+      const alvo = dataDoNome_(nome, envio) || envio, emp = empresaDe_(nome + ' ' + (it.assunto || ''));
+      // candidatos: mesma empresa, planejados até 2 dias antes ou depois da data do disparo
+      const cand = todos.filter(function (e) { return e.data && (!e.empresa || e.empresa === emp) && Math.min(difDias_(e.data, alvo), difDias_(e.data, envio)) <= 2; });
+      let melhor = null, nota = -1;
+      cand.forEach(function (e) {
+        const p = Math.max(parecido_(nome, e.nome), parecido_(it.assunto, e.assunto), parecido_(nome, e.assunto), parecido_(it.assunto, e.nome));
+        const n = p - Math.min(difDias_(e.data, alvo), difDias_(e.data, envio)) * 0.15 + (e.data === alvo ? 0.1 : 0);
+        if (n > nota) { nota = n; melhor = e; melhor._p = p; }
+      });
+      const doDia = cand.filter(function (e) { return e.data === alvo; });
+      if ((!melhor || melhor._p < 0.4) && doDia.length === 1) melhor = doDia[0];
+      else if (!melhor || melhor._p < 0.4) { soltos.push(nome + ' (' + envio.slice(8, 10) + '/' + envio.slice(5, 7) + ')'); return; }
+      const x = mexidos[melhor.id] || (function () { const a = ler_('emails', melhor.id); return (mexidos[melhor.id] = { a: a, d: Object.assign({}, a ? a.dados : {}) }); })();
+      const ant = x.d.resultados || {}, L = Array.isArray(ant.envios) ? ant.envios.slice() : [];
+      const env = numOk_(it.enviados || it.entregues || 0), ent = numOk_(it.entregues || it.enviados || 0);
+      const novo = { id: String(it.id || it.campaign_id || '').slice(0, 30), nome: nome.slice(0, 200), data: envio, uf: ufDe_(nome),
+        enviados: env, entregues: ent, aberturas: numOk_(it.aberturas || 0), cliques: numOk_(it.cliques || 0) };
+      novo.taxaAbertura = ent ? Math.round(novo.aberturas / ent * 1000) / 10 : 0; novo.taxaClique = ent ? Math.round(novo.cliques / ent * 1000) / 10 : 0;
+      if (Array.isArray(it.segmentacoes)) novo.segmentacoes = it.segmentacoes.slice(0, 30).map(function (s) {
+        return typeof s === 'object' && s ? { id: String(s.id || '').slice(0, 30), nome: String(s.nome || s.name || '').slice(0, 150) } : { id: '', nome: String(s).slice(0, 150) };
+      }).filter(function (s) { return s.nome; });
+      const i = L.findIndex(function (e) { return (novo.id && e.id === novo.id) || (!novo.id && e.nome === novo.nome && e.data === novo.data); });
+      if (i >= 0) L[i] = novo; else L.push(novo);
+      const segs = []; L.forEach(function (e) { (e.segmentacoes || []).forEach(function (s) { if (!segs.some(function (y) { return (y.id && y.id === s.id) || y.nome === s.nome; })) segs.push(s); }); });
+      x.d.resultados = Object.assign(somaEnvios_(L), { envios: L.slice(0, 40), nomeRd: L.map(function (e) { return e.nome; }).join(' · ').slice(0, 300), fonte: 'RD Station', em: new Date().toISOString() },
+        segs.length ? { segmentacoes: segs } : (ant.segmentacoes ? { segmentacoes: ant.segmentacoes } : {}));
+      if (x.d.resultados.entregues > 0) x.d.execucao = 'enviado';
     });
-    return 'e-mails: ' + feitos.length + ' atualizado(s)' + (soltos.length ? '; sem correspondência no planejador: ' + soltos.join('; ') : '');
+    const ids = Object.keys(mexidos);
+    ids.forEach(function (id) { const x = mexidos[id]; x.d.atualizadoEm = x.d.resultados.em; x.d.atualizadoPor = ROTINA_; gravarLinha_('emails', id, x.d, ROTINA_, !x.a, x.a); });
+    return 'e-mails: ' + (itens.length - soltos.length) + ' disparo(s) em ' + ids.length + ' e-mail(s) do planejador' + (soltos.length ? '; sem correspondência no planejador: ' + soltos.join('; ') : '');
   });
 }
 // lista de segmentações do RD Station: substitui a lista usada no formulário de e-mails (documento "lista")
