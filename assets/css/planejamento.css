@@ -628,3 +628,4 @@ button.bi-crow:hover,button.bi-nrow:hover,.bi-crow.on,.bi-nrow.on{background:var
 .pl-thumbs{display:flex;flex:none}
 .pl-thumbs img{width:44px;height:44px;border-radius:8px;object-fit:cover;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
 .pl-thumbs img+img{margin-left:-14px}
+.pl-chip.orc{background:var(--info-bg);color:var(--info);font-weight:700}
