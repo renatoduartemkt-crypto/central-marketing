@@ -613,3 +613,18 @@ button.bi-crow:hover,button.bi-nrow:hover,.bi-crow.on,.bi-nrow.on{background:var
   .pl-orc-r input:nth-child(2){grid-column:1/-1}
   .pl-orc-v{text-align:left;align-self:center}.pl-orc-x{justify-self:end}
 }
+
+/* ---- fotos dos brindes ---- */
+.pl-fotos{display:flex;flex-wrap:wrap;gap:10px}
+.pl-foto{position:relative;width:112px;height:112px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.pl-foto-img{border:0;padding:0;margin:0;width:100%;height:100%;cursor:zoom-in;background:none}
+.pl-foto-img img{width:100%;height:100%;object-fit:cover;display:block}
+.pl-foto-x{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(22,35,58,.75);color:#fff;font-weight:800;cursor:pointer}
+.pl-foto-add{border-style:dashed;cursor:pointer;color:var(--muted)}.pl-foto-add span{font-size:28px;line-height:1;font-weight:300}.pl-foto-add small{font-size:12px;font-weight:600}
+.pl-foto-add:hover,.pl-foto-add:focus-within{border-color:var(--accent);color:var(--accent)}
+.pl-foto-add input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.pl-foto-add.enviando{pointer-events:none;opacity:.7}
+.pl-bnm{display:flex;gap:10px;align-items:flex-start;min-width:0}
+.pl-thumbs{display:flex;flex:none}
+.pl-thumbs img{width:44px;height:44px;border-radius:8px;object-fit:cover;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
+.pl-thumbs img+img{margin-left:-14px}
