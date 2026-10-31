@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Senhas e acessos · Central de Marketing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+/* Layout: tela de confirmação da senha → cofre (busca, lista de acessos no estilo do Gerenciador de Senhas do Google, painel do acesso) → registro de segurança (só admin) */
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+/* bloqueio */
+.lock{max-width:440px;margin:40px auto 0;padding:30px 28px;display:flex;flex-direction:column;gap:14px;text-align:center;align-items:center}
+.lock .ico{width:64px;height:64px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.lock h2{font-size:21px;color:var(--navy)}
+.lock p{margin:0;color:var(--muted);font-size:14px}
+.lock form{display:flex;flex-direction:column;gap:10px;width:100%;margin-top:6px;text-align:left}
+.lock label{font-size:12.5px;font-weight:700;color:var(--muted)}
+.inp{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;font-size:15px}
+.lock .btn.primary{min-height:46px;font-size:15px}
+.err{color:var(--bad);font-weight:600;font-size:13.5px;margin:0}
+.aviso{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--muted);text-align:left;background:var(--bg);border-radius:10px;padding:10px 12px}
+/* barra */
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.bar .l,.bar .r{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.busca{position:relative;flex:1 1 300px;max-width:520px}
+.busca svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.busca input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:11px 16px 11px 42px;font-size:15px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:7px;padding:7px 12px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.timer{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.note{background:var(--info-bg);color:var(--info);border-radius:10px;padding:10px 14px;font-size:13.5px;font-weight:600;margin:0}
+/* lista (estilo Gerenciador de Senhas do Google) */
+.lista{overflow:hidden}
+.lista h3{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:14px 18px 6px;margin:0}
+.row{display:flex;align-items:center;gap:14px;width:100%;padding:12px 18px;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;text-align:left;min-height:62px}
+.lista h3+.row{border-top:0}
+.row:hover{background:var(--bg)}
+.row .tx{flex:1;min-width:0}
+.row .tx b{display:block;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .tx small{display:block;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .cat{font-size:11px;font-weight:700;background:var(--surface-2);border-radius:4px;padding:2px 7px;white-space:nowrap}
+.row .chev{color:var(--muted);flex:none}
+.tile{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:16px;flex:none;background:var(--tc)}
+.tile.g{width:52px;height:52px;font-size:22px}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:30px;color:var(--muted);text-align:center}
+.empty strong{color:var(--fg);display:block;font-size:16px;margin-bottom:4px}
+/* painel do acesso */
+.overlay{position:fixed;inset:0;background:rgba(10,16,28,.45);display:flex;justify-content:flex-end;z-index:20}
+.panel{background:var(--surface);width:min(560px,100%);height:100%;overflow-y:auto;display:flex;flex-direction:column}
+.ph{display:flex;align-items:center;gap:14px;padding:20px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:1}
+.ph h2{font-size:19px;flex:1;min-width:0;overflow-wrap:anywhere}
+.x{border:0;background:var(--surface-2);width:40px;height:40px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer;color:var(--fg);flex:none}
+.pb{padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.fld{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.fld .tx{flex:1;min-width:0}
+.fld small{display:block;font-size:12px;font-weight:700;color:var(--muted)}
+.fld .v{display:block;font-size:15px;overflow-wrap:anywhere;min-height:22px}
+.fld .v.pw{font-family:var(--mono);letter-spacing:.06em}
+.fld .v a{color:var(--accent);font-weight:600}
+.ib{border:0;background:transparent;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--fg);flex:none}
+.ib:hover{background:var(--surface-2)}
+.ib:disabled{opacity:.4;cursor:wait}
+.meta{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border-radius:999px;padding:3px 10px 3px 3px;font-size:13px;font-weight:600}
+.av{border-radius:50%;background:var(--navy);color:var(--bg);display:inline-grid;place-items:center;font-weight:800;flex:none;overflow:hidden}
+.acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.confirm{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:10px 12px;font-weight:700;font-size:14px}
+/* formulário */
+.f{display:flex;flex-direction:column;gap:6px}
+.f>label,.f>.lab{font-size:12.5px;font-weight:700;color:var(--muted)}
+.panel textarea.inp{min-height:80px;resize:vertical;font-size:14px}
+.pwbox{display:flex;gap:6px;align-items:center}
+.pwbox .inp{font-family:var(--mono)}
+.forca{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.forca i{display:block;height:100%;width:var(--w,0);background:var(--fc,var(--bad));transition:width .2s}
+.quem{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-radius:12px;padding:6px;max-height:260px;overflow-y:auto}
+.quem label{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:14px}
+.quem label:hover{background:var(--bg)}
+.quem label small{color:var(--muted);font-size:12px;margin-left:auto}
+.quem input{width:18px;height:18px;accent-color:var(--accent)}
+.pf{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:16px 22px;border-top:1px solid var(--line);margin-top:auto;position:sticky;bottom:0;background:var(--surface)}
+/* registro */
+.reg{padding:16px}
+.reg .ch{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.reg .ch h2{font-size:16px}
+.reg select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
+.quemr{display:flex;align-items:center;gap:8px}
+.pill{display:inline-block;font-size:11.5px;font-weight:800;border-radius:999px;padding:2px 9px;white-space:nowrap;background:var(--surface-2);color:var(--fg)}
+.pill.copiou{background:var(--accent-soft);color:var(--accent)}
+.pill.viu{background:var(--info-bg);color:var(--info)}
+.pill.ruim{background:var(--bad-bg);color:var(--bad)}
+.pill.adm{background:var(--ok-bg);color:var(--ok)}
+.mais{margin-top:10px}
+@media (max-width:640px){
+  .lock{margin-top:16px;padding:24px 18px}
+  .bar .r{width:100%;justify-content:space-between}
+  .row{padding:12px 14px}
+  .ph,.pb,.pf{padding-left:16px;padding-right:16px}
+  table,thead,tbody,tr,td{display:block}
+  thead{display:none}
+  tr{border-bottom:1px solid var(--line);padding:10px 2px;display:grid;grid-template-columns:1fr auto;gap:4px 10px}
+  td{border:0;padding:0}
+  td.mono{grid-column:2;grid-row:1;text-align:right}
+  td.q{grid-column:1;grid-row:1}
+  td.a,td.n{grid-column:1 / -1}
+}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow">Cofre da equipe · uso registrado</div><h1>Senhas e <span>acessos</span></h1></div>
+  </div>
+
+  <section class="card lock" id="lock" hidden>
+    <div class="ico" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.4" fill="currentColor"/></svg></div>
+    <h2>Confirme que é você</h2>
+    <p>Para ver as senhas, digite a senha que você usa para entrar na Central.</p>
+    <form id="lockForm" novalidate>
+      <input type="text" id="lockUser" autocomplete="username" hidden>
+      <label for="lockPw">Sua senha</label>
+      <input class="inp" type="password" id="lockPw" autocomplete="current-password" maxlength="120" required>
+      <p class="err" id="lockErr" role="alert" hidden></p>
+      <button class="btn primary" type="submit" id="lockBtn">Desbloquear</button>
+    </form>
+    <div class="aviso"><span aria-hidden="true">🛡️</span><span>Por segurança, abrir esta página e ver ou copiar uma senha fica registrado com o seu nome, a data e a hora. O cofre se fecha sozinho depois de 10 minutos sem uso.</span></div>
+  </section>
+
+  <div id="cofre" hidden>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="bar">
+        <div class="busca"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="search" id="q" placeholder="Pesquisar senhas" aria-label="Pesquisar senhas" autocomplete="off"></div>
+        <div class="r">
+          <div class="seg" id="abas" role="group" aria-label="Escolher visão" hidden>
+            <button type="button" data-v="senhas" aria-pressed="true">Senhas</button>
+            <button type="button" data-v="registro" aria-pressed="false">Registro de segurança</button>
+          </div>
+          <span class="timer" id="timer" aria-live="off"></span>
+          <button class="btn" type="button" id="travar">Bloquear agora</button>
+          <button class="btn primary" type="button" id="novo" hidden>+ Adicionar</button>
+        </div>
+      </div>
+      <p class="note" id="roleNote" hidden></p>
+      <section id="vSenhas"></section>
+      <section class="card reg" id="vReg" hidden>
+        <div class="ch"><h2>Registro de segurança</h2>
+          <div class="acts"><select id="fQuem" aria-label="Filtrar por pessoa"></select><select id="fAcao" aria-label="Filtrar por ação"></select><button class="btn" type="button" id="regAtual">Atualizar</button></div></div>
+        <div class="tw" id="regLista"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <aside class="panel" role="dialog" aria-modal="true" aria-labelledby="pTitulo" id="panel"></aside>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(v==null||v===false)continue;if(k==="class")e.className=v;else if(k==="style")e.setAttribute("style",v);else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(k==="value")e.value=v;else e.setAttribute(k,v===true?"":v);}kids.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
+  const svg=(d,s)=>{const w=document.createElement("span");w.style.display="inline-grid";w.innerHTML=`<svg width="${s||20}" height="${s||20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;return w;};
+  const I={copiar:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',olho:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    olhoX:'<path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+    chev:'<path d="m9 6 6 6-6 6"/>',dado:'<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1.3" fill="currentColor"/>'};
+  let tt;const toast=m=>{const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2800);};
+  const fdt=s=>{if(!s)return"";const d=new Date(s);return isNaN(d)?"":d.toLocaleDateString("pt-BR",{timeZone:"America/Campo_Grande"})+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",timeZone:"America/Campo_Grande"});};
+  const GASM=Store.modo()==="gas";
+  const CORES=["#1B2D49","#CC3A1A","#2F7FD0","#1E8A5C","#6B3FA0","#9A5B00","#C2571C","#2F6FB0"];
+  const cor=s=>{let h=0;for(const c of String(s||""))h=(h*31+c.charCodeAt(0))>>>0;return CORES[h%CORES.length];};
+  const letra=s=>(String(s||"?").trim().match(/\p{L}|\d/u)||["?"])[0].toUpperCase();
+  const tile=(nome,g)=>el("span",{class:"tile"+(g?" g":""),style:`--tc:${cor(nome)}`,"aria-hidden":"true"},letra(nome));
+  const dominio=u=>{try{return new URL(u).hostname.replace(/^www\./,"");}catch(_){return "";}};
+
+  let me=null, users=[], itens=[], cofre="", fim=0, view="senhas", reg=[], regLim=200, aberto=null, editando=null, revelada=null, revTimer=null, apagar=false;
+  const admin=()=>Auth.isAdmin();
+  const userName=e=>{const u=users.find(x=>x.email===e);return u?(u.nome||u.email):(e||"—");};
+  const userDe=e=>users.find(x=>x.email===e)||{email:e,nome:e};
+
+  /* ---------- acesso aos dados: no servidor as regras (senha confirmada, quem vê, só admin altera, registro) são conferidas pelo backend ---------- */
+  const LK="central-mkt:cofre-teste";
+  const lerLocal=()=>{try{return Object.assign({itens:{},reg:[]},JSON.parse(localStorage.getItem(LK)||"{}"));}catch(_){return {itens:{},reg:[]};}};
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  async function api(acao,r){
+    if(GASM)return GAS.api(Object.assign({acao,cofre},r||{}));
+    // modo de teste: mesmas regras, guardado só neste navegador (qualquer senha desbloqueia)
+    const D=lerLocal(), salva=()=>localStorage.setItem(LK,JSON.stringify(D)), log=(a,id,n)=>{D.reg.unshift({em:new Date().toISOString(),usuario:me.email,acao:a,id:id||"",nome:n||""});salva();};
+    const ve=d=>admin()||(d.compartilhado||[]).includes(me.email);
+    const pub=(id,d)=>{const o=Object.assign({id,temSenha:!!d.senha},d);delete o.senha;if(!admin())delete o.compartilhado;return o;};
+    if(acao==="cofreAbrir"){if(!r.senha)throw {message:"Senha incorreta."};log("abriu a página");return {cofre:uid(),segundos:600};}
+    if(acao==="cofreListar")return {itens:Object.entries(D.itens).filter(([,d])=>ve(d)).map(([id,d])=>pub(id,d))};
+    if(acao==="cofreSenha"){const d=D.itens[r.id];if(!d||!ve(d))throw {message:"Acesso não encontrado."};log(r.motivo==="copiar"?"copiou a senha":"viu a senha",r.id,d.nome);return {senha:d.senha||""};}
+    if(!admin())throw {message:"Só o administrador pode fazer isso."};
+    if(acao==="cofreSalvar"){const x=r.item;if(!String(x.nome||"").trim())throw {message:"Dê um nome para o acesso."};if(x.url&&!/^https?:\/\/\S+$/i.test(x.url))throw {message:"O endereço precisa começar com http:// ou https://"};
+      const id=x.id||uid(),antes=D.itens[id],agora=new Date().toISOString();
+      const d=Object.assign({},antes||{criadoPor:me.email,criadoEm:agora},{nome:x.nome.trim(),url:x.url||"",usuario:x.usuario||"",categoria:x.categoria||"",nota:x.nota||"",compartilhado:x.compartilhado||[],atualizadoEm:agora,atualizadoPor:me.email});
+      if(x.senha){d.senha=x.senha;d.senhaTrocadaEm=agora;}D.itens[id]=d;log(!antes?"cadastrou o acesso":x.senha?"alterou o acesso e a senha":"alterou o acesso",id,d.nome);return {item:pub(id,d)};}
+    if(acao==="cofreExcluir"){const d=D.itens[r.id];if(d){delete D.itens[r.id];log("excluiu o acesso",r.id,d.nome);}return {ok:true};}
+    if(acao==="cofreRegistro")return {itens:D.reg.slice(0,1000)};
+  }
+  // toda chamada passa por aqui: se o cofre expirou no servidor, volta para a tela de senha
+  async function chamar(acao,r){
+    try{const x=await api(acao,r);if(acao!=="cofreAbrir")renova();return x;}
+    catch(e){if(e&&e.code==="cofre"){travar("Por segurança, digite sua senha de novo.");}throw e;}
+  }
+
+  /* ---------- bloqueio ---------- */
+  let relogio=null;
+  const renova=()=>{fim=Date.now()+600*1000;};
+  function tick(){const s=Math.max(0,Math.round((fim-Date.now())/1000));
+    if(!cofre)return; if(s<=0){travar("O cofre foi fechado depois de 10 minutos sem uso.");return;}
+    $("timer").textContent=`Fecha em ${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;}
+  function travar(msg){cofre="";itens=[];reg=[];revelada=null;fecharPainel();clearInterval(relogio);
+    $("cofre").hidden=true;$("lock").hidden=false;$("lockPw").value="";$("lockErr").hidden=!msg;$("lockErr").textContent=msg||"";setTimeout(()=>$("lockPw").focus(),30);}
+  $("travar").onclick=()=>{travar("");toast("Cofre bloqueado");};
+  $("lockForm").addEventListener("submit",async e=>{e.preventDefault();const pw=$("lockPw").value,b=$("lockBtn");
+    if(!pw){$("lockErr").textContent="Digite sua senha.";$("lockErr").hidden=false;return;}
+    b.disabled=true;b.textContent="Conferindo…";$("lockErr").hidden=true;
+    try{const r=await chamar("cofreAbrir",{senha:pw});cofre=r.cofre;renova();$("lockPw").value="";
+      $("lock").hidden=true;$("cofre").hidden=false;clearInterval(relogio);relogio=setInterval(tick,1000);tick();
+      view="senhas";syncAbas();await carregar();setTimeout(()=>$("q").focus(),30);}
+    catch(err){$("lockErr").textContent=(err&&err.message)||"Não foi possível conferir a senha.";$("lockErr").hidden=false;$("lockPw").select();}
+    finally{b.disabled=false;b.textContent="Desbloquear";}});
+
+  async function carregar(){try{const r=await chamar("cofreListar",{});itens=(r.itens||[]).sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{sensitivity:"base"}));render();}
+    catch(e){if(e&&e.code!=="cofre")toast(e.message||"Não foi possível carregar os acessos.");}}
+
+  /* ---------- lista ---------- */
+  function render(){if(!cofre)return;const v=$("vSenhas");v.textContent="";
+    const q=$("q").value.trim().toLowerCase();
+    const L=itens.filter(i=>!q||[i.nome,i.usuario,i.url,i.categoria,i.nota].some(x=>String(x||"").toLowerCase().includes(q)));
+    if(!itens.length){v.append(el("div",{class:"empty"},el("strong",null,admin()?"Nenhum acesso cadastrado":"Nenhum acesso compartilhado com você"),
+      admin()?"Clique em “+ Adicionar” para guardar o primeiro login e senha da equipe.":"Quando o administrador liberar um acesso para você, ele aparece aqui."));return;}
+    if(!L.length){v.append(el("div",{class:"empty"},el("strong",null,"Nada encontrado"),"Tente outra palavra na pesquisa."));return;}
+    const box=el("div",{class:"card lista"});let grupo="";
+    L.forEach(i=>{const g=letra(i.nome);if(g!==grupo){grupo=g;box.append(el("h3",null,g));}
+      box.append(el("button",{type:"button",class:"row",onclick:()=>abrir(i.id)},tile(i.nome),
+        el("span",{class:"tx"},el("b",null,i.nome),el("small",null,[i.usuario,dominio(i.url)].filter(Boolean).join(" · ")||"Sem usuário")),
+        i.categoria?el("span",{class:"cat"},i.categoria):null,
+        admin()&&(i.compartilhado||[]).length?el("span",{class:"hint",title:"Pessoas que podem ver"},`👥 ${(i.compartilhado||[]).length}`):null,
+        el("span",{class:"chev"},svg(I.chev,18))));});
+    v.append(box,el("p",{class:"hint",style:"margin:8px 2px 0"},`${L.length} de ${itens.length} acesso${itens.length===1?"":"s"}`));}
+  $("q").addEventListener("input",render);
+
+  /* ---------- painel do acesso ---------- */
+  const panel=()=>$("panel");
+  function fecharPainel(){$("overlay").hidden=true;aberto=null;editando=null;esconder();apagar=false;}
+  function esconder(){revelada=null;clearTimeout(revTimer);}
+  $("overlay").addEventListener("click",e=>{if(e.target===$("overlay"))fecharPainel();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)fecharPainel();});
+  const cab=(titulo,t)=>el("div",{class:"ph"},t||null,el("h2",{id:"pTitulo"},titulo),el("button",{type:"button",class:"x","aria-label":"Fechar",onclick:fecharPainel},"×"));
+
+  function abrir(id){aberto=id;editando=null;esconder();apagar=false;$("overlay").hidden=false;detalhe();}
+  function detalhe(){const i=itens.find(x=>x.id===aberto);if(!i){fecharPainel();return;}const p=panel();p.textContent="";
+    p.append(cab(i.nome,tile(i.nome,true)));const b=el("div",{class:"pb"});
+    if(i.url)b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Site"),el("span",{class:"v"},el("a",{href:i.url,target:"_blank",rel:"noopener noreferrer"},dominio(i.url)||i.url," ↗")))));
+    const bCopU=el("button",{type:"button",class:"ib","aria-label":"Copiar usuário",title:"Copiar usuário",onclick:()=>copiarTexto(i.usuario).then(ok=>toast(ok?"Usuário copiado":"Não foi possível copiar"))},svg(I.copiar));
+    b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Usuário"),el("span",{class:"v"},i.usuario||"—")),i.usuario?bCopU:null));
+    const vis=revelada&&revelada.id===i.id;
+    const bOlho=el("button",{type:"button",class:"ib","aria-label":vis?"Ocultar senha":"Mostrar senha",title:vis?"Ocultar senha":"Mostrar senha",disabled:!i.temSenha?true:null,onclick:async ev=>{
+      if(vis){esconder();detalhe();return;}ev.currentTarget.disabled=true;
+      try{const r=await chamar("cofreSenha",{id:i.id,motivo:"ver"});revelada={id:i.id,senha:r.senha};clearTimeout(revTimer);revTimer=setTimeout(()=>{esconder();if(aberto===i.id&&!editando)detalhe();},30000);}
+      catch(e){if(e.code!=="cofre")toast(e.message||"Não foi possível mostrar a senha.");}
+      if(aberto===i.id&&!editando)detalhe();}},svg(vis?I.olhoX:I.olho));
+    const bCop=el("button",{type:"button",class:"ib","aria-label":"Copiar senha",title:"Copiar senha",disabled:!i.temSenha?true:null,onclick:ev=>copiarSenha(i,ev.currentTarget)},svg(I.copiar));
+    b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Senha"),el("span",{class:"v pw"},!i.temSenha?"Sem senha cadastrada":vis?revelada.senha:"••••••••••")),bOlho,bCop));
+    if(vis)b.append(el("p",{class:"hint",style:"margin:-8px 0 0"},"A senha volta a ficar oculta em 30 segundos."));
+    if(i.nota)b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Observação"),el("span",{class:"v",style:"white-space:pre-wrap;font-size:14px"},i.nota))));
+    if(admin()){const C=i.compartilhado||[];
+      b.append(el("div",{class:"f"},el("span",{class:"lab"},"Quem pode ver"),C.length?el("div",{class:"chips"},C.map(e=>el("span",{class:"chip"},Central.avatar(userDe(e),24),userName(e)))):el("span",{class:"hint"},"Só os administradores.")));}
+    b.append(el("div",{class:"meta"},i.senhaTrocadaEm?el("span",null,`Senha cadastrada ou trocada em ${fdt(i.senhaTrocadaEm)}`):null,
+      i.atualizadoEm?el("span",null,`Última alteração: ${fdt(i.atualizadoEm)}${i.atualizadoPor?" por "+userName(i.atualizadoPor):""}`):null,
+      el("span",null,"Ver ou copiar a senha fica registrado com o seu nome.")));
+    if(admin())b.append(apagar?el("div",{class:"confirm"},"Excluir este acesso?",el("button",{type:"button",class:"btn danger",onclick:()=>excluir(i)},"Sim, excluir"),el("button",{type:"button",class:"btn",onclick:()=>{apagar=false;detalhe();}},"Não"))
+      :el("div",{class:"acts"},el("button",{type:"button",class:"btn primary",onclick:()=>editar(i)},"Editar"),el("button",{type:"button",class:"btn danger",onclick:()=>{apagar=true;detalhe();}},"Excluir")));
+    p.append(b);}
+
+  // copia o texto; a senha é pedida ao servidor (que registra a cópia) e entra na área de transferência sem aparecer na tela
+  async function copiarTexto(t){try{await navigator.clipboard.writeText(t);return true;}catch(_){
+    const a=el("textarea",{style:"position:fixed;opacity:0;top:0;left:0"});a.value=t;document.body.append(a);a.select();let ok=false;try{ok=document.execCommand("copy");}catch(__){}a.remove();return ok;}}
+  async function copiarSenha(i,btn){btn.disabled=true;
+    const pedido=chamar("cofreSenha",{id:i.id,motivo:"copiar"}).then(r=>r.senha);
+    let ok=false;
+    // Safari e Chrome aceitam que o conteúdo chegue depois do clique (o servidor leva alguns segundos)
+    if(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write){
+      try{await navigator.clipboard.write([new ClipboardItem({"text/plain":pedido.then(s=>new Blob([s],{type:"text/plain"}))})]);ok=true;}catch(_){}}
+    try{const s=await pedido;if(!ok)ok=await copiarTexto(s);
+      if(ok)toast("Senha copiada · a cópia foi registrada");
+      else{revelada={id:i.id,senha:s};clearTimeout(revTimer);revTimer=setTimeout(()=>{esconder();if(aberto===i.id&&!editando)detalhe();},30000);if(aberto===i.id)detalhe();toast("Seu navegador não deixou copiar: a senha está na tela por 30 segundos.");}}
+    catch(e){if(e.code!=="cofre")toast(e.message||"Não foi possível copiar a senha.");}
+    finally{btn.disabled=false;}}
+
+  async function excluir(i){try{await chamar("cofreExcluir",{id:i.id});itens=itens.filter(x=>x.id!==i.id);fecharPainel();render();toast("Acesso excluído");}
+    catch(e){if(e.code!=="cofre")toast(e.message||"Não foi possível excluir.");}}
+
+  /* ---------- cadastro (só admin) ---------- */
+  function gerarSenha(n){const S=["ABCDEFGHJKLMNPQRSTUVWXYZ","abcdefghijkmnopqrstuvwxyz","23456789","!@#$%&*?-_+="],todos=S.join("");
+    const rnd=m=>{const a=new Uint32Array(1);crypto.getRandomValues(a);return a[0]%m;};
+    const c=S.map(s=>s[rnd(s.length)]);while(c.length<n)c.push(todos[rnd(todos.length)]);
+    for(let k=c.length-1;k>0;k--){const j=rnd(k+1);[c[k],c[j]]=[c[j],c[k]];}return c.join("");}
+  function forca(s){let p=0;if(s.length>=8)p++;if(s.length>=12)p++;if(/[a-z]/.test(s)&&/[A-Z]/.test(s))p++;if(/\d/.test(s))p++;if(/[^A-Za-z0-9]/.test(s))p++;
+    return s?[["Fraca","var(--bad)"],["Fraca","var(--bad)"],["Razoável","var(--warn)"],["Razoável","var(--warn)"],["Forte","var(--ok)"],["Muito forte","var(--ok)"]][p].concat([(p/5*100)+"%"]):["","",0];}
+  function editar(i){editando=i||{};aberto=i?i.id:null;esconder();apagar=false;$("overlay").hidden=false;const p=panel();p.textContent="";const novo=!i;
+    p.append(cab(novo?"Adicionar acesso":"Editar acesso"));
+    const inp=(id,attrs,val)=>{const x=el("input",Object.assign({class:"inp",id},attrs));x.value=val||"";return x;};
+    const fNome=inp("eNome",{type:"text",maxlength:"120",placeholder:"Ex.: Meta Business, RD Station, Canva",autocomplete:"off"},i&&i.nome);
+    const fUrl=inp("eUrl",{type:"url",maxlength:"500",placeholder:"https://",autocomplete:"off"},i&&i.url);
+    const fUser=inp("eUser",{type:"text",maxlength:"200",placeholder:"E-mail ou nome de usuário",autocomplete:"off",autocapitalize:"none",spellcheck:"false"},i&&i.usuario);
+    const fPw=inp("ePw",{type:"password",maxlength:"500",autocomplete:"new-password",placeholder:novo?"Senha do acesso":"Deixe em branco para manter a senha atual"});
+    const fCat=inp("eCat",{type:"text",maxlength:"60",list:"cats",placeholder:"Ex.: Redes sociais",autocomplete:"off"},i&&i.categoria);
+    const fNota=el("textarea",{class:"inp",id:"eNota",maxlength:"2000",placeholder:"Ex.: código de verificação vai para o celular do Renato"});fNota.value=(i&&i.nota)||"";
+    const cats=[...new Set(itens.map(x=>x.categoria).filter(Boolean))].sort();
+    const barra=el("div",{class:"forca","aria-hidden":"true"},el("i")),fTx=el("span",{class:"hint"});
+    const upd=()=>{const [t,c,w]=forca(fPw.value);barra.firstChild.style.setProperty("--w",w);barra.firstChild.style.setProperty("--fc",c);fTx.textContent=t?"Força da senha: "+t:"";};
+    fPw.addEventListener("input",upd);
+    const bVer=el("button",{type:"button",class:"ib","aria-label":"Mostrar a senha digitada",onclick:()=>{fPw.type=fPw.type==="password"?"text":"password";}},svg(I.olho));
+    const bGer=el("button",{type:"button",class:"btn",onclick:()=>{fPw.value=gerarSenha(16);fPw.type="text";upd();}},svg(I.dado,16),"Gerar senha forte");
+    const sel=new Set((i&&i.compartilhado)||[]);
+    const quem=el("div",{class:"quem"},users.filter(u=>u.ativo!==false).sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email)).map(u=>{
+      const ad=u.perfil==="admin"||(window.APP_CONFIG.administradores||[]).includes(u.email);
+      return el("label",null,el("input",{type:"checkbox",value:u.email,checked:ad||sel.has(u.email)?true:null,disabled:ad?true:null,"data-q":"1"}),Central.avatar(u,26),u.nome||u.email,el("small",null,ad?"administrador · sempre vê":u.cargo||""));}));
+    const err=el("p",{class:"err",role:"alert",hidden:true});
+    const b=el("div",{class:"pb"},
+      el("div",{class:"f"},el("label",{for:"eNome"},"Nome do site ou serviço"),fNome),
+      el("div",{class:"f"},el("label",{for:"eUrl"},"Endereço do site (opcional)"),fUrl),
+      el("div",{class:"f"},el("label",{for:"eUser"},"Usuário"),fUser),
+      el("div",{class:"f"},el("label",{for:"ePw"},novo?"Senha":"Nova senha"),el("div",{class:"pwbox"},fPw,bVer),barra,el("div",{class:"acts",style:"justify-content:space-between"},fTx,bGer)),
+      el("div",{class:"f"},el("label",{for:"eCat"},"Categoria (opcional)"),fCat,el("datalist",{id:"cats"},cats.map(c=>el("option",{value:c})))),
+      el("div",{class:"f"},el("label",{for:"eNota"},"Observação (opcional)"),fNota),
+      el("div",{class:"f"},el("span",{class:"lab"},"Quem pode ver e copiar"),el("span",{class:"hint"},"Marque as pessoas da equipe que precisam deste acesso. Cada vez que alguém vê ou copia a senha, fica registrado."),quem),err);
+    const salvar=el("button",{type:"submit",class:"btn primary"},novo?"Adicionar":"Salvar");
+    const form=el("form",{novalidate:true,style:"display:flex;flex-direction:column;flex:1"},b,el("div",{class:"pf"},el("span"),salvar));
+    form.addEventListener("submit",async e=>{e.preventDefault();err.hidden=true;const bad=m=>{err.textContent=m;err.hidden=false;};
+      const item={nome:fNome.value.trim(),url:fUrl.value.trim(),usuario:fUser.value.trim(),categoria:fCat.value.trim(),nota:fNota.value.trim(),
+        compartilhado:[...quem.querySelectorAll("input[data-q]:checked:not(:disabled)")].map(x=>x.value)};
+      if(!item.nome)return bad("Dê um nome para o acesso.");
+      if(item.url&&!/^https?:\/\/\S+$/i.test(item.url))item.url="https://"+item.url.replace(/^\/+/,"");
+      if(fPw.value)item.senha=fPw.value;else if(novo&&!item.usuario)return bad("Informe pelo menos o usuário ou a senha.");
+      if(!novo)item.id=i.id;
+      salvar.disabled=true;salvar.textContent="Salvando…";
+      try{const r=await chamar("cofreSalvar",{item});const k=itens.findIndex(x=>x.id===r.item.id);if(k>=0)itens[k]=r.item;else itens.push(r.item);
+        itens.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{sensitivity:"base"}));render();toast(novo?"Acesso adicionado":"Acesso salvo");abrir(r.item.id);}
+      catch(x){if(x.code!=="cofre")bad(x.message||"Não foi possível salvar.");}
+      finally{salvar.disabled=false;salvar.textContent=novo?"Adicionar":"Salvar";}});
+    p.append(form);setTimeout(()=>fNome.focus(),40);}
+  $("novo").onclick=()=>editar(null);
+
+  /* ---------- registro de segurança (só admin) ---------- */
+  const ACOES=[["","Todas as ações"],["copiou a senha","Copiou a senha"],["viu a senha","Viu a senha"],["abriu a página","Abriu a página"],["incorreta","Senha incorreta / bloqueio"],["acesso","Cadastros e alterações"]];
+  const tipoAcao=a=>/copiou/.test(a)?"copiou":/viu/.test(a)?"viu":/incorreta|bloqueado/.test(a)?"ruim":/acesso/.test(a)?"adm":"";
+  function syncAbas(){[...$("abas").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
+    $("vSenhas").hidden=view!=="senhas";$("vReg").hidden=view!=="registro";$("q").parentNode.style.visibility=view==="senhas"?"":"hidden";}
+  $("abas").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;view=b.dataset.v;syncAbas();if(view==="registro")carregarReg();});
+  $("regAtual").onclick=carregarReg;
+  async function carregarReg(){$("regLista").textContent="";$("regLista").append(el("p",{class:"hint"},"Carregando…"));
+    try{const r=await chamar("cofreRegistro",{});reg=r.itens||[];regLim=200;renderReg();}catch(e){$("regLista").textContent="";if(e.code!=="cofre")toast(e.message||"Não foi possível carregar o registro.");}}
+  function renderReg(){const fq=$("fQuem"),fa=$("fAcao"),vq=fq.value,va=fa.value;
+    fq.textContent="";fq.append(el("option",{value:""},"Todas as pessoas"),[...new Set(reg.map(x=>x.usuario))].sort((a,b)=>userName(a).localeCompare(userName(b))).map(e=>el("option",{value:e},userName(e))));fq.value=vq;
+    if(!fa.options.length)ACOES.forEach(([k,n])=>fa.append(el("option",{value:k},n)));fa.value=va;
+    const L=reg.filter(x=>(!fq.value||x.usuario===fq.value)&&(!fa.value||(fa.value==="incorreta"?tipoAcao(x.acao)==="ruim":fa.value==="acesso"?tipoAcao(x.acao)==="adm":x.acao===fa.value)));
+    const h=$("regLista");h.textContent="";
+    if(!L.length){h.append(el("p",{class:"hint",style:"margin:0"},reg.length?"Nenhum registro com esses filtros.":"Ainda não há registros."));return;}
+    const tb=el("tbody");L.slice(0,regLim).forEach(x=>tb.append(el("tr",null,el("td",{class:"mono"},fdt(x.em)),el("td",{class:"q"},el("span",{class:"quemr"},Central.avatar(userDe(x.usuario),26),userName(x.usuario))),
+      el("td",{class:"a"},el("span",{class:"pill "+tipoAcao(x.acao)},x.acao)),el("td",{class:"n"},x.nome||(x.id?"(acesso excluído)":"—")))));
+    h.append(el("table",null,el("thead",null,el("tr",null,["Data e hora","Quem","Ação","Acesso"].map(t=>el("th",null,t)))),tb));
+    if(L.length>regLim)h.append(el("button",{type:"button",class:"btn mais",onclick:()=>{regLim+=200;renderReg();}},`Mostrar mais (${L.length-regLim} restantes)`));}
+  $("fQuem").onchange=renderReg;$("fAcao").onchange=renderReg;
+
+  Central.boot("senhas",user=>{me=user;
+    $("lockUser").value=me.email;
+    if(admin()){$("abas").hidden=false;$("novo").hidden=false;const n=$("roleNote");n.hidden=false;
+      n.textContent="Você é administrador: cadastre os acessos, escolha quem pode ver cada um e acompanhe no Registro de segurança quem viu ou copiou cada senha.";}
+    Store.collection("usuarios").onSnapshot(sn=>{users=Central.filtraOpta(sn.docs.map(d=>Object.assign({email:d.id},d.data())).filter(u=>u.email));if(cofre){render();if(view==="registro")renderReg();}});
+    travar("");});
+})();
+</script>
+</body>
+</html>

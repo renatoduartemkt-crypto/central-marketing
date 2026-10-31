@@ -7,6 +7,7 @@
   // menu lateral agrupado (V2). "g" é o grupo; páginas sem grupo ficam no topo.
   const PAGES = [
     { k: "painel",   href: "index.html",    n: "Painel" },
+    { k: "agenda",   href: "agenda.html",   n: "Minha agenda diária" },
     { k: "tarefas",  href: "tarefas.html",  n: "Tarefas",          g: "Operação" },
     { k: "producao", href: "producao.html", n: "Produção",         g: "Operação" },
     { k: "redes",    href: "redes.html",    n: "Redes sociais",    g: "Operação" },
@@ -18,6 +19,7 @@
     { k: "metas",    href: "metas.html",    n: "Metas e custos",   g: "Planejamento" },
     { k: "aprovacoes", href: "aprovacoes.html", n: "Aprovações",   g: "Gestão", admin: true },
     { k: "pdl",      href: "pdl.html",      n: "PDL",              g: "Gestão" },
+    { k: "senhas",   href: "senhas.html",   n: "Senhas e acessos", g: "Gestão" },
     { k: "usuarios", href: "usuarios.html", n: "Usuários",         g: "Gestão" }
   ];
   const initials = n => String(n || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();

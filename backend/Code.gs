@@ -33,6 +33,7 @@
  *  PASTA_PDL            id da pasta privada do PDL, com uma subpasta por colaborador (senão cria "Central de Marketing - PDL")
  *  PASTA_ENTRADA        id da pasta onde a rotina automática (Claude Cowork) deixa os arquivos JSON de dados (senão cria "Central de Marketing - Entrada automática")
  *  IMPORTACAO_ID        id da planilha de importação de metas/projetado (usada por importarMetas)
+ *  COFRE_CHAVE          gerada automaticamente; NÃO apague (sem ela as senhas da página "Senhas e acessos" não abrem mais)
  *
  * IMPORTANTE (armadilhas conhecidas): ao alterar este arquivo, cole-o INTEIRO no editor e crie uma
  * NOVA VERSÃO da implantação (Implantar → Gerenciar implantações → editar → Nova versão).
@@ -50,7 +51,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-29a';
+const VERSAO_API = '2026-10-31a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -104,6 +105,12 @@ function api(req) {
       case 'pdlItemExcluir': return pdlItemExcluir_(eu, req);
       case 'pdlCurso':       return pdlCurso_(eu, req);
       case 'pdlCursoExcluir':return pdlCursoExcluir_(eu, req);
+      case 'cofreAbrir':     return cofreAbrir_(eu, req.senha);
+      case 'cofreListar':    return cofreListar_(eu, req.cofre);
+      case 'cofreSenha':     return cofreSenha_(eu, req);
+      case 'cofreSalvar':    return cofreSalvar_(eu, req);
+      case 'cofreExcluir':   return cofreExcluir_(eu, req);
+      case 'cofreRegistro':  return cofreRegistro_(eu, req);
     }
 
     if (req.acao === 'listarVarias') {
@@ -734,6 +741,144 @@ function pdlCursoExcluir_(eu, r) {
     log_(eu.email, 'PDL: curso removido', 'pdl', docId_(login), c.nome);
     return pdlGravar_(eu, login, x);
   });
+}
+
+/* ======================= Senhas e acessos (cofre) ======================= */
+// Abas "cofre" e "cofre_registro" fora de COLECOES: nunca saem pela listagem genérica.
+// Para abrir a página a pessoa digita de novo a própria senha; isso libera o cofre por 10 minutos (renovados a cada uso).
+// O administrador cadastra os acessos e escolhe quem pode ver cada um. Abrir a página, ver e copiar uma senha fica registrado.
+// As senhas ficam cifradas na planilha com a chave COFRE_CHAVE (HMAC-SHA256 em modo contador + conferência de integridade).
+const ABA_COFRE = 'cofre', ABA_COFRE_REG = 'cofre_registro';
+const COFRE_SEG = 600;
+const arr_ = x => Array.prototype.slice.call(x);
+const bytes_ = s => arr_(Utilities.newBlob(String(s)).getBytes());
+const celTxt_ = s => { s = String(s == null ? '' : s); return /^[=+\-@]/.test(s) ? "'" + s : s; };   // texto nunca vira fórmula na planilha
+function cofreChave_() {
+  let k = prop_('COFRE_CHAVE');
+  if (!k) { k = Utilities.getUuid() + Utilities.getUuid(); PropertiesService.getScriptProperties().setProperty('COFRE_CHAVE', k); }
+  return k;
+}
+function fluxo_(nonce, n, chave) {
+  const out = [];
+  for (let i = 0; out.length < n; i++) Array.prototype.push.apply(out, arr_(Utilities.computeHmacSha256Signature(nonce.concat(bytes_(':' + i)), chave)));
+  return out.slice(0, n);
+}
+function cifrar_(texto) {
+  const k = cofreChave_(), nonce = arr_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.getUuid() + Utilities.getUuid())).slice(0, 16);
+  const p = bytes_(texto), f = fluxo_(nonce, p.length, bytes_(k + ':cifra'));
+  const c = p.map(function (b, i) { return b ^ f[i]; });
+  const mac = Utilities.computeHmacSha256Signature(nonce.concat(c), bytes_(k + ':mac'));
+  return 'v1:' + [nonce, c, mac].map(function (x) { return Utilities.base64Encode(x); }).join(':');
+}
+function decifrar_(s) {
+  const m = /^v1:([^:]+):([^:]+):([^:]+)$/.exec(String(s || ''));
+  if (!m) throw new Error('Senha guardada em formato desconhecido.');
+  const k = cofreChave_(), nonce = arr_(Utilities.base64Decode(m[1])), c = arr_(Utilities.base64Decode(m[2]));
+  const mac = Utilities.base64Encode(Utilities.computeHmacSha256Signature(nonce.concat(c), bytes_(k + ':mac')));
+  if (!iguais_(mac, m[3])) throw new Error('Não foi possível abrir esta senha (a chave do cofre não confere).');
+  const f = fluxo_(nonce, c.length, bytes_(k + ':cifra'));
+  return Utilities.newBlob(c.map(function (b, i) { return b ^ f[i]; })).getDataAsString();
+}
+
+function cofreReg_(email, acao, id, nome) {
+  try {
+    const ss = ss_();
+    let sh = ss.getSheetByName(ABA_COFRE_REG);
+    if (!sh) { sh = ss.insertSheet(ABA_COFRE_REG); sh.appendRow(['data_hora', 'usuario', 'acao', 'acesso_id', 'acesso']); sh.setFrozenRows(1); sh.getRange(1, 1, 1, 5).setFontWeight('bold'); }
+    sh.appendRow([new Date(), email, acao, celTxt_(id), celTxt_(nome)]);
+  } catch (e) { console.error(e); }
+}
+// a pessoa confirma a própria senha (mesmas regras do login: 5 erros bloqueiam por 15 minutos)
+function cofreAbrir_(eu, senha) {
+  const c = CacheService.getScriptCache(), kf = 'cf:f:' + docId_(eu.email), n = Number(c.get(kf) || 0);
+  if (n >= 5) { cofreReg_(eu.email, 'bloqueado: muitas tentativas', '', ''); return { erro: 'Muitas tentativas erradas. Aguarde 15 minutos.' }; }
+  if (!senha || !eu.senhaHash || !iguais_(hash_(senha, eu.sal, eu.iter || 1000), eu.senhaHash)) {
+    c.put(kf, String(n + 1), 900);
+    cofreReg_(eu.email, 'senha incorreta ao abrir', '', '');
+    return { erro: 'Senha incorreta.' };
+  }
+  c.remove(kf);
+  const tok = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, '').toLowerCase();
+  c.put('cf:s:' + tok, eu.email, COFRE_SEG);
+  cofreReg_(eu.email, 'abriu a página', '', '');
+  return { cofre: tok, segundos: COFRE_SEG };
+}
+// confere o cofre aberto; devolve o erro (com código "cofre") se for preciso digitar a senha de novo
+function cofreSessao_(eu, tok) {
+  tok = String(tok || '');
+  const c = CacheService.getScriptCache();
+  if (!/^[a-f0-9]{64}$/.test(tok) || c.get('cf:s:' + tok) !== eu.email) return { erro: 'Por segurança, digite sua senha de novo.', codigo: 'cofre' };
+  c.put('cf:s:' + tok, eu.email, COFRE_SEG);
+  return null;
+}
+function cofreSoAdmin_(eu) { if (!isAdmin_(eu)) throw new Error('Só o administrador pode fazer isso.'); }
+function cofreVe_(eu, d) { return isAdmin_(eu) || (d.compartilhado || []).indexOf(eu.email) >= 0; }
+const COFRE_PUBLICO_ = ['nome', 'url', 'usuario', 'categoria', 'nota', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor', 'senhaTrocadaEm'];
+// a senha nunca sai na lista: só pelo cofreSenha, que registra quem pediu
+function cofrePublico_(eu, it) {
+  const o = { id: it.id, temSenha: !!it.senhaC };
+  COFRE_PUBLICO_.forEach(function (k) { if (it[k] != null) o[k] = it[k]; });
+  if (isAdmin_(eu)) o.compartilhado = it.compartilhado || [];
+  return o;
+}
+function cofreListar_(eu, tok) {
+  const b = cofreSessao_(eu, tok); if (b) return b;
+  return { itens: listar_(ABA_COFRE).filter(function (it) { return cofreVe_(eu, it); }).map(function (it) { return cofrePublico_(eu, it); }) };
+}
+function cofreSenha_(eu, r) {
+  const b = cofreSessao_(eu, r.cofre); if (b) return b;
+  const id = String(r.id || ''), a = id ? ler_(ABA_COFRE, id) : null;
+  if (!a || !cofreVe_(eu, a.dados)) throw new Error('Acesso não encontrado.');
+  const senha = a.dados.senhaC ? decifrar_(a.dados.senhaC) : '';
+  cofreReg_(eu.email, r.motivo === 'copiar' ? 'copiou a senha' : 'viu a senha', id, a.dados.nome);
+  return { senha: senha };
+}
+function cofreSalvar_(eu, r) {
+  const b = cofreSessao_(eu, r.cofre); if (b) return b;
+  cofreSoAdmin_(eu);
+  const x = r.item || {}, nome = String(x.nome || '').trim().slice(0, 120);
+  if (!nome) throw new Error('Dê um nome para o acesso.');
+  const url = String(x.url || '').trim().slice(0, 500);
+  if (url && !/^https?:\/\/\S+$/i.test(url)) throw new Error('O endereço precisa começar com http:// ou https://');
+  const compartilhado = (Array.isArray(x.compartilhado) ? x.compartilhado : []).map(function (e) { return String(e).trim().toLowerCase(); })
+    .filter(function (e, i, L) { return e && L.indexOf(e) === i && loginOk_(e) && usuario_(e); }).slice(0, 50);
+  return comLock_(function () {
+    const id = x.id ? String(x.id) : Utilities.getUuid().replace(/-/g, '').slice(0, 20);
+    if (!/^[A-Za-z0-9]{1,40}$/.test(id)) throw new Error('Identificador inválido.');
+    const antigo = x.id ? ler_(ABA_COFRE, id) : null;
+    if (x.id && !antigo) throw new Error('Acesso não encontrado.');
+    const agora = new Date().toISOString();
+    const d = Object.assign({}, antigo ? antigo.dados : { criadoPor: eu.email, criadoEm: agora }, {
+      nome: nome, url: url, usuario: String(x.usuario || '').trim().slice(0, 200), categoria: String(x.categoria || '').trim().slice(0, 60),
+      nota: String(x.nota || '').trim().slice(0, 2000), compartilhado: compartilhado, atualizadoEm: agora, atualizadoPor: eu.email });
+    const novaSenha = typeof x.senha === 'string' && x.senha !== '';
+    if (novaSenha) { d.senhaC = cifrar_(x.senha.slice(0, 500)); d.senhaTrocadaEm = agora; }
+    gravarLinha_(ABA_COFRE, id, d, eu.email, !antigo, antigo);
+    cofreReg_(eu.email, !antigo ? 'cadastrou o acesso' : novaSenha ? 'alterou o acesso e a senha' : 'alterou o acesso', id, nome);
+    return { item: cofrePublico_(eu, Object.assign({ id: id }, d)) };
+  });
+}
+function cofreExcluir_(eu, r) {
+  const b = cofreSessao_(eu, r.cofre); if (b) return b;
+  cofreSoAdmin_(eu);
+  return comLock_(function () {
+    const id = String(r.id || ''), a = id ? ler_(ABA_COFRE, id) : null;
+    if (!a) return { ok: true };
+    const sh = aba_(ABA_COFRE);
+    [a.linha].concat(a.repetidas || []).sort(function (x, y) { return y - x; }).forEach(function (n) { sh.deleteRow(n); });
+    cofreReg_(eu.email, 'excluiu o acesso', id, a.dados.nome);
+    return { ok: true };
+  });
+}
+// últimos 1.000 registros, do mais novo para o mais antigo (só o administrador)
+function cofreRegistro_(eu, r) {
+  const b = cofreSessao_(eu, r.cofre); if (b) return b;
+  cofreSoAdmin_(eu);
+  const sh = ss_().getSheetByName(ABA_COFRE_REG);
+  if (!sh || sh.getLastRow() < 2) return { itens: [] };
+  const q = Math.min(sh.getLastRow() - 1, 1000);
+  const rows = sh.getRange(sh.getLastRow() - q + 1, 1, q, 5).getValues().reverse();
+  return { itens: rows.map(function (x) { return { em: x[0] instanceof Date ? x[0].toISOString() : String(x[0]), usuario: String(x[1]), acao: String(x[2]), id: String(x[3]), nome: String(x[4]).replace(/^'/, '') }; }) };
 }
 
 /* ======================= entrada automática (rotina diária do Claude Cowork) ======================= */
