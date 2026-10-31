@@ -1,0 +1,32 @@
+# Central de Marketing — configuração do Netlify (site estático, sem etapa de build)
+[build]
+  publish = "."
+
+# Páginas, estilos e scripts: o navegador sempre confere se há versão nova (resposta 304 rápida quando não mudou).
+# Assim, cada publicação aparece na hora para todos, sem precisar de Ctrl+Shift+R.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+    Permissions-Policy = "geolocation=(), microphone=(), payment=()"
+
+# Bibliotecas e imagens mudam raramente: ficam guardadas no navegador por mais tempo.
+[[headers]]
+  for = "/assets/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+[[headers]]
+  for = "/assets/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# O código do backend (Apps Script) fica no repositório só como cópia; não precisa ser servido pelo site.
+[[redirects]]
+  from = "/backend/*"
+  to = "/index.html"
+  status = 302
+  force = true
