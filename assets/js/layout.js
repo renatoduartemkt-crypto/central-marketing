@@ -22,6 +22,18 @@
     { k: "senhas",   href: "senhas.html",   n: "Senhas e acessos", g: "Gestão" },
     { k: "usuarios", href: "usuarios.html", n: "Usuários",         g: "Gestão" }
   ];
+  // aparência: "claro", "escuro" ou "auto" (segue o celular/computador). Fica guardada neste navegador.
+  // As cores escuras já estão no base.css e nas páginas, em :root[data-theme="dark"]; aqui só se escolhe qual vale.
+  const TEMA_K = "central-mkt:tema";
+  const lerTema = () => { try { return localStorage.getItem(TEMA_K) || "auto"; } catch (_) { return "auto"; } };
+  function aplicarTema(t){
+    const r = document.documentElement;
+    if (t === "claro") r.setAttribute("data-theme", "light"); else if (t === "escuro") r.setAttribute("data-theme", "dark"); else r.removeAttribute("data-theme");
+  }
+  aplicarTema(lerTema());
+  // outra aba trocou a aparência
+  window.addEventListener("storage", ev => { if (ev.key === TEMA_K) { aplicarTema(lerTema()); document.querySelectorAll(".tema button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === lerTema()))); } });
+
   const initials = n => String(n || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();
   // avatar: foto de perfil, ou as iniciais do nome quando não há foto
   function avatar(u, tam){
@@ -65,6 +77,22 @@
     });
     grupos.forEach(g => nav.append(g.el));
     body.append(nav);
+
+    // escolha de aparência (claro / escuro / automático)
+    const temaBox = mk("div", "tema-box");
+    const tema = mk("div", "tema"); tema.setAttribute("role", "group"); tema.setAttribute("aria-label", "Aparência do site");
+    [["claro", "Claro"], ["escuro", "Escuro"], ["auto", "Automático"]].forEach(([k, n]) => {
+      const b = mk("button", null, n); b.type = "button"; b.dataset.t = k; b.setAttribute("aria-pressed", String(lerTema() === k));
+      if (k === "auto") b.title = "Segue a configuração do seu celular ou computador";
+      b.onclick = () => {
+        try { localStorage.setItem(TEMA_K, k); } catch (_) {}
+        aplicarTema(k);
+        tema.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      };
+      tema.append(b);
+    });
+    temaBox.append(mk("span", "tema-t", "Aparência"), tema);
+    body.append(temaBox);
 
     // quem está usando (rodapé do menu)
     if (user) {
@@ -133,5 +161,5 @@
   }
   const filtraOpta = L => L.filter(semOpta).map(limpaOpta);
 
-  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro, semOpta, filtraOpta, avatar };
+  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro, semOpta, filtraOpta, avatar, aplicarTema };
 })();
