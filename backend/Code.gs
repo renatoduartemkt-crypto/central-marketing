@@ -42,7 +42,9 @@
 const COLECOES = ['usuarios', 'emails', 'trafego_campanhas', 'posts', 'eventos', 'custos', 'centros_custo', 'brindes', 'brindes_mov',
                   'producao', 'metas_ecommerce', 'metas_mensais', 'tarefas', 'trafego_recargas', 'trafego_relatorios',
                   'plan_config', 'plan_fases', 'plan_cotas', 'plan_eventos', 'plan_orcamento', 'plan_brindes', 'plan_acoes', 'plan_bi',
-                  'rd_segmentacoes'];
+                  'rd_segmentacoes', 'agenda_rotinas'];
+// rotina pessoal da "Minha agenda diária": um registro por pessoa (id = login); cada um lê e grava só o seu
+const COL_PESSOAL_ = ['agenda_rotinas'];
 // coleções de dinheiro das contas de anúncio: quem criou fica registrado pelo servidor; só o autor ou um administrador apaga
 const COL_AUTORIA_ = ['trafego_recargas', 'trafego_relatorios'];
 const CHUNK = 45000;           // limite seguro por célula (o Sheets aceita 50.000 caracteres)
@@ -51,7 +53,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-10-31a';
+const VERSAO_API = '2026-11-03a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -115,14 +117,15 @@ function api(req) {
 
     if (req.acao === 'listarVarias') {
       const out = {};
-      (req.colecoes || []).forEach(function (c) { if (COLECOES.indexOf(c) >= 0) out[c] = listarPublico_(c); });
+      (req.colecoes || []).forEach(function (c) { if (COLECOES.indexOf(c) >= 0) out[c] = listarPara_(eu, c); });
       return { colecoes: out };
     }
     const col = req.colecao;
     if (COLECOES.indexOf(col) < 0) return { erro: 'Coleção desconhecida: ' + col };
     if (col === 'usuarios' && req.acao !== 'listar') return { erro: 'Use a página Usuários para alterar cadastros.' };
+    if (COL_PESSOAL_.indexOf(col) >= 0 && req.acao !== 'listar' && String(req.id || '') !== docId_(eu.email)) return { erro: 'Você só pode alterar a sua própria rotina.' };
     switch (req.acao) {
-      case 'listar':  return { itens: listarPublico_(col) };
+      case 'listar':  return { itens: listarPara_(eu, col) };
       case 'criar':   return escrever_(eu, col, null, req.dados, 'criar');
       case 'gravar':  return escrever_(eu, col, String(req.id), req.dados, 'gravar');
       case 'mesclar': return escrever_(eu, col, String(req.id), req.dados, 'mesclar');
@@ -168,6 +171,13 @@ function usuario_(login) {
 function usuarioCacheApagar_(id) { try { CacheService.getScriptCache().remove('u:' + String(id)); } catch (e) {} }
 function publico_(u) { const o = Object.assign({}, u); SEGREDOS_.forEach(function (k) { delete o[k]; }); return o; }
 function listarPublico_(col) { let L = cacheLer_(col); if (!L) { L = listar_(col); cacheGravar_(col, L); } return col === 'usuarios' ? L.map(function (u) { return publico_(Object.assign({}, u, { email: u.id, usuario: u.id })); }) : L; }
+// coleção pessoal: cada pessoa recebe só o próprio registro
+function listarPara_(eu, col) {
+  const L = listarPublico_(col);
+  if (COL_PESSOAL_.indexOf(col) < 0) return L;
+  const meu = docId_(eu.email);
+  return L.filter(function (x) { return x.id === meu; });
+}
 function isAdmin_(u) { return !!u && (u.perfil === 'admin' || lista_('ADMINISTRADORES').indexOf(u.email) >= 0); }
 
 /* ---------- senhas ---------- */

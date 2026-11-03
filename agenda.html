@@ -68,6 +68,32 @@
 .vazio{border:1px dashed var(--line);border-radius:12px;padding:28px 20px;text-align:center;color:var(--muted)}
 .vazio strong{display:block;color:var(--fg);font-size:17px;margin-bottom:4px}
 .vazio .big{font-size:34px;display:block;margin-bottom:6px}
+/* rotina pessoal (tarefas rápidas que se repetem todo dia; só a própria pessoa vê) */
+.rot{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px 10px;margin-bottom:18px}
+.rot>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rot>header h2{font-size:16px}
+.rot>header .c{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.rot>header .bar2{flex:1;min-width:80px;max-width:180px;height:6px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.rot>header .bar2 i{display:block;height:100%;width:var(--w);background:var(--f-ok);transition:width .3s}
+.rot>header .min{margin-left:auto;border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:4px}
+.rot .lst{display:flex;flex-direction:column;margin-top:6px}
+.ri{display:flex;align-items:center;gap:10px;padding:6px 2px;border-radius:8px}
+.ri:hover{background:var(--bg)}
+.ri .ck{--pc:var(--f-ok);width:20px;height:20px;margin-top:0}
+.ri .tx{flex:1;min-width:0;font-size:14.5px;overflow-wrap:anywhere}
+.ri.done .tx{text-decoration:line-through;color:var(--muted)}
+.ri .tp{font-size:11px;font-weight:700;color:var(--muted);background:var(--surface-2);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.ri .tp.hoje{color:var(--warn);background:var(--warn-bg)}
+.ri .tp.atr{color:var(--bad);background:var(--bad-bg)}
+.ri .del{border:0;background:none;color:var(--muted);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;opacity:0}
+.ri:hover .del,.ri .del:focus-visible{opacity:1}
+.ri .del:hover{background:var(--surface-2);color:var(--bad)}
+@media (hover:none){.ri .del{opacity:.6}}
+.rot .add{display:flex;gap:8px;align-items:center;margin-top:6px;border-top:1px dashed var(--line);padding-top:8px}
+.rot .add input{flex:1;min-width:0;border:0;background:transparent;font-size:14.5px;padding:6px 2px;outline:none}
+.rot .add select{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 8px;font-size:12.5px}
+.rot .add .mais{width:22px;height:22px;border-radius:50%;border:2px dashed var(--muted);color:var(--muted);display:grid;place-items:center;font-weight:800;flex:none;font-size:14px;line-height:1}
+.rot .vaz{font-size:13px;color:var(--muted);padding:4px 2px}
 /* conversa (Slack) */
 .th{background:var(--surface);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;position:sticky;top:18px;max-height:calc(100vh - 36px);max-height:calc(100dvh - 36px);overflow:hidden}
 .th-h{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-bottom:1px solid var(--line)}
@@ -142,6 +168,7 @@
 
   <div class="grid">
     <main>
+      <section class="rot" id="rotina" aria-label="Minha rotina de hoje"></section>
       <div class="bar">
         <div class="seg" id="filtro" role="group" aria-label="Mostrar"></div>
         <span class="hint">Só tarefas suas, atrasadas ou com entrega hoje.</span>
@@ -325,14 +352,62 @@
     try{await col.doc(t.id).update({comentarios:cs});}catch(_){ta.value=txt;toast("Não foi possível enviar.");}
     finally{enviando=false;renderTh();const n=$("th").querySelector("textarea");if(n)n.focus();}}
 
+  /* ---------- minha rotina: tarefas rápidas só da própria pessoa ----------
+     Um registro por pessoa na coleção "agenda_rotinas" (id = login); o servidor só entrega e só aceita o próprio.
+     "Todo dia" volta desmarcada a cada dia; "Só hoje" fica até ser feita e some no dia seguinte. */
+  const colR=Store.collection("agenda_rotinas");
+  let rot=null, rotFechada=false;
+  const PREF_ROT="central-mkt:agenda-rotina-fechada";
+  try{rotFechada=localStorage.getItem(PREF_ROT)==="1";}catch(_){}
+  const meuId=()=>Auth.docId(me.email);
+  const rotVazia=()=>({dono:me.email,itens:[],feitos:{}});
+  // itens que aparecem hoje (os "só hoje" feitos em outro dia saem da lista)
+  function rotHoje(){const h=hoje(),r=rot||rotVazia(),F=(r.feitos||{})[h]||[];
+    return (r.itens||[]).filter(i=>i.tipo!=="hoje"||!i.feito||i.feito===h)
+      .map(i=>({i,feito:i.tipo==="hoje"?i.feito===h:F.includes(i.id),atrasada:i.tipo==="hoje"&&!i.feito&&i.dia&&i.dia<h}));}
+  function salvarRot(r){const h=hoje(),lim=isoTz(new Date(Date.now()-14*864e5)),feitos={};
+    Object.entries(r.feitos||{}).forEach(([d,ids])=>{if(d>=lim&&ids.length)feitos[d]=ids;});
+    r=Object.assign({},r,{dono:me.email,feitos,itens:(r.itens||[]).filter(i=>i.tipo!=="hoje"||!i.feito||i.feito>=h)});
+    rot=r;renderRot();
+    colR.doc(meuId()).set(r).catch(()=>toast("Não foi possível salvar a rotina."));}
+  function marcarRot(x){const r=JSON.parse(JSON.stringify(rot||rotVazia())),h=hoje(),it=r.itens.find(i=>i.id===x.i.id);if(!it)return;
+    if(it.tipo==="hoje")it.feito=x.feito?"":h;
+    else{const L=(r.feitos[h]||[]).filter(id=>id!==it.id);if(!x.feito)L.push(it.id);r.feitos[h]=L;}
+    salvarRot(r);}
+  function addRot(texto,tipo){texto=String(texto||"").trim().slice(0,200);if(!texto)return;
+    const r=JSON.parse(JSON.stringify(rot||rotVazia()));r.itens=(r.itens||[]).concat([{id:uid(),texto,tipo,dia:hoje(),criadoEm:new Date().toISOString()}]);salvarRot(r);}
+  function delRot(x){if(x.i.tipo!=="hoje"&&!confirm(`Tirar “${x.i.texto}” da sua rotina diária?`))return;
+    const r=JSON.parse(JSON.stringify(rot||rotVazia()));r.itens=r.itens.filter(i=>i.id!==x.i.id);salvarRot(r);toast("Tarefa rápida removida");}
+  function renderRot(){const box=$("rotina");if(!me||!box)return;
+    const L=rotHoje(),feitas=L.filter(x=>x.feito).length,foco=document.activeElement&&document.activeElement.id==="rotTx",rasc=foco?document.activeElement.value:"";
+    const tipoAtual=($("rotTipo")||{}).value||"diaria";box.textContent="";
+    box.append(el("header",null,el("h2",null,"Minha rotina de hoje"),L.length?el("span",{class:"c"},`${feitas} de ${L.length}`):null,
+      L.length?el("span",{class:"bar2","aria-hidden":"true"},el("i",{style:`--w:${Math.round(feitas/L.length*100)}%`})):null,
+      el("button",{type:"button",class:"min","aria-expanded":String(!rotFechada),onclick:()=>{rotFechada=!rotFechada;try{localStorage.setItem(PREF_ROT,rotFechada?"1":"0");}catch(_){}renderRot();}},rotFechada?"Mostrar":"Ocultar")));
+    if(rotFechada)return;
+    const lst=el("div",{class:"lst"});
+    if(!L.length)lst.append(el("p",{class:"vaz"},"Anote aqui o que você precisa lembrar de fazer todo dia (ex.: conferir e-mails do RD, responder Direct, revisar pedidos do site). Só você vê esta lista."));
+    L.sort((a,b)=>(a.feito-b.feito)).forEach(x=>lst.append(el("div",{class:"ri"+(x.feito?" done":"")},
+      el("button",{type:"button",class:"ck"+(x.feito?" on":""),"aria-label":(x.feito?"Desmarcar ":"Marcar como feita ")+x.i.texto,onclick:()=>marcarRot(x)},ico(CHECK)),
+      el("span",{class:"tx"},x.i.texto),
+      x.i.tipo==="hoje"?el("span",{class:"tp "+(x.atrasada?"atr":"hoje")},x.atrasada?`desde ${fd(x.i.dia)}`:"só hoje"):el("span",{class:"tp"},"todo dia"),
+      el("button",{type:"button",class:"del","aria-label":"Remover "+x.i.texto,title:"Remover",onclick:()=>delRot(x)},"×"))));
+    const tx=el("input",{id:"rotTx",type:"text",maxlength:"200",placeholder:"Nova tarefa rápida… (Enter adiciona)","aria-label":"Nova tarefa rápida",autocomplete:"off"});tx.value=rasc;
+    const tp=el("select",{id:"rotTipo","aria-label":"Repetição"},el("option",{value:"diaria"},"Todo dia"),el("option",{value:"hoje"},"Só hoje"));tp.value=tipoAtual;
+    tx.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.isComposing){e.preventDefault();const v=tx.value;tx.value="";addRot(v,tp.value);}});
+    lst.append(el("div",{class:"add"},el("span",{class:"mais","aria-hidden":"true"},"+"),tx,tp));
+    box.append(lst);
+    if(foco)setTimeout(()=>{const n=$("rotTx");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}},0);}
+
   // a data de "hoje" muda à meia-noite e os atrasos são recalculados
-  let dHoje=hoje();setInterval(()=>{if(hoje()!==dHoje){dHoje=hoje();render();}},60000);
+  let dHoje=hoje();setInterval(()=>{if(hoje()!==dHoje){dHoje=hoje();render();renderRot();}},60000);
 
   Central.boot("agenda",user=>{me=user;
     $("hojeTx").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",timeZone:TZ});
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>Object.assign({email:d.id},d.data())).filter(u=>u.email);render();});
     col.onSnapshot(sn=>{tasks=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));render();},()=>{$("lista").textContent="";$("lista").append(el("p",{class:"hint"},"Não foi possível carregar as tarefas. Atualize a página."));});
-    render();});
+    colR.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===meuId());rot=d?d.data():null;renderRot();},()=>{});
+    render();renderRot();});
 })();
 </script>
 </body>
