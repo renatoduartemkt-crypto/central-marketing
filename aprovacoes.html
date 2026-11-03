@@ -91,8 +91,8 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:po
   function detalhe(i){
     if(i.src==="producao"){const p=i.raw,os=(p.orcamentos||[]).filter(o=>o.fornecedor&&+o.valor>0);if(!os.length)return null;
       const min=Math.min(...os.map(o=>+o.valor)),esc=(p.orcamentos||[])[p.escolhido];
-      return el("div",{class:"det"},`${os.length} orçamentos: `,...os.map((o,k)=>[k?" · ":"",el(o===esc?"b":"span",null,`${o.fornecedor} ${brl(o.valor)}`)]),
-        esc&&+esc.valor>min?el("div",null,"⚠ Não é o mais barato"+(p.justificativa?" — “"+p.justificativa+"”":"")):el("div",null,"✓ Mais barato dos orçamentos"));}
+      return el("div",{class:"det"},os.length===1?"Orçamento único: ":`${os.length} orçamentos: `,...os.map((o,k)=>[k?" · ":"",el(o===esc?"b":"span",null,`${o.fornecedor} ${brl(o.valor)}`)]),
+        esc&&+esc.valor>min?el("div",null,"⚠ Não é o mais barato"+(p.justificativa?" — “"+p.justificativa+"”":"")):os.length>1?el("div",null,"✓ Mais barato dos orçamentos"):null);}
     if(i.src==="aditivo")return el("div",{class:"det"},`Contrato original ${brl(i.contratoValor)} · aditivo de ${i.contratoValor?((Math.abs(i.valor)/i.contratoValor*100).toLocaleString("pt-BR",{maximumFractionDigits:1})+"%"):"—"}`);
     return null;}
 

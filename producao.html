@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="assets/css/base.css">
 <style>
-/* Layout: painel (indicadores + por centro de custo + pedidos aguardando aprovação) → lista de pedidos → pedido abre em painel lateral com no mínimo 2 orçamentos (o 3º é opcional) */
+/* Layout: painel (indicadores + por centro de custo + pedidos aguardando aprovação) → lista de pedidos → pedido abre em painel lateral com 1 a 3 orçamentos (só o 1º é obrigatório), cada um com mockups e arquivos */
 .top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
 .card h2{font-size:16px;margin:0}
@@ -64,6 +64,11 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
 .q h4{margin:0;font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:6px}
 .q input{background:var(--surface)}
 .q-anx{display:flex;flex-direction:column;gap:4px;border-top:1px dashed var(--line);padding-top:8px}
+.q-anx .lab+.q-th{margin-top:2px}
+.q-th{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.q-th button{aspect-ratio:1;border:1px solid var(--line);border-radius:7px;overflow:hidden;padding:0;background:var(--surface-2);cursor:zoom-in}
+.q-th img{width:100%;height:100%;object-fit:cover;display:block}
+.q-th button:hover{border-color:var(--accent)}
 .badge{font-size:10.5px;font-weight:800;border-radius:4px;padding:1px 6px;background:var(--ok);color:#fff}
 .pickl{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:700;cursor:pointer}
 .pickl input{width:17px;height:17px;accent-color:var(--navy)}
@@ -120,7 +125,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
       <div><label class="lab" for="pPrazo">Precisa até</label><input type="date" id="pPrazo"></div>
       <div><label class="lab" for="pSol">Solicitante</label><select id="pSol"></select></div>
       <div class="full"><label class="lab" for="pDesc">Especificação</label><textarea id="pDesc" maxlength="3000" placeholder="Formato, papel, cores, acabamento, arte (link), local de entrega..."></textarea></div>
-      <div class="full"><span class="lab">Orçamentos (os 3 são obrigatórios) · marque o escolhido</span></div>
+      <div class="full"><span class="lab">Orçamentos (pelo menos 1; o 2º e o 3º são opcionais) · marque o escolhido</span></div>
       <div class="qs" id="qs"></div>
       <div class="cmp" id="cmp"></div>
       <div class="full" id="justBox" hidden><label class="lab" for="pJust">Por que não o mais barato?</label><input type="text" id="pJust" maxlength="300" placeholder="Ex.: prazo de entrega, qualidade do material"></div>
@@ -182,7 +187,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
     if(!ag.length){a.append(el("p",{class:"hint"},"Nenhum pedido aguardando aprovação."));}
     ag.sort((x,y)=>(x.dataPedido||"").localeCompare(y.dataPedido||"")).forEach(p=>{const o=esc(p),ci=cheapest(p.orcamentos),notCheap=ci>=0&&ci!==p.escolhido;
       a.append(el("div",{class:"apr"},el("div",{style:"min-width:0;cursor:pointer",onclick:()=>openForm(p)},el("b",null,p.titulo),el("span",{class:"hint"},`${Custos.centroNome(p.centro,centros)} · ${userName(p.solicitante)} · pedido ${fd(p.dataPedido)}`),
-          el("span",{class:"hint"},`Escolhido: ${o?o.fornecedor:"—"}`+(notCheap?` · não é o mais barato (${p.orcamentos[ci].fornecedor} ${brl(p.orcamentos[ci].valor)})${p.justificativa?" — “"+p.justificativa+"”":""}`:" · mais barato dos 3"))),
+          el("span",{class:"hint"},`Escolhido: ${o?o.fornecedor:"—"}`+(notCheap?` · não é o mais barato (${p.orcamentos[ci].fornecedor} ${brl(p.orcamentos[ci].valor)})${p.justificativa?" — “"+p.justificativa+"”":""}`:(p.orcamentos||[]).filter(x=>x.fornecedor&&+x.valor>0).length>1?" · mais barato dos orçamentos":" · orçamento único"))),
         el("span",{class:"val"},brl(valOf(p))),Custos.acoes(asItem(p),msg=>toast(msg))));});}
   $("prevM").onclick=()=>{M--;if(M<0){M=11;Y--;}renderPanel();};$("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}renderPanel();};
 
@@ -201,7 +206,7 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
 
   // FORMULÁRIO
   const blankQ=()=>({fornecedor:"",valor:0,prazo:"",condicao:""});
-  const MIN_ORC=2; // mínimo de orçamentos por pedido; o 3º espaço fica opcional (cidades com só 2 prestadores)
+  const MIN_ORC=1; // mínimo de orçamentos por pedido; o 2º e o 3º são opcionais (nem sempre há mais de um fornecedor)
   function fillSelects(){const c=$("pCentro"),cv=c.value;c.textContent="";centros.filter(x=>x.ativo!==false).forEach(x=>c.append(el("option",{value:x.id},(x.codigo?x.codigo+" · ":"")+x.nome)));c.value=cv||"terceirizado";
     const e=$("pEvento"),ev=e.value;e.textContent="";e.append(el("option",{value:""},"—"));eventos.slice().sort((a,b)=>(b.inicio||"").localeCompare(a.inicio||"")).forEach(x=>e.append(el("option",{value:x.id},x.nome)));e.value=ev;
     const s=$("pSol"),sv=s.value;s.textContent="";users.forEach(u=>s.append(el("option",{value:u.email},u.nome||u.email)));s.value=sv||(me?me.email:"");
@@ -218,20 +223,39 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
         el("label",{class:"pickl"},el("input",{type:"radio",name:"esc",value:i,checked:draft.escolhido===i?true:null,disabled:dis,onchange:()=>{draft.escolhido=i;refreshCmp();}}),"Escolher este"),
         qAnexos(i)));});
     refreshCmp();}
-  // anexos do orçamento (PDF da proposta, foto): ficam no Drive privado; o pedido guarda só a lista
-  function qAnexos(i){const w=el("div",{class:"q-anx"},el("span",{class:"lab"},"Arquivo do orçamento"));
-    if(!editing){w.append(el("span",{class:"hint"},"Salve o rascunho para anexar."));return w;}
-    const id=editing;
-    w.append(Anexos.widget({compacto:true,podeEditar:!locked(),ref:"produção: "+(draft.titulo||"")+" · orçamento "+(i+1),nome:userName,aviso:toast,
-      lista:()=>((draft&&draft.orcamentos[i])||{}).anexos||[],
-      salvar:async L=>{if(draft&&editing===id&&draft.orcamentos[i])draft.orcamentos[i].anexos=L;
-        const p=pedidos.find(x=>x.id===id)||{};const os=JSON.parse(JSON.stringify(p.orcamentos||[]));while(os.length<=i)os.push(blankQ());os[i].anexos=L;
-        p.orcamentos=os;await col().doc(id).update({orcamentos:os});}}));
+  // anexos do orçamento: mockups (fotos, com miniaturas) e arquivos (PDF da proposta). Ficam no Drive privado; o pedido guarda só a lista.
+  // As duas áreas usam a mesma lista do orçamento (anexos), separadas pelo tipo do arquivo.
+  const ehFoto=a=>/^image\//.test(a.tipo||"");
+  const ANX_TIPOS=[{rot:"Mockups (fotos)",aceita:"image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp",filtro:ehFoto,fotos:true},
+    {rot:"Arquivos (PDF)",aceita:".pdf,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip",filtro:a=>!ehFoto(a)}];
+  function qAnexos(i){const w=el("div",{class:"q-anx"});
+    ANX_TIPOS.forEach(t=>{const mini=t.fotos?el("div",{class:"q-th"}):null;
+      const todos=()=>(((draft&&draft.orcamentos[i])||{}).anexos||[]);
+      w.append(el("span",{class:"lab"},t.rot),...(mini?[mini]:[]),Anexos.widget({compacto:true,podeEditar:!locked(),aceita:t.aceita,ref:"produção: "+(draft.titulo||$("pTit").value||"")+" · orçamento "+(i+1),nome:userName,aviso:toast,
+        lista:()=>todos().filter(t.filtro),
+        salvar:async L=>{const id=await garantirPedido();const lista=todos().filter(a=>!t.filtro(a)).concat(L);
+          if(draft&&editing===id&&draft.orcamentos[i])draft.orcamentos[i].anexos=lista;
+          const p=pedidos.find(x=>x.id===id);const os=JSON.parse(JSON.stringify((p&&p.orcamentos)||draft.orcamentos||[]));while(os.length<=i)os.push(blankQ());os[i].anexos=lista;
+          if(p)p.orcamentos=os;await col().doc(id).update({orcamentos:os});if(mini)miniaturas(mini,i);}}));
+      if(mini)miniaturas(mini,i);});
     return w;}
+  // miniaturas dos mockups (clique abre o visualizador da própria página)
+  const urlFoto={};
+  function miniaturas(box,i){const L=(((draft&&draft.orcamentos[i])||{}).anexos||[]).filter(ehFoto);box.textContent="";box.hidden=!L.length;
+    L.forEach((a,k)=>{const img=el("img",{alt:a.nome||"mockup"});
+      box.append(el("button",{type:"button",title:a.nome,"aria-label":"Ver "+(a.nome||"mockup"),onclick:()=>Anexos.ver(L,k)},img));
+      (urlFoto[a.id]=urlFoto[a.id]||Anexos.baixarBlob(a).then(b=>URL.createObjectURL(b))).then(u=>{img.src=u;}).catch(()=>{delete urlFoto[a.id];});});}
+  // pedido novo: o primeiro anexo salva o rascunho sozinho (o arquivo precisa de um pedido para ficar ligado)
+  async function garantirPedido(){if(editing)return editing;
+    lerForm();if(!draft.titulo)throw new Error("Preencha “O que será produzido” antes de anexar.");
+    const body=Object.assign({},draft,{status:"rascunho",criadoPor:me.email,historico:(draft.historico||[]).concat([{em:new Date().toISOString(),por:me.email,acao:"Rascunho salvo"}])});delete body.id;
+    const r=await col().add(body);editing=r.id;draft.status="rascunho";draft.historico=body.historico;
+    $("pTitle").textContent=draft.titulo;drawActions();toast("Rascunho salvo para guardar os anexos.");return editing;}
   function refreshCmp(){const os=draft.orcamentos,ci=cheapest(os),filled=os.filter(o=>o.fornecedor&&+o.valor>0);
     [...$("qs").children].forEach((q,i)=>{q.classList.toggle("best",i===ci&&filled.length>1);q.classList.toggle("pick",draft.escolhido===i);const b=q.querySelector(".bdg");b.textContent="";if(i===ci&&filled.length>1)b.append(el("span",{class:"badge"},"MAIS BARATO"));});
     const c=$("cmp");c.textContent="";
-    if(filled.length<MIN_ORC)c.append(`Preencha pelo menos ${MIN_ORC} orçamentos (${filled.length}/${MIN_ORC} completos) para enviar para aprovação. O 3º é opcional, para cidades com mais opções de fornecedor.`);
+    if(filled.length<MIN_ORC)c.append("Preencha fornecedor e valor de pelo menos 1 orçamento para enviar para aprovação. O 2º e o 3º são opcionais, para comparar preços quando houver mais fornecedores.");
+    else if(filled.length===1)c.append("Orçamento único: ",el("b",null,`${filled[0].fornecedor} ${brl(filled[0].valor)}`),". Se houver outro fornecedor, cadastre para comparar o preço.");
     else{const vs=filled.map(o=>+o.valor),mx=Math.max(...vs),mn=Math.min(...vs);c.append("Mais barato: ",el("b",null,os[ci].fornecedor+" "+brl(mn))," · mais caro: ",el("b",null,brl(mx))," · diferença ",el("b",null,brl(mx-mn)));
       if(draft.escolhido!=null&&os[draft.escolhido])c.append(" · escolhido: ",el("b",null,`${os[draft.escolhido].fornecedor||"—"} ${brl(os[draft.escolhido].valor)}`));}
     $("justBox").hidden=!(draft.escolhido!=null&&ci>=0&&draft.escolhido!==ci);}
@@ -261,16 +285,19 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
   $("pClose").onclick=closeForm;$("overlay").addEventListener("click",e=>{if(e.target===$("overlay"))closeForm();});
   document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("overlay").hidden)closeForm();});
   $("pForm").addEventListener("submit",e=>e.preventDefault());
+  function lerForm(){Object.assign(draft,{titulo:$("pTit").value.trim(),tipo:$("pTipo").value.trim(),quantidade:parseInt($("pQtd").value,10)||0,centro:$("pCentro").value,dataPedido:$("pData").value||hoje(),prazo:$("pPrazo").value,
+      solicitante:$("pSol").value,descricao:$("pDesc").value.trim(),justificativa:$("pJust").value.trim()});const ev=eventos.find(x=>x.id===$("pEvento").value);draft.eventoId=ev?ev.id:"";draft.eventoNome=ev?ev.nome:"";}
   async function save(novo){const err=m=>{$("pErr").textContent=m;$("pErr").hidden=false;};$("pErr").hidden=true;
     const prev=draft.status||"rascunho";
-    if(!locked()){Object.assign(draft,{titulo:$("pTit").value.trim(),tipo:$("pTipo").value.trim(),quantidade:parseInt($("pQtd").value,10)||0,centro:$("pCentro").value,dataPedido:$("pData").value||hoje(),prazo:$("pPrazo").value,
-      solicitante:$("pSol").value,descricao:$("pDesc").value.trim(),justificativa:$("pJust").value.trim()});const ev=eventos.find(x=>x.id===$("pEvento").value);draft.eventoId=ev?ev.id:"";draft.eventoNome=ev?ev.nome:"";}
+    if(!locked())lerForm();
     else draft.nf=$("pNF").value.trim();
     if(!draft.titulo)return err("Diga o que será produzido.");
     if(novo==="aguardando"){const os=draft.orcamentos;const vazio=o=>!(o.fornecedor||"").trim()&&!(+o.valor>0);
       const bad=os.findIndex((o,i)=>(i<MIN_ORC||!vazio(o))&&(!(o.fornecedor||"").trim()||!(+o.valor>0)));
-      if(bad>=0)return err(bad<MIN_ORC?`Preencha fornecedor e valor do orçamento ${bad+1}. Todo pedido precisa de pelo menos ${MIN_ORC} orçamentos.`:`O orçamento ${bad+1} está incompleto: preencha fornecedor e valor, ou deixe os dois em branco.`);
+      if(bad>=0)return err(bad<MIN_ORC?`Preencha fornecedor e valor do orçamento ${bad+1}. Todo pedido precisa de pelo menos 1 orçamento.`:`O orçamento ${bad+1} está incompleto: preencha fornecedor e valor, ou deixe os dois em branco.`);
       const usados=os.filter(o=>!vazio(o)),names=usados.map(o=>o.fornecedor.trim().toLowerCase());if(new Set(names).size<usados.length)return err("Os orçamentos precisam ser de fornecedores diferentes.");
+      // com um orçamento só, ele já é o escolhido
+      if((draft.escolhido==null||vazio(os[draft.escolhido]||{}))&&usados.length===1)draft.escolhido=os.indexOf(usados[0]);
       if(draft.escolhido==null||vazio(os[draft.escolhido]||{}))return err("Marque qual orçamento foi escolhido.");
       const ci=cheapest(os);if(draft.escolhido!==ci&&!draft.justificativa)return err("Explique por que o escolhido não é o mais barato.");}
     const acao=novo!==prev?{aguardando:prev==="recusado"?"Reenviado para aprovação":"Enviado para aprovação",produzindo:"Em produção",entregue:"Entregue",rascunho:"Rascunho salvo"}[novo]:"";
