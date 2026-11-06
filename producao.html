@@ -231,12 +231,15 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
   function qAnexos(i){const w=el("div",{class:"q-anx"});
     ANX_TIPOS.forEach(t=>{const mini=t.fotos?el("div",{class:"q-th"}):null;
       const todos=()=>(((draft&&draft.orcamentos[i])||{}).anexos||[]);
-      w.append(el("span",{class:"lab"},t.rot),...(mini?[mini]:[]),Anexos.widget({compacto:true,podeEditar:!locked(),aceita:t.aceita,ref:"produção: "+(draft.titulo||$("pTit").value||"")+" · orçamento "+(i+1),nome:userName,aviso:toast,
+      w.append(el("span",{class:"lab"},t.rot),...(mini?[mini]:[]),Anexos.widget({compacto:true,podeEditar:true,aceita:t.aceita,ref:"produção: "+(draft.titulo||$("pTit").value||"")+" · orçamento "+(i+1),nome:userName,aviso:toast,
         lista:()=>todos().filter(t.filtro),
         salvar:async L=>{const id=await garantirPedido();const lista=todos().filter(a=>!t.filtro(a)).concat(L);
           if(draft&&editing===id&&draft.orcamentos[i])draft.orcamentos[i].anexos=lista;
           const p=pedidos.find(x=>x.id===id);const os=JSON.parse(JSON.stringify((p&&p.orcamentos)||draft.orcamentos||[]));while(os.length<=i)os.push(blankQ());os[i].anexos=lista;
-          if(p)p.orcamentos=os;await col().doc(id).update({orcamentos:os});if(mini)miniaturas(mini,i);}}));
+          // depois da aprovação os valores ficam travados, mas mockups e arquivos podem ser trocados (fica registrado no histórico)
+          const body={orcamentos:os};
+          if(locked()){const base=(p&&p.historico)||draft.historico||[];body.historico=base.concat([{em:new Date().toISOString(),por:me.email,acao:"Anexos alterados após a aprovação",nota:`${t.rot} · orçamento ${i+1}`}]);draft.historico=body.historico;if(p)p.historico=body.historico;desenhaHist();}
+          if(p)p.orcamentos=os;await col().doc(id).update(body);if(mini)miniaturas(mini,i);}}));
       if(mini)miniaturas(mini,i);});
     return w;}
   // miniaturas dos mockups (clique abre o visualizador da própria página)
@@ -268,10 +271,11 @@ tr.click{cursor:pointer}tr.click:hover td{background:var(--bg)}
     $("pData").value=draft.dataPedido||hoje();$("pPrazo").value=draft.prazo||"";$("pSol").value=draft.solicitante||me.email;$("pDesc").value=draft.descricao||"";$("pJust").value=draft.justificativa||"";$("pNF").value=draft.nf||"";
     ["pTit","pTipo","pQtd","pCentro","pEvento","pData","pPrazo","pSol","pDesc","pJust"].forEach(id=>$(id).disabled=locked());
     const lb=$("lockBox");lb.hidden=!locked()&&draft.status!=="recusado"&&draft.status!=="aguardando";lb.className="lock full";
-    lb.textContent=locked()?`Aprovado por ${userName(draft.aprovadoPor)} em ${fdt(draft.aprovadoEm)}. Orçamentos e valores não podem mais ser alterados.`:draft.status==="recusado"?`Recusado por ${userName(draft.aprovadoPor)}${draft.motivoRecusa?": “"+draft.motivoRecusa+"”":""}. Ajuste e envie de novo.`:draft.status==="aguardando"?"Aguardando aprovação de um administrador. Se alterar, o pedido continua aguardando.":"";
+    lb.textContent=locked()?`Aprovado por ${userName(draft.aprovadoPor)} em ${fdt(draft.aprovadoEm)}. Orçamentos e valores não podem mais ser alterados; mockups e arquivos ainda podem ser trocados.`:draft.status==="recusado"?`Recusado por ${userName(draft.aprovadoPor)}${draft.motivoRecusa?": “"+draft.motivoRecusa+"”":""}. Ajuste e envie de novo.`:draft.status==="aguardando"?"Aguardando aprovação de um administrador. Se alterar, o pedido continua aguardando.":"";
     $("nfBox").hidden=!locked();drawQs();
-    const h=$("pHist");h.textContent="";(draft.historico||[]).slice().reverse().forEach(x=>h.append(el("div",null,el("b",null,x.acao)," · ",userName(x.por)," · ",fdt(x.em),x.nota?` · “${x.nota}”`:"")));
+    desenhaHist();
     drawActions();$("overlay").hidden=false;setTimeout(()=>{if(!locked())$("pTit").focus();},40);}
+  function desenhaHist(){const h=$("pHist");h.textContent="";(draft.historico||[]).slice().reverse().forEach(x=>h.append(el("div",null,el("b",null,x.acao)," · ",userName(x.por)," · ",fdt(x.em),x.nota?` · “${x.nota}”`:"")));}
   function drawActions(){const L=$("pLeft"),R=$("pRight");L.textContent="";R.textContent="";const st=draft.status||"rascunho";
     if(editing&&["rascunho","recusado"].includes(st))L.append(delBtn());
     if(editing&&st==="aguardando"&&Custos.isAdmin())L.append(Custos.acoes(asItem(Object.assign({id:editing},draft)),msg=>{toast(msg);closeForm();}));
