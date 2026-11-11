@@ -174,7 +174,7 @@
   const btnNovo = (txt, fn) => el("button", { class: "pl-btn pri", type: "button", onclick: fn }, txt);
 
   /* Painel no estilo do calendário de eventos: faixa azul com a régua de meses (clique filtra o mês) */
-  function regua({ marca, titulo, lede, vals, conf, cont, unid, sel, onSel, acoes, legenda }){
+  function regua({ marca, titulo, lede, vals, conf, cont, unid, sel, onSel, acoes, legenda, onDrop }){
     const max = Math.max(...vals, 1);
     const r = el("div", { class: "pl-ruler", role: "group", "aria-label": titulo });
     vals.forEach((v, i) => {
@@ -183,6 +183,7 @@
         "aria-label": `${cap(MESES_L[i])}: ${brl0(v)}${conf ? `, ${brl0(conf[i])} confirmado` : ""}`, onclick: onSel ? () => onSel(sel === i + 1 ? null : i + 1) : null },
         el("span", { class: "bar" + (v > 0 ? " has" : ""), style: `height:${h}px` }, hc ? el("i", { style: `height:${hc}px` }) : null),
         el("span", { class: "ml" }, cap(MESES[i])), el("span", { class: "mv" }, curto(v)), cont ? el("span", { class: "mc" }, `${cont[i]} ${(unid || ["item", "itens"])[cont[i] === 1 ? 0 : 1]}`) : null));
+      if (onDrop) alvo(r.lastChild, i + 1, onDrop);
     });
     return el("header", { class: "pl-hero" }, el("p", { class: "brand" }, marca || "Distribuidora Lopes · planejamento de marketing"), el("h2", null, titulo), lede ? el("p", { class: "lede" }, lede) : null,
       acoes ? el("div", { class: "acts" }, acoes) : null,
@@ -292,13 +293,44 @@
     if ((c.ativos || []).length) B.append(card("Ativos do plano (o que a cota entrega)", null, el("div", { class: "pl-ativos" }, ...c.ativos.map(a => el("div", null, el("b", null, a.nome), el("span", null, a.detalhe || ""))))));
   }
 
+  /* ---------- arrastar evento para outro mês e duplicar ---------- */
+  let arrastando = null;
+  const podeMover = (col, x) => admin || !FIRMES[col].includes(etapa(x));
+  // marca um elemento como destino de "soltar aqui" para o mês m
+  function alvo(node, m, onDrop){
+    node.addEventListener("dragover", e => { if (!arrastando) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; node.classList.add("pl-drop"); });
+    node.addEventListener("dragleave", e => { if (!node.contains(e.relatedTarget)) node.classList.remove("pl-drop"); });
+    node.addEventListener("drop", e => { e.preventDefault(); node.classList.remove("pl-drop"); document.body.classList.remove("pl-arrastando"); const x = arrastando; arrastando = null; if (x) onDrop(x, m); });
+  }
+  const ultimoDia = m => new Date(ANO, m, 0).getDate();
+  const somaDias = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  // muda o evento de mês mantendo o dia (ou o último dia do mês, se não existir). A data final anda junto.
+  async function moverEv(x, m){
+    const col = "plan_eventos";
+    if (!m || mesEv(x) === m) return;
+    if (!podeMover(col, x)) { toast("Evento confirmado: só o gerente muda o mês."); return; }
+    const ok = /^\d{4}-\d{2}-\d{2}$/.test(x.data || "");
+    const dia = Math.min(ok ? +x.data.slice(8, 10) : 1, ultimoDia(m)), nova = `${ANO}-${pad(m)}-${pad(dia)}`;
+    const patch = { data: nova, mes: m };
+    if (ok && /^\d{4}-\d{2}-\d{2}$/.test(x.dataFim || "") && x.dataFim >= x.data) patch.dataFim = somaDias(nova, Math.round((new Date(x.dataFim + "T12:00:00") - new Date(x.data + "T12:00:00")) / 864e5));
+    Object.assign(x, patch); render();
+    await salvar(col, x, patch); toast(`${x.nome} foi para ${MESES_L[m - 1]}`);
+  }
+  // abre o formulário de evento novo já preenchido com os dados do original; a pessoa ajusta a data e salva
+  function duplicarEv(x){
+    const fora = ["id", "status", "criadoPor", "criadoEm", "atualizadoEm", "atualizadoPor", "serie"];
+    const c = JSON.parse(JSON.stringify(x)); fora.forEach(k => delete c[k]);
+    c.etapa = "ideia"; c._copia = x.nome;
+    form("plan_eventos", null, c);
+  }
+
   /* ---------- eventos ---------- */
   function eventos(B){
     const c = cfg(), bl = c.baseline, col = "plan_eventos";
     const vals = Array(12).fill(0), conf = Array(12).fill(0), cont = Array(12).fill(0);
     D.eventos.filter(ativo).forEach(x => { const m = mesEv(x); if (m) { vals[m - 1] += +x.custo || 0; cont[m - 1]++; if (firme(col)(x)) conf[m - 1] += +x.custo || 0; } });
     B.append(regua({ titulo: `Calendário de eventos ${ANO}`, lede: "Custo bruto dos eventos de cada mês, o mesmo valor que entra no centro 200022 do Financeiro. Patrocínios e cotas ficam no Plano de trade. Clique num mês para ver só os eventos dele. Os eventos ainda estão em planejamento: mude a situação no menu de cada linha; só o gerente confirma.",
-      vals, conf, cont, legenda: true, sel: F.evMes, onSel: m => { F.evMes = m; render(); }, acoes: [btnNovo("+ Cadastrar evento", () => form(col, null))] }));
+      vals, conf, cont, legenda: true, sel: F.evMes, onSel: m => { F.evMes = m; render(); }, onDrop: moverEv, acoes: [btnNovo("+ Cadastrar evento", () => form(col, null))] }));
     const T = eventosTot(ativo), K = eventosTot(firme(col)), d = (v, b) => `${v - b >= 0 ? "+" : "−"}${curto(Math.abs(v - b))}`;
     // conciliação com o Financeiro: o centro 200022 soma o custo bruto dos eventos + outros lançamentos/ações lançados no mesmo centro
     const CF = custosDe("200022", "previsto"), fin = soma(CF.map(o => o.valor)), evF = soma(CF.filter(o => o.origem === "evento").map(o => o.valor)), outros = fin - evF, bate = Math.abs(evF - T.bruto) < 0.5;
@@ -313,11 +345,17 @@
     const L = D.eventos.filter(x => (!F.evMes || mesEv(x) === F.evMes) && (!F.evSit || etapa(x) === F.evSit) && (!F.evUf || (x.ufs || []).includes(F.evUf)))
       .sort((a, b) => String(a.data).localeCompare(String(b.data)) || String(a.nome).localeCompare(b.nome));
     if (!L.length) { B.append(el("div", { class: "pl-empty" }, D.eventos.length ? "Nenhum evento com esses filtros." : "Nenhum evento cadastrado ainda.")); return; }
-    const linha = x => el("li", { class: "pl-row" + (etapa(x) === "cancelado" ? " cancel" : ""), tabindex: "0", onclick: () => form(col, x), onkeydown: e => { if (e.key === "Enter") form(col, x); } },
+    const porMes = F.evVer !== "evento" && F.evVer !== "cal";
+    const linha = x => { const arr = porMes && podeMover(col, x);
+      const li = el("li", { class: "pl-row" + (etapa(x) === "cancelado" ? " cancel" : "") + (arr ? " arr" : ""), tabindex: "0", draggable: arr ? "true" : null, title: arr ? "Arraste para outro mês" : null, onclick: () => form(col, x), onkeydown: e => { if (e.key === "Enter") form(col, x); },
+        ondragstart: e => { arrastando = x; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", x.id); } catch (_) {} li.classList.add("drag"); document.body.classList.add("pl-arrastando"); },
+        ondragend: () => { arrastando = null; li.classList.remove("drag"); document.body.classList.remove("pl-arrastando"); document.querySelectorAll(".pl-drop").forEach(n => n.classList.remove("pl-drop")); } },
       el("div", null, el("div", { class: "nm" }, x.nome), el("div", { class: "sb" }, [x.tipo, x.data ? fd(x.data).slice(0, 5) : ""].filter(Boolean).join(", "))),
       el("div", { class: "c2" }, el("div", null, [(x.ufs || []).join(", "), x.cidade].filter(Boolean).join(" | ") || "Praça a definir"), el("div", { class: "sb" }, x.publico ? `${x.publico} pessoas` : "")),
       el("div", { class: "c3" }, el("div", null, x.dri || "Sem responsável"), el("div", { class: "sb" }, "responsável")),
-      el("div", { class: "mo" }, el("div", null, brl0(+x.custo || 0)), el("div", { class: "sb" }, Array.isArray(x.itensCusto) && x.itensCusto.length ? `${x.itensCusto.length} gasto${x.itensCusto.length === 1 ? "" : "s"} previsto${x.itensCusto.length === 1 ? "" : "s"}` : "custo bruto")), sitSelect(col, x));
+      el("div", { class: "mo" }, el("div", null, brl0(+x.custo || 0)), el("div", { class: "sb" }, Array.isArray(x.itensCusto) && x.itensCusto.length ? `${x.itensCusto.length} gasto${x.itensCusto.length === 1 ? "" : "s"} previsto${x.itensCusto.length === 1 ? "" : "s"}` : "custo bruto")),
+      el("div", { class: "pl-sitd" }, sitSelect(col, x), el("button", { type: "button", class: "pl-dup", title: "Duplicar evento", "aria-label": "Duplicar " + x.nome, onclick: e => { e.stopPropagation(); duplicarEv(x); }, onkeydown: e => e.stopPropagation() }, "⧉")));
+      return li; };
     if (F.evVer === "cal") { B.append(calAnual(L)); return; }
     if (F.evVer === "evento") {
       const G = new Map(); L.forEach(x => { const k = String(x.nome || "").trim().toLowerCase(); if (!G.has(k)) G.set(k, []); G.get(k).push(x); });
@@ -334,9 +372,13 @@
       B.append(ul); return;
     }
     const by = {}; L.forEach(x => (by[mesEv(x)] = by[mesEv(x)] || []).push(x));
-    Object.keys(by).map(Number).sort((a, b) => a - b).forEach(m => { const evs = by[m];
-      B.append(el("section", { class: "pl-month" }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês", el("small", null, `${evs.length} ocorrência${evs.length === 1 ? "" : "s"}, ${brl0(soma(evs.filter(ativo).map(x => x.custo)))} de custo bruto`)),
-        el("ul", { class: "pl-rows" }, ...evs.map(linha)))); });
+    B.append(el("p", { class: "pl-ref pl-dica" }, "Dica: arraste um evento para outro mês (aqui na lista ou na régua de meses lá em cima). O dia é mantido. Use ⧉ para duplicar um evento."));
+    const meses = new Set(Object.keys(by).map(Number)); if (!F.evMes) for (let m = 1; m <= 12; m++) meses.add(m); else meses.add(F.evMes);
+    [...meses].sort((a, b) => a - b).forEach(m => { const evs = by[m] || [];
+      const sec = el("section", { class: "pl-month" + (evs.length ? "" : " vazio") }, el("h3", null, m ? cap(MESES_L[m - 1]) : "Sem mês", el("small", null, evs.length ? `${evs.length} ocorrência${evs.length === 1 ? "" : "s"}, ${brl0(soma(evs.filter(ativo).map(x => x.custo)))} de custo bruto` : "solte aqui para mover")),
+        el("ul", { class: "pl-rows" }, ...evs.map(linha)));
+      if (m) alvo(sec, m, moverEv);
+      B.append(sec); });
   }
 
   /* calendário anual: 12 cartões de mês com o nome de cada item (eventos, ações). Bom para exportar e usar em apresentação */
@@ -1050,11 +1092,12 @@
     if (novo && col === "plan_fases") { v.situacao = "pendente"; v.ordem = (D.fases.filter(y => +y.fase === +v.fase).reduce((m, y) => Math.max(m, +y.ordem || 0), 0) + 1); }
     if (novo && col === "plan_cotas") { v.etapa = "prospeccao"; v.meses = cfg().meses; v.cota = "ouro"; }
     if (novo && col === "plan_orcamento" && !v.mes) v.mes = 1;
-    if (novo && col === "plan_eventos" && F.evMes) v.data = `${ANO}-${pad(F.evMes)}-01`;
+    if (novo && col === "plan_eventos" && F.evMes && !v.data) v.data = `${ANO}-${pad(F.evMes)}-01`;
     if (novo && col === "plan_acoes") { v.mes = F.acMes || 1; v.centro = "200020"; v.tipo = v.tipo || "comercial"; v.canais = v.canais || []; }
     if (novo && col === "plan_brindes") { v.mesPagamento = F.brMes || 1; v.conta = "200023"; v.finalidade = FIN[0]; }
     if (FIRMES[col]) v.etapa = etapa(v);
     const bd = el("div", { class: "bd" }), ins = {};
+    if (novo && v._copia) bd.append(el("p", { class: "pl-lock" }, `Cópia de "${v._copia}". Ajuste a data e o que mudar e clique em Salvar para criar o novo evento.`));
     if (travado) bd.append(el("p", { class: "pl-lock" }, LIVRES[col].length ? `🔒 Item ${FIRMES[col] ? "confirmado" : "aprovado"}. Você pode atualizar ${LIVRES[col].map(k => (sp.f.find(f => f[0] === k) || [k, k])[1].toLowerCase()).join(" e ")}; o restante só o gerente altera.` : "🔒 Item aprovado. Só o gerente altera."));
     else if (!novo && !admin && FIRMES[col]) bd.append(el("p", { class: "pl-lock" }, "Em planejamento: você pode editar e mudar a situação até o gerente confirmar."));
     else if (!novo && x.status === "proposto" && !admin) bd.append(el("p", { class: "pl-lock" }, "Aguardando aprovação do gerente."));
@@ -1139,7 +1182,8 @@
     const pe = el("div", { class: "pl-acts" });
     if (!novo && (admin || !travadoP(col, x))) pe.append(el("button", { class: "pl-btn bad", type: "button", onclick: async () => { if (!confirm("Excluir este item?")) return; try { await C[col].doc(x.id).delete(); toast("Excluído"); fechar(); } catch (e) { err.hidden = false; err.textContent = (e && e.message) || "Não foi possível excluir."; } } }, "Excluir"));
     if (!novo && admin && !FIRMES[col] && x.status !== "aprovado") pe.append(el("button", { class: "pl-btn ok", type: "button", onclick: async () => { await decidir([{ col, x }], "aprovado"); fechar(); } }, "Aprovar"));
-    Fm.append(el("header", null, el("h2", null, (novo ? "Novo: " : "") + sp.t), el("button", { class: "x", type: "button", "aria-label": "Fechar", onclick: fechar }, "×")), bd,
+    if (!novo && col === "plan_eventos") pe.append(el("button", { class: "pl-btn", type: "button", onclick: () => duplicarEv(x) }, "Duplicar"));
+    Fm.append(el("header", null, el("h2", null, (novo ? (v._copia ? "Duplicar: " : "Novo: ") : "") + sp.t), el("button", { class: "x", type: "button", "aria-label": "Fechar", onclick: fechar }, "×")), bd,
       el("footer", null, pe, el("div", { class: "pl-acts" }, el("button", { class: "pl-btn", type: "button", onclick: fechar }, "Cancelar"), el("button", { class: "pl-btn pri", type: "submit", disabled: travado && !LIVRES[col].length ? true : null }, novo && !admin && !FIRMES[col] ? "Enviar para aprovação" : "Salvar"))));
     Fm.onsubmit = salvarF; $("plOv").hidden = false; setTimeout(() => { const f = Fm.querySelector("input:not([readonly]),select:not([disabled]),textarea:not([readonly])"); if (f) f.focus(); }, 40);
   }
