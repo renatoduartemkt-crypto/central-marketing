@@ -53,7 +53,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-11b';
+const VERSAO_API = '2026-11-11c';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -822,13 +822,22 @@ function cofreSessao_(eu, tok) {
   return null;
 }
 function cofreSoAdmin_(eu) { if (!isAdmin_(eu)) throw new Error('Só o administrador pode fazer isso.'); }
-function cofreVe_(eu, d) { return isAdmin_(eu) || (d.compartilhado || []).indexOf(eu.email) >= 0; }
+// Dois tipos de acesso: "setor" (uso comum: toda a equipe ou pessoas escolhidas; administradores sempre veem)
+// e "pessoal" (só quem cadastrou vê, altera e exclui — nem o administrador). Acessos antigos, sem tipo, são do setor.
+const cofrePessoal_ = d => d.tipo === 'pessoal';
+function cofreVe_(eu, d) {
+  if (cofrePessoal_(d)) return d.criadoPor === eu.email;
+  return isAdmin_(eu) || d.todos === true || d.criadoPor === eu.email || (d.compartilhado || []).indexOf(eu.email) >= 0;
+}
+function cofrePode_(eu, d) { return cofrePessoal_(d) ? d.criadoPor === eu.email : (isAdmin_(eu) || d.criadoPor === eu.email); }
+// no registro de segurança, o nome de um acesso pessoal não aparece (só o dono sabe o que guardou)
+const cofreNomeReg_ = d => cofrePessoal_(d) ? '(acesso pessoal)' : d.nome;
 const COFRE_PUBLICO_ = ['nome', 'url', 'usuario', 'categoria', 'nota', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor', 'senhaTrocadaEm'];
 // a senha nunca sai na lista: só pelo cofreSenha, que registra quem pediu
 function cofrePublico_(eu, it) {
-  const o = { id: it.id, temSenha: !!it.senhaC };
+  const o = { id: it.id, temSenha: !!it.senhaC, tipo: cofrePessoal_(it) ? 'pessoal' : 'setor', todos: it.todos === true, podeEditar: cofrePode_(eu, it) };
   COFRE_PUBLICO_.forEach(function (k) { if (it[k] != null) o[k] = it[k]; });
-  if (isAdmin_(eu)) o.compartilhado = it.compartilhado || [];
+  if (o.podeEditar && !cofrePessoal_(it)) o.compartilhado = it.compartilhado || [];
   return o;
 }
 function cofreListar_(eu, tok) {
@@ -840,12 +849,11 @@ function cofreSenha_(eu, r) {
   const id = String(r.id || ''), a = id ? ler_(ABA_COFRE, id) : null;
   if (!a || !cofreVe_(eu, a.dados)) throw new Error('Acesso não encontrado.');
   const senha = a.dados.senhaC ? decifrar_(a.dados.senhaC) : '';
-  cofreReg_(eu.email, r.motivo === 'copiar' ? 'copiou a senha' : 'viu a senha', id, a.dados.nome);
+  cofreReg_(eu.email, r.motivo === 'copiar' ? 'copiou a senha' : 'viu a senha', id, cofreNomeReg_(a.dados));
   return { senha: senha };
 }
 function cofreSalvar_(eu, r) {
   const b = cofreSessao_(eu, r.cofre); if (b) return b;
-  cofreSoAdmin_(eu);
   const x = r.item || {}, nome = String(x.nome || '').trim().slice(0, 120);
   if (!nome) throw new Error('Dê um nome para o acesso.');
   const url = String(x.url || '').trim().slice(0, 500);
@@ -857,26 +865,30 @@ function cofreSalvar_(eu, r) {
     if (!/^[A-Za-z0-9]{1,40}$/.test(id)) throw new Error('Identificador inválido.');
     const antigo = x.id ? ler_(ABA_COFRE, id) : null;
     if (x.id && !antigo) throw new Error('Acesso não encontrado.');
-    const agora = new Date().toISOString();
+    if (antigo && !cofrePode_(eu, antigo.dados)) throw new Error('Só quem cadastrou (ou um administrador, nos acessos do setor) pode alterar este acesso.');
+    const agora = new Date().toISOString(), pessoal = x.tipo === 'pessoal';
     const d = Object.assign({}, antigo ? antigo.dados : { criadoPor: eu.email, criadoEm: agora }, {
       nome: nome, url: url, usuario: String(x.usuario || '').trim().slice(0, 200), categoria: String(x.categoria || '').trim().slice(0, 60),
-      nota: String(x.nota || '').trim().slice(0, 2000), compartilhado: compartilhado, atualizadoEm: agora, atualizadoPor: eu.email });
+      nota: String(x.nota || '').trim().slice(0, 2000), tipo: pessoal ? 'pessoal' : 'setor', todos: !pessoal && x.todos === true,
+      compartilhado: pessoal ? [] : compartilhado, atualizadoEm: agora, atualizadoPor: eu.email });
+    // um acesso pessoal pertence a quem o cadastrou: um administrador não transforma o acesso do setor de outra pessoa em pessoal dele
+    if (pessoal && d.criadoPor !== eu.email) throw new Error('Só quem cadastrou o acesso pode torná-lo pessoal.');
     const novaSenha = typeof x.senha === 'string' && x.senha !== '';
     if (novaSenha) { d.senhaC = cifrar_(x.senha.slice(0, 500)); d.senhaTrocadaEm = agora; }
     gravarLinha_(ABA_COFRE, id, d, eu.email, !antigo, antigo);
-    cofreReg_(eu.email, !antigo ? 'cadastrou o acesso' : novaSenha ? 'alterou o acesso e a senha' : 'alterou o acesso', id, nome);
+    cofreReg_(eu.email, !antigo ? 'cadastrou o acesso' : novaSenha ? 'alterou o acesso e a senha' : 'alterou o acesso', id, cofreNomeReg_(d));
     return { item: cofrePublico_(eu, Object.assign({ id: id }, d)) };
   });
 }
 function cofreExcluir_(eu, r) {
   const b = cofreSessao_(eu, r.cofre); if (b) return b;
-  cofreSoAdmin_(eu);
   return comLock_(function () {
     const id = String(r.id || ''), a = id ? ler_(ABA_COFRE, id) : null;
     if (!a) return { ok: true };
+    if (!cofrePode_(eu, a.dados)) throw new Error('Só quem cadastrou (ou um administrador, nos acessos do setor) pode excluir este acesso.');
     const sh = aba_(ABA_COFRE);
     [a.linha].concat(a.repetidas || []).sort(function (x, y) { return y - x; }).forEach(function (n) { sh.deleteRow(n); });
-    cofreReg_(eu.email, 'excluiu o acesso', id, a.dados.nome);
+    cofreReg_(eu.email, 'excluiu o acesso', id, cofreNomeReg_(a.dados));
     return { ok: true };
   });
 }
