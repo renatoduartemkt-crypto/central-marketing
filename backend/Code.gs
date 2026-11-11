@@ -42,9 +42,9 @@
 const COLECOES = ['usuarios', 'emails', 'trafego_campanhas', 'posts', 'eventos', 'custos', 'centros_custo', 'brindes', 'brindes_mov',
                   'producao', 'metas_ecommerce', 'metas_mensais', 'tarefas', 'trafego_recargas', 'trafego_relatorios',
                   'plan_config', 'plan_fases', 'plan_cotas', 'plan_eventos', 'plan_orcamento', 'plan_brindes', 'plan_acoes', 'plan_bi',
-                  'rd_segmentacoes', 'agenda_rotinas'];
+                  'rd_segmentacoes', 'agenda_rotinas', 'campanhas_multicanal'];
 // rotina pessoal da "Minha agenda diária": um registro por pessoa (id = login); cada um lê e grava só o seu
-const COL_PESSOAL_ = ['agenda_rotinas'];
+const COL_PESSOAL_ = ['agenda_rotinas', 'campanhas_multicanal'];   // um documento por pessoa (id = login): cada um só lê e grava o seu
 // coleções de dinheiro das contas de anúncio: quem criou fica registrado pelo servidor; só o autor ou um administrador apaga
 const COL_AUTORIA_ = ['trafego_recargas', 'trafego_relatorios'];
 const CHUNK = 45000;           // limite seguro por célula (o Sheets aceita 50.000 caracteres)
@@ -53,7 +53,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-11a';
+const VERSAO_API = '2026-11-11b';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -123,7 +123,7 @@ function api(req) {
     const col = req.colecao;
     if (COLECOES.indexOf(col) < 0) return { erro: 'Coleção desconhecida: ' + col };
     if (col === 'usuarios' && req.acao !== 'listar') return { erro: 'Use a página Usuários para alterar cadastros.' };
-    if (COL_PESSOAL_.indexOf(col) >= 0 && req.acao !== 'listar' && String(req.id || '') !== docId_(eu.email)) return { erro: 'Você só pode alterar a sua própria rotina.' };
+    if (COL_PESSOAL_.indexOf(col) >= 0 && req.acao !== 'listar' && String(req.id || '') !== docId_(eu.email)) return { erro: 'Você só pode alterar os seus próprios dados.' };
     switch (req.acao) {
       case 'listar':  return { itens: listarPara_(eu, col) };
       case 'criar':   return escrever_(eu, col, null, req.dados, 'criar');

@@ -1,18 +1,15 @@
 /* Central de Marketing — base comum (tokens, reset, cabeçalho, componentes)
    Padrão visual da Lopes (manual de marca): azul-marinho #1B2D49, laranja #F04F2C / #F16524
-   e o degradê laranja → vermelho do símbolo. Fonte da marca: PP Mori (Semibold nos títulos).
-   A PP Mori é licenciada: se a TI tiver os arquivos, basta colocá-los em assets/fonts/ (ver @font-face abaixo);
-   sem eles, o site usa Schibsted Grotesk, que tem desenho parecido. */
-@font-face{font-family:"PP Mori";src:local("PP Mori SemiBold"),local("PPMori-SemiBold");font-weight:600 800;font-display:swap}
-@font-face{font-family:"PP Mori";src:local("PP Mori Regular"),local("PPMori-Regular");font-weight:400 500;font-display:swap}
+   e o degradê laranja → vermelho do símbolo. Fonte: Proxima Nova (400 a 800), servida pelo kit qnr0hwt do Adobe Fonts
+   na conta do Renato (cada página carrega https://use.typekit.net/qnr0hwt.css). Os números usam algarismos de largura fixa. */
 :root{
   color-scheme:light;
   --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E9EDF4; --line:#D3DAE5;
   --fg:#16233A; --muted:#5C6B82; --navy:#1B2D49; --accent:#F04F2C; --accent-fg:#FFFFFF; --accent-soft:#FDE6DF; --grad:linear-gradient(120deg,#F16524 0%,#F04F2C 45%,#EE3B2D 100%);
   --ok:#1E8A5C; --ok-bg:#DDF2E7; --warn:#9A5B00; --warn-bg:#FFF3D6; --bad:#C23A1C; --bad-bg:#FCE4DC; --info:#2F7FD0; --info-bg:#DFEDF8;
   --bar-bg:#1B2D49; --bar-fg:#FFFFFF; --bar-muted:#AFC0DA; --btn-primary:#CC3A1A; --btn-primary-h:#B3341A;
-  --display:"PP Mori","Schibsted Grotesk","Helvetica Neue",Arial,sans-serif;
-  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --display:"proxima-nova","Helvetica Neue",Arial,sans-serif;
+  --mono:"proxima-nova","Helvetica Neue",Arial,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0E1522; --surface:#152033; --surface-2:#1C2942; --line:#2A3A55;
@@ -29,7 +26,7 @@
 html,body{margin:0}
 [hidden]{display:none!important}
 img{max-width:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--display);font-size:15px;line-height:1.45}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 

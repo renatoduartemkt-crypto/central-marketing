@@ -17,6 +17,7 @@
     { k: "brindes",  href: "brindes.html",  n: "Brindes",          g: "Eventos e trade" },
     { k: "planejamento", href: "planejamento.html", n: "Planejamento 2027", g: "Planejamento" },
     { k: "metas",    href: "metas.html",    n: "Metas e custos",   g: "Planejamento" },
+    { k: "campanhas", href: "campanhas.html", n: "Campanhas integradas", g: "Planejamento", dono: true },
     { k: "aprovacoes", href: "aprovacoes.html", n: "Aprovações",   g: "Gestão", admin: true },
     { k: "pdl",      href: "pdl.html",      n: "PDL",              g: "Gestão" },
     { k: "senhas",   href: "senhas.html",   n: "Senhas e acessos", g: "Gestão" },
@@ -34,6 +35,8 @@
   // outra aba trocou a aparência
   window.addEventListener("storage", ev => { if (ev.key === TEMA_K) { aplicarTema(lerTema()); document.querySelectorAll(".tema button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === lerTema()))); } });
 
+  // páginas "dono": só aparecem para o dono da Central (primeiro e-mail de administradores no config.js)
+  const ehDono = u => !!u && String(u.email || "").toLowerCase() === String((CFG.administradores || [])[0] || "").toLowerCase();
   const initials = n => String(n || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();
   // avatar: foto de perfil, ou as iniciais do nome quando não há foto
   function avatar(u, tam){
@@ -69,7 +72,7 @@
     const body = mk("div", "side-body"); body.id = "side-body";
     const nav = mk("nav", "appnav"); nav.setAttribute("aria-label", "Páginas");
     const grupos = [];
-    PAGES.filter(p => !p.admin || (window.Auth && Auth.isAdmin())).forEach(p => {
+    PAGES.filter(p => (!p.admin || (window.Auth && Auth.isAdmin())) && (!p.dono || ehDono(user))).forEach(p => {
       let g = grupos.find(x => x.n === (p.g || "")); if (!g) { g = { n: p.g || "", el: mk("div", "nav-grp") }; if (g.n) g.el.append(mk("span", "nav-t", g.n)); grupos.push(g); }
       const a = mk("a", null, p.n); a.href = window.Nav ? Nav.url(p.href) : p.href; if (Store.modo() === "gas") a.target = "_top";
       if (p.k === active) a.setAttribute("aria-current", "page");
@@ -161,5 +164,23 @@
   }
   const filtraOpta = L => L.filter(semOpta).map(limpaOpta);
 
-  window.Central = { boot, mount, PAGES, lerDinheiro, mostraDinheiro, semOpta, filtraOpta, avatar, aplicarTema };
+  /* Números grandes dos cartões (KPIs, placares, totais) diminuem sozinhos quando não cabem no cartão,
+     em vez de vazar para fora. Vale para qualquer elemento com data-caber ou com uma das classes abaixo. */
+  const CABER = "[data-caber],.kpi b,.stat .big,.pvr .big,.sc .big,.tot b,.kv b,.ck b,.cl-k b,.bx .q b,.rs-vl b,.rs-kpis b,.pl-tot .t b,.exp-head .t,.cc-tt,.mc-k b";
+  function caber(el){
+    el.style.fontSize = "";
+    const box = getComputedStyle(el).display === "inline" ? el.parentElement : el;
+    if (!box || !box.clientWidth) return;
+    let fs = parseFloat(getComputedStyle(el).fontSize); const min = Math.max(11, fs * .5);
+    for (let i = 0; i < 24 && box.scrollWidth > box.clientWidth + 1 && fs > min; i++) { fs *= .93; el.style.fontSize = fs.toFixed(1) + "px"; }
+  }
+  let caberPend = false;
+  const caberTudo = () => { if (caberPend) return; caberPend = true; setTimeout(() => { caberPend = false; document.querySelectorAll(CABER).forEach(caber); }, 30); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", caberTudo); else caberTudo();
+  window.addEventListener("resize", caberTudo);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(caberTudo);
+  new MutationObserver(ms => { if (ms.some(m => !(m.target.nodeType === 1 && m.target.matches && m.target.matches(CABER)))) caberTudo(); })
+    .observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+
+  window.Central = { boot, mount, PAGES, ehDono, lerDinheiro, mostraDinheiro, semOpta, filtraOpta, avatar, aplicarTema, caberTudo };
 })();
