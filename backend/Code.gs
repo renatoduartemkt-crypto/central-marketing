@@ -53,7 +53,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-03a';
+const VERSAO_API = '2026-11-11a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -992,6 +992,33 @@ function entradaEmails_(j) {
     return 'e-mails: ' + (itens.length - soltos.length) + ' disparo(s) em ' + ids.length + ' e-mail(s) do planejador' + (soltos.length ? '; sem correspondência no planejador: ' + soltos.join('; ') : '');
   });
 }
+// Site Lopes no Microsoft Clarity: números do mês até ontem e dos mesmos dias no mês anterior e no ano anterior
+// (documento metas_mensais/clarity-AAAA-MM; a página Metas mostra o painel na aba E-commerce)
+function clarityPeriodo_(p) {
+  if (!p || typeof p !== 'object') return null;
+  const dt = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : '';
+  const n = v => { const x = Number(v); return isFinite(x) && x >= 0 ? Math.round(x * 100) / 100 : null; };
+  const o = { ini: dt(p.ini), fim: dt(p.fim) };
+  ['sessoes', 'usuarios', 'pageviews', 'paginasSessao', 'tempoAtivo', 'duracao', 'rolagem', 'rage', 'dead', 'quickback'].forEach(function (k) { const v = n(p[k]); if (v != null) o[k] = v; });
+  const disp = {}; Object.keys(p.dispositivos || {}).slice(0, 6).forEach(function (k) { const v = n(p.dispositivos[k]); if (v != null) disp[String(k).slice(0, 20)] = v; });
+  o.dispositivos = disp;
+  o.canais = (Array.isArray(p.canais) ? p.canais : []).slice(0, 12).map(function (x) { return { n: String((x && x.n) || '').slice(0, 40), v: n(x && x.v) || 0 }; }).filter(function (x) { return x.n; });
+  o.paginas = (Array.isArray(p.paginas) ? p.paginas : []).slice(0, 10).map(function (x) { return { url: String((x && x.url) || '').slice(0, 200), v: n(x && x.v) || 0 }; }).filter(function (x) { return x.url; });
+  return o;
+}
+function entradaClarity_(j) {
+  const mes = String(j.mes || '');
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error('mês inválido (use AAAA-MM).');
+  const atual = clarityPeriodo_(j.atual);
+  if (!atual || atual.sessoes == null) throw new Error('faltou "atual" com as sessões do mês.');
+  return comLock_(function () {
+    const id = 'clarity-' + mes, a = ler_('metas_mensais', id);
+    const d = { tipo: 'clarity', mes: mes, ate: atual.fim, fonte: 'Microsoft Clarity', atual: atual,
+      mesAnt: clarityPeriodo_(j.mesAnt), anoAnt: clarityPeriodo_(j.anoAnt), atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ };
+    gravarLinha_('metas_mensais', id, d, ROTINA_, !a, a);
+    return 'clarity ' + mes + ' até ' + atual.fim + ': ' + atual.sessoes + ' sessões';
+  });
+}
 // lista de segmentações do RD Station: substitui a lista usada no formulário de e-mails (documento "lista")
 function entradaSegmentacoes_(j) {
   const itens = (Array.isArray(j.itens) ? j.itens : []).slice(0, 500).map(function (x) {
@@ -1017,6 +1044,7 @@ function importarEntrada() {
       if (j.tipo === 'redes_mensal') msg = entradaRedes_(j);
       else if (j.tipo === 'emails_resultados') msg = entradaEmails_(j);
       else if (j.tipo === 'rd_segmentacoes') msg = entradaSegmentacoes_(j);
+      else if (j.tipo === 'clarity_mensal') msg = entradaClarity_(j);
       else throw new Error('tipo desconhecido: ' + j.tipo);
     } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
     f.setDescription(msg.slice(0, 1000));

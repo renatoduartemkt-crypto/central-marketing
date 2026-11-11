@@ -112,6 +112,24 @@ table.cc{min-width:760px}
 @media (max-width:860px){.ck{grid-template-columns:1fr 1fr}.mform{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.mform{grid-template-columns:1fr}.mform .w2{grid-column:auto}}
 @media (max-width:860px){.score,.mx{grid-template-columns:1fr}.kv{grid-template-columns:1fr 1fr}}
+/* painel do site no Microsoft Clarity (comparação com o mesmo período do mês e do ano anteriores) */
+.cl-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:10px}
+.cl-k>div{background:var(--bg);border-radius:10px;padding:11px 13px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.cl-k small{font-size:12px;font-weight:700;color:var(--muted)}
+.cl-k b{font-family:var(--mono);font-weight:500;font-size:21px;font-variant-numeric:tabular-nums}
+.dl{display:flex;gap:5px;flex-wrap:wrap;font-size:11.5px}
+.dl span{border-radius:4px;padding:1px 6px;background:var(--surface-2);color:var(--muted);font-family:var(--mono);white-space:nowrap}
+.dl .up{color:var(--ok);background:var(--ok-bg)}.dl .dn{color:var(--bad);background:var(--bad-bg)}
+.cl-l{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cl-l h3{font-size:14px;margin-bottom:8px}
+.cl-r{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 10px;align-items:center;font-size:13px;padding:5px 0;border-bottom:1px solid var(--line)}
+.cl-r:last-child{border-bottom:0}
+.cl-r .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl-r .v{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.cl-r .bar{grid-column:1/-1;height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.cl-r .bar i{display:block;height:100%;background:var(--navy)}
+.cl-r .dl{grid-column:1/-1}
+@media (max-width:980px){.cl-l{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -139,9 +157,10 @@ table.cc{min-width:760px}
       </div>
     </div>
     <div class="score" id="score"></div>
+    <div class="box" id="clarity" hidden></div>
     <div class="box">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2>Vendas por dia</h2>
-        <div class="legend"><span style="--c:var(--navy)"><i></i>Vendido no dia</span><span style="--c:var(--accent)"><i></i>Meta diária</span></div></div>
+        <div class="legend"><span style="--c:var(--navy)"><i></i>Vendido no dia</span><span style="--c:var(--accent)"><i></i>Meta por dia útil</span></div></div>
       <div id="chart"></div>
     </div>
     <div class="box">
@@ -213,7 +232,7 @@ table.cc{min-width:760px}
   function ecomData(){
     const N=nDays(), rows=[]; let acV=0, acP=0;
     for(let d=1;d<=N;d++){const s=`${mk()}-${pad(d)}`, x=dayDoc(s); const v=+x.vendido||0, p=+x.positivacoes||0; acV+=v; acP+=p;
-      rows.push({s,d,v,p,has:x.vendido!=null||x.positivacoes!=null,acV,acP,dow:new Date(Y,M,d).getDay()});}
+      const dow=new Date(Y,M,d).getDay();rows.push({s,d,v,p,has:x.vendido!=null||x.positivacoes!=null,acV,acP,dow,util:dow>0&&dow<6});}
     return rows;}
   function renderEcom(){
     const m=metaE(), mv=+m.metaVendas||0, mp=+m.metaPositivacoes||0, rows=ecomData(), N=rows.length;
@@ -222,24 +241,26 @@ table.cc{min-width:760px}
     const adm=Auth.isAdmin(); $("mVendas").readOnly=$("mPos").readOnly=!adm; $("metaLock").hidden=adm;
     document.querySelectorAll("#siteSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.s===site)));
     const vend=rows[N-1].acV, pos=rows[N-1].acP, hoje=todayIso();
-    const passados=rows.filter(r=>r.s<=hoje).length, restantes=Math.max(0,N-passados);
+    // a meta é dividida só pelos dias úteis (seg a sex): o faturamento do fim de semana entra na segunda-feira
+    const uteis=rows.filter(r=>r.util), NU=uteis.length, passados=uteis.filter(r=>r.s<=hoje).length, restantes=Math.max(0,NU-passados);
     const lancados=rows.filter(r=>r.has).length;
     $("metaInfo").textContent=`· ${SITES[site]}`+(site==="total"?" (soma dos dois sites — para lançar, escolha Site Lopes ou Site Opta)":m.atualizadoPor?` · atualizado por ${m.atualizadoPor}`:"");
     // placar
     const sc=$("score"); sc.textContent="";
-    const card=(title,real,meta,fmt,extra)=>{const p=meta?real/meta*100:0, falta=Math.max(0,meta-real), exp=N?Math.min(100,passados/N*100):0;
+    const card=(title,real,meta,fmt,extra)=>{const p=meta?real/meta*100:0, falta=Math.max(0,meta-real), exp=NU?Math.min(100,passados/NU*100):0;
       return el("div",{class:"sc"},el("h3",null,title),
         el("div",null,el("span",{class:"big"},fmt(real)),el("span",{class:"of"},meta?` de ${fmt(meta)}`:" · defina a meta acima")),
-        el("div",{class:"meter",title:`${pct(p)} da meta`},el("i",{class:p>=100?"ok":"",style:`width:${Math.min(100,p)}%`}),meta&&Y===now.getFullYear()&&M===now.getMonth()?el("span",{class:"exp",style:`left:${exp}%`,title:"Onde deveríamos estar hoje, no ritmo da meta"}):null),
+        el("div",{class:"meter",title:`${pct(p)} da meta`},el("i",{class:p>=100?"ok":"",style:`width:${Math.min(100,p)}%`}),meta&&Y===now.getFullYear()&&M===now.getMonth()?el("span",{class:"exp",style:`left:${exp}%`,title:"Onde deveríamos estar hoje, no ritmo da meta (dias úteis)"}):null),
         el("div",{class:"kv"},
           el("div",null,el("b",null,pct(p)),el("span",null,"da meta atingida")),
           el("div",null,el("b",null,meta?fmt(falta):"—"),el("span",null,meta?`faltam (${pct(Math.max(0,100-p))})`:"falta para a meta")),
           extra));};
     const ritmoV=restantes&&mv?Math.max(0,mv-vend)/restantes:0, ritmoP=restantes&&mp?Math.max(0,mp-pos)/restantes:0;
-    sc.append(card("Vendas · "+SITES[site],vend,mv,v=>brl(v),el("div",null,el("b",null,restantes&&mv?brl(ritmoV):"—"),el("span",null,restantes?`por dia nos ${restantes} dias restantes`:"mês encerrado"))));
-    sc.append(card("Positivações · "+SITES[site],pos,mp,v=>num(v),el("div",null,el("b",null,restantes&&mp?num(Math.ceil(ritmoP)):"—"),el("span",null,restantes?`por dia nos ${restantes} dias restantes`:"mês encerrado"))));
+    sc.append(card("Vendas · "+SITES[site],vend,mv,v=>brl(v),el("div",null,el("b",null,restantes&&mv?brl(ritmoV):"—"),el("span",null,restantes?`por dia útil nos ${restantes} dias úteis restantes`:"mês encerrado"))));
+    sc.append(card("Positivações · "+SITES[site],pos,mp,v=>num(v),el("div",null,el("b",null,restantes&&mp?num(Math.ceil(ritmoP)):"—"),el("span",null,restantes?`por dia útil nos ${restantes} dias úteis restantes`:"mês encerrado"))));
     // gráfico
     renderChart(rows,mv);
+    renderClarity();
     // tabela: monta uma vez por mês e depois só atualiza os números (não perde o foco de quem está digitando)
     const tb=$("rows");
     if(tb.dataset.month!==mk()+site){tb.textContent="";tb.dataset.month=mk()+site;
@@ -262,16 +283,58 @@ table.cc{min-width:760px}
     $("foot").textContent="";
     $("foot").append(el("tr",null,el("td",null,"Mês"),el("td",null,brl(vend)),el("td",null,num(pos)),el("td",null,pos?brl(tkM,2):"—"),el("td",null,""),el("td",null,mv?pct(vend/mv*100):""),el("td",null,`${lancados} dia(s) lançados`)));
   }
+  /* ---------- Site Lopes no Microsoft Clarity ----------
+     A rotina grava em metas_mensais/clarity-AAAA-MM os números do mês até ontem (atual) e do mesmo intervalo de dias
+     no mês anterior (mesAnt) e no mesmo mês do ano anterior (anoAnt). */
+  const CANAL={Other:"Outros (apps, links sem origem)",OrganicSearch:"Busca orgânica (Google)",PaidSearch:"Busca paga (Google Ads)",Direct:"Direto",Email:"E-mail",Referral:"Outros sites",Social:"Redes sociais",PaidSocial:"Redes sociais pagas",Display:"Display",Affiliate:"Afiliados"};
+  const DISP={PC:"Computador",Mobile:"Celular",Tablet:"Tablet"};
+  const fdC=s=>s?`${s.slice(8,10)}/${s.slice(5,7)}`:"";
+  const periodoTx=p=>p&&p.ini?`${fdC(p.ini)} a ${fdC(p.fim)}${p.ini.slice(0,4)!==String(Y)?"/"+p.ini.slice(0,4):""}`:"";
+  const tempo=s=>{s=Math.round(+s||0);const m=Math.floor(s/60);return m?`${m}min ${pad(s%60)}s`:`${s}s`;};
+  // variação: "menor é melhor" inverte a cor (cliques mortos, retorno rápido, raiva)
+  function delta(a,b,rotulo,menorMelhor,pontos){if(b==null||!isFinite(+b)||a==null)return el("span",{title:"Sem dados do período"},rotulo+" —");
+    const d=pontos?(+a-+b):(+b?((+a-+b)/+b*100):null);if(d==null)return el("span",null,rotulo+" —");
+    const bom=menorMelhor?d<0:d>0,tx=(d>0?"+":"")+d.toLocaleString("pt-BR",{maximumFractionDigits:1})+(pontos?" p.p.":"%");
+    return el("span",{class:Math.abs(d)<0.05?"":bom?"up":"dn",title:pontos?"Diferença em pontos percentuais":"Variação"},`${rotulo} ${tx}`);}
+  function renderClarity(){const box=$("clarity");if(!box)return;
+    const c=mensais["clarity-"+mk()];box.hidden=site!=="lopes";if(box.hidden)return;box.textContent="";
+    const mAnt=MESES[(M+11)%12].slice(0,3),aAnt=String(Y-1);
+    box.append(el("div",{style:"display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"},
+      el("h2",null,"Site Lopes no Clarity",el("small",null,c&&c.atual?`· ${periodoTx(c.atual)}`:"")),
+      c?el("span",{class:"hint"},`Comparado com ${periodoTx(c.mesAnt)||"—"} e ${periodoTx(c.anoAnt)||"—"} · atualizado em ${new Date(c.atualizadoEm||c.ate).toLocaleDateString("pt-BR")}`):null));
+    if(!c||!c.atual){box.append(el("p",{class:"hint"},"Os números do Microsoft Clarity deste mês ainda não chegaram. Eles vêm pela rotina diária."));return;}
+    const A=c.atual,P=c.mesAnt||{},Q=c.anoAnt||{};
+    const KP=[["sessoes","Sessões",v=>num(v)],["usuarios","Usuários",v=>num(v)],["pageviews","Páginas vistas",v=>num(v)],
+      ["paginasSessao","Páginas por sessão",v=>(+v).toLocaleString("pt-BR",{maximumFractionDigits:2})],["tempoAtivo","Tempo ativo médio",tempo],
+      ["rolagem","Rolagem média da página",v=>pct(v)],["dead","Sessões com clique sem resposta",v=>pct(v),1],["quickback","Saíram logo em seguida",v=>pct(v),1],["rage","Cliques de irritação",v=>pct(v),1]];
+    const pts=k=>["rolagem","dead","quickback","rage"].includes(k);
+    box.append(el("div",{class:"cl-k"},...KP.filter(k=>A[k[0]]!=null).map(([k,n,f,menor])=>el("div",null,el("small",null,n),el("b",null,f(A[k])),
+      el("div",{class:"dl"},delta(A[k],P[k],"vs "+mAnt,menor,pts(k)),delta(A[k],Q[k],"vs "+aAnt,menor,pts(k)))))));
+    // listas: origem, dispositivos e páginas (participação no total do período)
+    const lista=(tit,L,P2,Q2,nome)=>{const tot=L.reduce((s,x)=>s+x.v,0)||1,mx=Math.max(...L.map(x=>x.v),1);
+      const ach=(K,x)=>{const y=(K||[]).find(z=>z.k===x.k);return y?y.v:null;};
+      return el("div",null,el("h3",null,tit),...(L.length?L.map(x=>el("div",{class:"cl-r"},el("span",{class:"n",title:x.k},nome(x.k)),el("span",{class:"v"},`${num(x.v)} · ${pct(x.v/tot*100)}`),
+        el("span",{class:"bar"},el("i",{style:`width:${x.v/mx*100}%`})),el("div",{class:"dl"},delta(x.v,ach(P2,x),"vs "+mAnt),delta(x.v,ach(Q2,x),"vs "+aAnt)))):[el("p",{class:"hint"},"Sem dados.")]));};
+    const canais=X=>((X||{}).canais||[]).map(x=>({k:x.n,v:+x.v||0})).sort((a,b)=>b.v-a.v);
+    const disps=X=>Object.entries((X||{}).dispositivos||{}).map(([k,v])=>({k,v:+v||0})).sort((a,b)=>b.v-a.v);
+    // páginas: junta "www." e sem "www." no mesmo endereço
+    const pags=X=>{const m={};((X||{}).paginas||[]).forEach(x=>{let u=String(x.url||"").replace(/^https?:\/\/(www\.)?[^/]+/i,"")||"/";u=u.replace(/\/$/,"")||"/";m[u]=(m[u]||0)+(+x.v||0);});
+      return Object.entries(m).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v).slice(0,5);};
+    box.append(el("div",{class:"cl-l"},lista("De onde vieram (sessões)",canais(A),canais(P),canais(Q),k=>CANAL[k]||k),
+      lista("Aparelho (sessões)",disps(A),disps(P),disps(Q),k=>DISP[k]||k),
+      lista("Páginas mais vistas",pags(A),pags(P),pags(Q),k=>k==="/"?"Página inicial":k)));
+    box.append(el("p",{class:"hint",style:"margin:0"},"Fonte: Microsoft Clarity, sem robôs. Cada número compara os mesmos dias do mês anterior e do mesmo mês do ano passado. Verde = melhorou; vermelho = piorou (em cliques sem resposta, saídas rápidas e irritação, cair é bom)."));}
   function renderChart(rows,mv){
     const host=$("chart"); host.textContent=""; const W=1000,H=240,L=64,R=10,T=12,B=26, N=rows.length;
-    const daily=mv?mv/N:0, max=Math.max(daily*1.25,...rows.map(r=>r.v),1);
+    const NU=rows.filter(r=>r.util).length, daily=mv&&NU?mv/NU:0, max=Math.max(daily*1.25,...rows.map(r=>r.v),1);
     const nice=(()=>{const p=Math.pow(10,Math.floor(Math.log10(max)));const f=max/p;return (f<=2?2:f<=5?5:10)*p;})();
     const y=v=>T+(H-T-B)*(1-v/nice), bw=(W-L-R)/N;
     const s=svg("svg",{viewBox:`0 0 ${W} ${H}`,class:"chart",role:"img","aria-label":"Vendas por dia do mês"});
     for(let i=0;i<=4;i++){const v=nice*i/4;s.append(svg("line",{x1:L,x2:W-R,y1:y(v),y2:y(v),class:"grid"}));const t=svg("text",{x:L-8,y:y(v)+3,"text-anchor":"end"});t.textContent=v>=1000?(v/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})+" mil":v.toLocaleString("pt-BR");s.append(t);}
     rows.forEach((r,i)=>{if(r.v>0){const h=y(0)-y(r.v);s.append(svg("rect",{x:L+i*bw+bw*.18,y:y(r.v),width:bw*.64,height:h,rx:2,class:"bar"+(r.dow===0||r.dow===6?" wk":"")}));}
       if(i%(N>20?3:1)===0||i===N-1){const t=svg("text",{x:L+i*bw+bw/2,y:H-8,"text-anchor":"middle"});t.textContent=pad(r.d);s.append(t);}});
-    if(daily)s.append(svg("line",{x1:L,x2:W-R,y1:y(daily),y2:y(daily),class:"goal"}));
+    // meta diária só nos dias úteis (sábado e domingo ficam sem meta)
+    if(daily)rows.forEach((r,i)=>{if(r.util)s.append(svg("line",{x1:L+i*bw,x2:L+(i+1)*bw,y1:y(daily),y2:y(daily),class:"goal"}));});
     host.append(s);
     if(!rows.some(r=>r.v>0))host.append(el("p",{class:"hint"},"Nenhuma venda lançada neste mês ainda."));
   }
