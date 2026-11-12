@@ -154,7 +154,12 @@ details.cn .cb{padding:0 12px 12px;display:flex;flex-direction:column;gap:10px}
 details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
 .sw{display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:13.5px}
 .acs{display:flex;flex-direction:column;gap:6px}
-.acr{display:grid;grid-template-columns:minmax(0,1fr) 140px 120px auto;gap:6px;align-items:center}
+.acr{display:grid;grid-template-columns:minmax(0,1fr) 140px 130px auto;gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px}
+.acr [data-a="resp"]{grid-column:1/2}
+.acr [data-a="fase"]{grid-column:2/5}
+.fsr{display:grid;grid-template-columns:minmax(0,1fr) 140px 140px auto;gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px}
+.fsr [data-f="meta"]{grid-column:1/-1}
+.fsr input{padding:7px 9px!important}
 .acr input,.acr select{padding:7px 9px!important}
 .lnk{border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:2px 4px}
 .err{font-size:13px;color:var(--bad);font-weight:600}
@@ -162,13 +167,59 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
 .confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--navy);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;font-weight:600;z-index:30}
 
+/* ações por fase e semana */
+.filt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:22px 0 6px}
+.filt h3{font-size:17px;margin:0 auto 0 0}
+.filt select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--fg)}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted)}
+.leg span{display:inline-flex;align-items:center;gap:5px}
+.leg i{width:10px;height:10px;border-radius:3px;background:var(--st)}
+.fase{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px;background:var(--surface)}
+.fase>h3{font-size:16px;margin:0;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.fase>h3 small{font-weight:500;color:var(--muted);font-size:12.5px}
+.fase .fmeta{font-size:13px;color:var(--muted);margin:2px 0 6px}
+.sem{display:grid;grid-template-columns:160px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.sem>b{font-size:12.5px;color:var(--muted);font-weight:700;padding-top:6px}
+.cards{display:flex;flex-wrap:wrap;gap:6px}
+.acard{display:flex;flex-direction:column;gap:2px;text-align:left;border:1px solid var(--line);border-left:4px solid var(--st);background:var(--bg);border-radius:8px;padding:6px 10px;width:220px;max-width:100%;font-size:13px;color:var(--fg);cursor:pointer}
+.acard b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acard small{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acard.cancelado b{text-decoration:line-through;color:var(--muted)}
+.stp{align-self:flex-start;font-size:11px;font-weight:700;border-radius:4px;padding:0 6px;color:var(--st);background:color-mix(in srgb,var(--st) 14%,transparent)}
+/* minhas ações */
+.minhas{display:flex;flex-direction:column;gap:6px}
+.minhas h3{font-size:15px;margin:10px 0 0;color:var(--muted)}
+.mrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto 150px;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--cc);border-radius:10px;padding:10px 12px;font-size:14px}
+.mrow input[type=checkbox]{width:20px;height:20px;accent-color:var(--ok);cursor:pointer}
+.mrow small{color:var(--muted);font-size:12.5px}
+.mrow.done b{text-decoration:line-through;color:var(--muted)}
+.mrow .dt{white-space:nowrap;font-size:12.5px;color:var(--muted)}
+.mrow .dt.late{color:var(--bad);font-weight:700}
+.mrow select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;color:var(--fg)}
+/* andamento: planejado x realizado */
+.prog{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:14px}
+.prog>h3{font-size:16px;margin:0 0 10px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.prog h4{font-size:12px;font-family:var(--mono);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.pl{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13px;padding:3px 0}
+.pl>span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .bar2{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.pl .bar2 i{display:block;height:100%;background:var(--cc,var(--ok))}
+.pl .n{color:var(--muted);white-space:nowrap}
+
 @media (max-width:900px){.funil{grid-template-columns:1fr 1fr}}
 @media (max-width:760px){
   .row2{grid-template-columns:1fr}
   .funil{grid-template-columns:1fr}
   .gantt{grid-template-columns:110px minmax(0,1fr)}
   .acr{grid-template-columns:1fr 1fr}
-  .acr input[data-a="nome"]{grid-column:1/-1}
+  .acr input[data-a="nome"],.acr [data-a="resp"],.acr [data-a="fase"]{grid-column:1/-1}
+  .fsr{grid-template-columns:1fr 1fr}
+  .fsr [data-f="nome"]{grid-column:1/-1}
+  .sem{grid-template-columns:1fr}
+  .pgrid{grid-template-columns:1fr}
+  .mrow{grid-template-columns:auto minmax(0,1fr)}
+  .mrow .dt,.mrow select{grid-column:2}
 }
 </style>
 </head>
@@ -193,6 +244,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
       <button type="button" data-v="funil" aria-pressed="false">Funil</button>
       <button type="button" data-v="crono" aria-pressed="false">Cronograma</button>
       <button type="button" data-v="all" aria-pressed="false">Visão geral</button>
+      <button type="button" data-v="minhas" aria-pressed="false">Minhas ações</button>
       <button type="button" data-v="verba" aria-pressed="false">Verba</button>
     </div>
   </div>
@@ -227,8 +279,14 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
       <p class="hint" id="perHint"></p>
     </fieldset>
 
+    <fieldset class="fs" id="fs-fases"><legend>Fases</legend>
+      <p class="hint">Divida a campanha em fases (ex.: Aquecimento, Lançamento, Sustentação). Depois, escolha a fase em cada ação dos canais.</p>
+      <div id="fasesF" style="display:flex;flex-direction:column;gap:8px"></div>
+      <button type="button" class="btn" id="addFase" style="align-self:flex-start">+ Adicionar fase</button>
+    </fieldset>
+
     <fieldset class="fs" id="fs-canais"><legend>Canais</legend>
-      <p class="hint">Ligue os canais da campanha. Em cada um: o papel no funil, período, verba, meta do canal e as ações com data.</p>
+      <p class="hint">Ligue os canais da campanha. Em cada um: o papel no funil, período, verba, meta do canal e as ações com data, responsável, status e fase.</p>
       <div id="canaisF" style="display:flex;flex-direction:column;gap:8px"></div>
     </fieldset>
 
@@ -255,7 +313,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   const PAPEIS=[{k:"atrair",n:"Atrair",h:"gera alcance e tráfego"},{k:"engajar",n:"Engajar",h:"aquece e gera interesse"},{k:"converter",n:"Converter",h:"leva à compra ou ao contato"},{k:"fidelizar",n:"Fidelizar",h:"recompra e relacionamento"}];
   const OBJ=[{k:"vendas",n:"Vendas"},{k:"leads",n:"Captação de leads"},{k:"lancamento",n:"Lançamento"},{k:"reativacao",n:"Reativação de clientes"},{k:"marca",n:"Marca / institucional"},{k:"evento",n:"Evento"}];
   const STC=[{k:"planejamento",n:"Em planejamento",c:"--warn",b:"--warn-bg"},{k:"ativa",n:"Ativa",c:"--ok",b:"--ok-bg"},{k:"encerrada",n:"Encerrada",c:"--muted",b:"--surface-2"}];
-  const AST=[{k:"afazer",n:"A fazer"},{k:"andamento",n:"Em andamento"},{k:"feito",n:"Feito"}];
+  // status das ações (ações antigas sem status abrem como "A fazer"); canceladas não contam no planejado
+  const AST=[{k:"afazer",n:"A fazer",c:"--muted"},{k:"andamento",n:"Em andamento",c:"--info"},{k:"feito",n:"Feito",c:"--ok"},{k:"cancelado",n:"Cancelado",c:"--bad"}];
   const TZ="America/Campo_Grande";
   const by=(a,k)=>a.find(x=>x.k===k), $=id=>document.getElementById(id);
   const brl=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2});
@@ -270,9 +329,15 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   const svgEl=(tag,a)=>{const e=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e;};
   let tt;const toast=m=>{const t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600);};
 
-  let me=null, colC=null, doc=null, sel=null, view="mind", editingId=null, pronto=false;
+  let me=null, colC=null, doc=null, sel=null, view="mind", editingId=null, pronto=false, users=[], fResp="", fCanal="";
   try{view=localStorage.getItem("cmc-view")||"mind";sel=localStorage.getItem("cmc-sel");}catch(_){}
   const camps=()=>((doc&&doc.campanhas)||[]);
+  // equipe (usuários da Central) para o campo Responsável
+  const equipe=()=>users.filter(u=>u.ativo!==false).sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email,"pt-BR"));
+  const uNome=e=>{const u=users.find(x=>x.email===e);return u?(u.nome||u.email):(e||"");};
+  const stA=a=>by(AST,a.status)||AST[0], vale=a=>a.status!=="cancelado", feita=a=>a.status==="feito";
+  const fasesDe=c=>c.fases||[];
+  const faseN=(c,id)=>(fasesDe(c).find(f=>f.id===id)||{}).nome||"";
   const meuId=()=>Auth.docId(me.email);
   async function gravar(msg){if(!colC)return;
     doc=Object.assign({},doc||{},{dono:me.email,atualizadoEm:new Date().toISOString()});render();
@@ -298,7 +363,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
       el("span",{class:"v"},c.nome||"Sem nome"),stcTag(c),
       el("span",{class:"s"},[c.inicio&&c.fim?`${fd(c.inicio)} a ${fd(c.fim)}`:"período a definir",+c.verba?brl0(c.verba):""].filter(Boolean).join(" · ")),
       el("span",{class:"s"},`${ativos(c).length} canais · ${feitos(c)} de ${ITENS.length} itens`));}
-  function canalNode(c,x){const d=cn(c,x.k),A=d.acoes||[],ok=A.filter(a=>a.status==="feito").length,p=by(PAPEIS,d.papel);
+  function canalNode(c,x){const d=cn(c,x.k),A=(d.acoes||[]).filter(vale),ok=A.filter(feita).length,p=by(PAPEIS,d.papel);
     if(!d.ativo)return el("button",{type:"button",class:"node ch off",style:`--cc:${x.c}`,onclick:()=>openForm(c,"cn-"+x.k)},
       el("span",{class:"k"},el("i"),x.n),el("span",{class:"s"},"Não usado nesta campanha · clique para ligar"));
     return el("button",{type:"button",class:"node ch",style:`--cc:${x.c}`,onclick:()=>openForm(c,"cn-"+x.k)},
@@ -345,19 +410,73 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     A.forEach(x=>{const d=cn(c,x.k),tr=el("div",{class:"track",style:`--cc:${x.c}`});
       const a=d.inicio||c.inicio||ini,b=d.fim||c.fim||fim;
       tr.append(el("div",{class:"gb",style:`left:${(dias(ini,a)-1)/N*100}%;width:${Math.max(1.5,dias(a,b)/N*100)}%`,title:`${fd(a)} a ${fd(b)}`}));
-      (d.acoes||[]).filter(z=>z.data).forEach(z=>tr.append(el("button",{type:"button",class:"ad"+(z.status==="feito"?" ok":""),style:`left:${pos(z.data)}%`,title:`${fd(z.data)} · ${z.nome||"Ação"} (${(by(AST,z.status)||AST[0]).n})`,"aria-label":`${z.nome||"Ação"} em ${fd(z.data)}`,onclick:()=>openForm(c,"cn-"+x.k)})));
+      (d.acoes||[]).filter(z=>z.data&&vale(z)&&(!fCanal||fCanal===x.k)&&(!fResp||(fResp==="-"?!z.resp:z.resp===fResp))).forEach(z=>tr.append(el("button",{type:"button",class:"ad"+(z.status==="feito"?" ok":""),style:`left:${pos(z.data)}%`,title:`${fd(z.data)} · ${z.nome||"Ação"} (${(by(AST,z.status)||AST[0]).n})`,"aria-label":`${z.nome||"Ação"} em ${fd(z.data)}`,onclick:()=>openForm(c,"cn-"+x.k)})));
       if(h>=ini&&h<=fim)tr.append(el("i",{class:"hoje",style:`left:${pos(h)}%`,title:"Hoje"}));
       g.append(el("div",{class:"gl",style:`--cc:${x.c}`},el("i"),el("span",null,x.n)),tr);});
-    return el("div",null,g,el("p",{class:"hint",style:"margin-top:10px"},"Barras = período de cada canal · bolinhas = ações (cheias = feitas) · linha laranja = hoje."));}
+    return el("div",null,g,el("p",{class:"hint",style:"margin-top:10px"},"Barras = período de cada canal · bolinhas = ações (cheias = feitas) · linha laranja = hoje."),renderFases(c));}
+  // semana de segunda a domingo de uma data
+  function semanaDe(s){const d=new Date(s+"T12:00"),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);const a=d.toISOString().slice(0,10);d.setDate(d.getDate()+6);return [a,d.toISOString().slice(0,10)];}
+  // ações agrupadas por fase e por semana, com responsável e cor do status; filtros por responsável e canal
+  function renderFases(c){
+    const todas=acoesDe(c);
+    const rs=[...new Set(todas.map(z=>z.a.resp).filter(Boolean))].sort((a,b)=>uNome(a).localeCompare(uNome(b),"pt-BR"));
+    if(fResp&&fResp!=="-"&&!rs.includes(fResp))fResp="";if(fCanal&&!ativos(c).some(x=>x.k===fCanal))fCanal="";
+    const sR=el("select",{"aria-label":"Filtrar por responsável",onchange:e=>{fResp=e.target.value;render();}},el("option",{value:""},"Responsável: todos"),...rs.map(e=>el("option",{value:e},uNome(e))),el("option",{value:"-"},"Sem responsável"));sR.value=fResp;
+    const sC=el("select",{"aria-label":"Filtrar por canal",onchange:e=>{fCanal=e.target.value;render();}},el("option",{value:""},"Canal: todos"),...ativos(c).map(x=>el("option",{value:x.k},x.n)));sC.value=fCanal;
+    const w=el("div",null,el("div",{class:"filt"},el("h3",null,"Ações por fase e semana"),sR,sC,(fResp||fCanal)?el("button",{type:"button",class:"lnk",onclick:()=>{fResp=fCanal="";render();}},"Limpar filtros"):null),
+      el("div",{class:"leg"},...AST.map(s=>el("span",{style:`--st:var(${s.c})`},el("i"),s.n))));
+    const A=todas.filter(z=>(!fCanal||z.canal.k===fCanal)&&(!fResp||(fResp==="-"?!z.a.resp:z.a.resp===fResp)));
+    const F=fasesDe(c),G=F.map(f=>({f,L:[]})),semF={f:null,L:[]};
+    A.forEach(z=>(G.find(g=>g.f.id===z.a.fase)||semF).L.push(z));
+    if(semF.L.length||!F.length)G.push(semF);
+    const card=z=>{const st=stA(z.a);return el("button",{type:"button",class:"acard"+(z.a.status==="cancelado"?" cancelado":""),style:`--st:var(${st.c})`,title:`${z.a.nome||"Ação"} · ${st.n}`,onclick:()=>openForm(c,"cn-"+z.canal.k)},
+      el("b",null,z.a.nome||"Ação"),el("small",null,`${z.canal.n} · ${z.a.resp?uNome(z.a.resp):"sem responsável"}`),
+      el("small",null,z.a.data?fd(z.a.data):"sem data"),el("span",{class:"stp"},st.n));};
+    G.forEach(g=>{const P=g.L.filter(z=>vale(z.a)),ok=P.filter(z=>feita(z.a)).length;
+      const sec=el("section",{class:"fase"},el("h3",null,g.f?(g.f.nome||"Fase sem nome"):"Sem fase",
+        el("small",null,[g.f&&g.f.inicio&&g.f.fim?`${fd(g.f.inicio)} a ${fd(g.f.fim)}`:"",P.length?`${ok} de ${P.length} feitas`:""].filter(Boolean).join(" · "))));
+      if(g.f&&g.f.meta)sec.append(el("p",{class:"fmeta"},"Meta da fase: "+g.f.meta));
+      if(!g.f&&!F.length)sec.append(el("p",{class:"fmeta"},"Cadastre as fases da campanha (Editar → Fases) para agrupar as ações."));
+      if(!g.L.length){sec.append(el("p",{class:"hint",style:"margin:6px 0 0"},fResp||fCanal?"Nenhuma ação com esses filtros.":"Nenhuma ação nesta fase."));w.append(sec);return;}
+      const S={};g.L.forEach(z=>{const k=z.a.data?semanaDe(z.a.data)[0]:"";(S[k]=S[k]||[]).push(z);});
+      Object.keys(S).sort((a,b)=>(a||"9").localeCompare(b||"9")).forEach(k=>{const L=S[k].sort((x,y)=>(x.a.data||"").localeCompare(y.a.data||""));
+        sec.append(el("div",{class:"sem"},el("b",null,k?`Semana ${fd(k)} a ${fd(semanaDe(k)[1])}`:"Sem data"),el("div",{class:"cards"},...L.map(card))));});
+      w.append(sec);});
+    return w;}
   function renderAll(){const g=el("div",{class:"ov"});
-    sortCamps().forEach(c=>{const A=acoesDe(c),ok=A.filter(z=>z.a.status==="feito").length;
+    sortCamps().forEach(c=>{const A=acoesDe(c).filter(z=>vale(z.a)),ok=A.filter(z=>feita(z.a)).length;
       g.append(el("button",{type:"button",class:"node",onclick:()=>{sel=c.id;guardaSel();view="mind";render();}},
         el("span",{class:"k"},(by(OBJ,c.objetivo)||{n:"Sem objetivo"}).n),stcTag(c),el("span",{class:"v"},c.nome||"Sem nome"),
         el("span",{class:"s"},[c.inicio&&c.fim?`${fd(c.inicio)} a ${fd(c.fim)}`:"período a definir",+c.verba?brl0(c.verba):"verba a definir"].join(" · ")),
         el("span",{class:"chips"},...ativos(c).map(x=>el("span",{class:"chip",style:`--cc:${x.c}`},el("i"),x.n))),
         el("span",{class:"s"},A.length?`${ok} de ${A.length} ações feitas`:"Sem ações"),
         el("span",{class:"mini"},el("i",{style:`width:${feitos(c)/ITENS.length*100}%`}))));});
-    return g;}
+    return el("div",null,g,...sortCamps().map(progresso).filter(Boolean));}
+  // planejado x realizado: % de ações feitas por fase e por canal (canceladas não entram)
+  function progresso(c){const A=acoesDe(c).filter(z=>vale(z.a));if(!A.length)return null;
+    const linha=(nome,L,cor)=>{const p=L.length,r=L.filter(z=>feita(z.a)).length,pc=p?Math.round(r/p*100):0;
+      return el("div",{class:"pl",style:cor?`--cc:${cor}`:null},el("span",{title:nome},nome),el("span",{class:"bar2",title:`${pc}%`},el("i",{style:`width:${pc}%`})),el("span",{class:"n"},`${r} de ${p} · ${pc}%`));};
+    const F=fasesDe(c),ids=new Set(F.map(f=>f.id)),semF=A.filter(z=>!ids.has(z.a.fase));
+    const porFase=F.map(f=>linha(f.nome||"Fase sem nome",A.filter(z=>z.a.fase===f.id)));if(semF.length)porFase.push(linha("Sem fase",semF));
+    const porCanal=ativos(c).map(x=>[x,A.filter(z=>z.canal.k===x.k)]).filter(([,L])=>L.length).map(([x,L])=>linha(x.n,L,x.c));
+    const ok=A.filter(z=>feita(z.a)).length;
+    return el("section",{class:"prog"},el("h3",null,c.nome||"Sem nome",el("small",{class:"hint"},`${ok} de ${A.length} ações feitas (${Math.round(ok/A.length*100)}%) · planejado × realizado, canceladas não contam`)),
+      el("div",{class:"pgrid"},el("div",null,el("h4",null,"Por fase"),...porFase),el("div",null,el("h4",null,"Por canal"),...porCanal)));}
+  // minhas ações: só as do usuário logado, de todas as campanhas, por data
+  function renderMinhas(){const A=camps().flatMap(acoesDe).filter(z=>z.a.resp===me.email&&vale(z.a));
+    if(!A.length)return el("div",{class:"empty"},el("strong",null,"Nenhuma ação com você como responsável"),"Nas ações dos canais, escolha você no campo Responsável.");
+    const ord=(x,y)=>(x.a.data||"9999").localeCompare(y.a.data||"9999"),h=hoje();
+    const pend=A.filter(z=>!feita(z.a)).sort(ord),ok=A.filter(z=>feita(z.a)).sort(ord);
+    const row=z=>{const done=feita(z.a),late=!done&&z.a.data&&z.a.data<h;
+      const cb=el("input",{type:"checkbox","aria-label":"Marcar como feito: "+(z.a.nome||"ação")});cb.checked=done;
+      cb.onchange=()=>{z.a.status=cb.checked?"feito":"afazer";gravar(cb.checked?"Ação concluída":"Ação reaberta");};
+      const st=el("select",{"aria-label":"Status de "+(z.a.nome||"ação")},...AST.map(s=>el("option",{value:s.k},s.n)));st.value=stA(z.a).k;
+      st.onchange=()=>{z.a.status=st.value;gravar("Status atualizado");};
+      return el("div",{class:"mrow"+(done?" done":""),style:`--cc:${z.canal.c}`},cb,
+        el("div",{style:"min-width:0"},el("b",null,z.a.nome||"Ação"),el("br"),el("small",null,[z.c.nome||"Campanha",z.canal.n,faseN(z.c,z.a.fase)].filter(Boolean).join(" · "))),
+        el("span",{class:"dt"+(late?" late":"")},z.a.data?(late?"atrasada · ":"")+fd(z.a.data):"sem data"),st);};
+    return el("div",{class:"minhas"},el("p",{class:"hint",style:"margin:0"},`${pend.length} pendente${pend.length===1?"":"s"} · ${ok.length} feita${ok.length===1?"":"s"} · de todas as campanhas`),
+      ...pend.map(row),ok.length?el("h3",null,"Feitas"):null,...ok.map(row));}
   function renderVerba(c){const tb=el("tbody");let tp=0,ti=0;
     const mexe=(k,patch)=>{const C=camps().find(z=>z.id===c.id);C.canais=C.canais||{};C.canais[k]=Object.assign({},C.canais[k]||{},patch);gravar("Verba atualizada");};
     ativos(c).forEach(x=>{const d=cn(c,x.k),p=+d.verba||0,i=+d.investido||0,pct=p?i/p*100:0;tp+=p;ti+=i;
@@ -382,20 +501,20 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   function renderKpis(){const k=$("kpis");k.textContent="";const L=camps();
     const at=L.filter(c=>stcOf(c).k==="ativa").length,pl=L.filter(c=>stcOf(c).k==="planejamento").length;
     const vt=L.reduce((s,c)=>s+(+c.verba||verbaCanais(c)),0),inv=L.reduce((s,c)=>s+investido(c),0);
-    const usados=new Set(L.flatMap(c=>ativos(c).map(x=>x.k)));const A=L.flatMap(acoesDe),ok=A.filter(z=>z.a.status==="feito").length;
+    const usados=new Set(L.flatMap(c=>ativos(c).map(x=>x.k)));const A=L.flatMap(acoesDe).filter(z=>vale(z.a)),ok=A.filter(z=>feita(z.a)).length;
     const h=hoje(),late=A.filter(z=>z.a.status!=="feito"&&z.a.data&&z.a.data<h).length;
     [[L.length,`campanhas · ${at} ativa(s), ${pl} em planejamento`],[brl(vt),"verba total planejada"],[brl(inv),`investido · ${vt?Math.round(inv/vt*100):0}% do planejado`],
      [`${usados.size}/6`,"canais em uso"],[`${ok}/${A.length}`,"ações feitas"],[late,late===1?"ação atrasada":"ações atrasadas"]]
       .forEach(([b,s])=>k.append(el("div",{class:"kpi"},el("b",null,b),el("span",null,s))));}
   // próximas ações de todas as campanhas: atrasadas e dos próximos 14 dias
   function renderProx(){const box=$("prox");box.textContent="";const h=hoje(),lim=new Date(h+"T12:00");lim.setDate(lim.getDate()+14);const L14=lim.toISOString().slice(0,10);
-    const A=camps().filter(c=>stcOf(c).k!=="encerrada").flatMap(acoesDe).filter(z=>z.a.status!=="feito"&&z.a.data&&z.a.data<=L14).sort((x,y)=>x.a.data.localeCompare(y.a.data));
+    const A=camps().filter(c=>stcOf(c).k!=="encerrada").flatMap(acoesDe).filter(z=>z.a.status!=="feito"&&vale(z.a)&&z.a.data&&z.a.data<=L14).sort((x,y)=>x.a.data.localeCompare(y.a.data));
     box.append(el("h2",null,"Próximas ações ",el("small",{class:"hint"},"· atrasadas e dos próximos 14 dias")));
     if(!A.length){box.append(el("p",{class:"hint",style:"margin:0"},"Nada pendente nos próximos 14 dias."));return;}
     A.forEach(z=>{const late=z.a.data<h;
       box.append(el("div",{class:"ac",style:`--cc:${z.canal.c}`},
         el("button",{type:"button",class:"ck","aria-label":"Marcar como feita: "+(z.a.nome||"ação"),title:"Marcar como feita",onclick:()=>{z.a.status="feito";gravar("Ação concluída");}}),
-        el("div",null,el("b",null,z.a.nome||"Ação"),el("br"),el("small",null,`${z.canal.n} · ${z.c.nome||"Campanha"}`)),
+        el("div",null,el("b",null,z.a.nome||"Ação"),el("br"),el("small",null,[z.canal.n,z.c.nome||"Campanha",z.a.resp?uNome(z.a.resp):""].filter(Boolean).join(" · "))),
         el("span",{class:"dt"+(late?" late":"")},late?`atrasada · ${fd(z.a.data)}`:z.a.data===h?"hoje":fd(z.a.data))));});}
 
   function render(){
@@ -403,13 +522,14 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     renderKpis();renderProx();
     const cs=$("camps");cs.textContent="";const list=sortCamps();
     if(sel&&!list.find(c=>c.id===sel))sel=null;if(!sel&&list.length)sel=list[0].id;
-    list.forEach(c=>cs.append(el("button",{type:"button",class:"camp","aria-pressed":String(c.id===sel&&view!=="all"),onclick:()=>{sel=c.id;guardaSel();if(view==="all")view="mind";render();}},
+    list.forEach(c=>cs.append(el("button",{type:"button",class:"camp","aria-pressed":String(c.id===sel&&view!=="all"&&view!=="minhas"),onclick:()=>{sel=c.id;guardaSel();if(view==="all"||view==="minhas")view="mind";render();}},
       ring(c),el("span",{class:"nm"},c.nome||"Sem nome"),el("i",{class:"dot",style:`--sc:var(${stcOf(c).c})`,title:stcOf(c).n}))));
     [...$("viewSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
     const st=$("stage");st.textContent="";const c=list.find(x=>x.id===sel);
     if(!list.length)st.append(el("div",{class:"empty"},el("strong",null,"Nenhuma campanha integrada ainda"),
       el("span",null,"Crie a campanha, defina objetivo, público, mensagem e meta, e ligue os canais: Meta, Google, Site, WhatsApp, Eventos e E-mail. Cada canal ganha papel no funil, verba e ações com data."),
       el("button",{class:"btn primary",type:"button",onclick:()=>openForm(null)},"+ Nova campanha")));
+    else if(view==="minhas")st.append(renderMinhas());
     else if(view==="all")st.append(renderAll());
     else if(view==="funil")st.append(renderFunil(c));
     else if(view==="crono")st.append(renderCrono(c));
@@ -425,12 +545,32 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   opts($("oStc"),STC,"stc");opts($("oObj"),OBJ,"obj");
   const radio=(n,root)=>((root||document).querySelector(`input[name="${n}"]:checked`)||{}).value||"";
   const setR=(n,v)=>document.querySelectorAll(`input[name="${n}"]`).forEach(i=>i.checked=i.value===v);
-  function acaoLinha(a){const r=el("div",{class:"acr"},
+  // fases: as do formulário aberto (ainda não salvas também valem para as ações)
+  function faseLinha(f){const r=el("div",{class:"fsr"},
+      el("input",{type:"text","data-f":"nome",maxlength:"60",placeholder:"Fase (ex.: Aquecimento)","aria-label":"Nome da fase"}),
+      el("input",{type:"date","data-f":"inicio","aria-label":"Início da fase"}),
+      el("input",{type:"date","data-f":"fim","aria-label":"Fim da fase"}),
+      el("button",{type:"button",class:"lnk","aria-label":"Remover fase",onclick:ev=>{ev.currentTarget.parentElement.remove();atualizaFasesSel();}},"Remover"),
+      el("input",{type:"text","data-f":"meta",maxlength:"140",placeholder:"Meta da fase (ex.: 200 leads no WhatsApp)","aria-label":"Meta da fase"}));
+    r.dataset.id=f.id||uid();["nome","inicio","fim","meta"].forEach(k=>r.querySelector(`[data-f="${k}"]`).value=f[k]||"");
+    r.querySelector('[data-f="nome"]').addEventListener("input",atualizaFasesSel);return r;}
+  const fasesForm=()=>[...document.querySelectorAll("#fasesF .fsr")].map(r=>({id:r.dataset.id,nome:r.querySelector('[data-f="nome"]').value.trim(),inicio:r.querySelector('[data-f="inicio"]').value,fim:r.querySelector('[data-f="fim"]').value,meta:r.querySelector('[data-f="meta"]').value.trim()}));
+  const faseOpts=()=>[el("option",{value:""},"Sem fase"),...fasesForm().filter(f=>f.nome).map(f=>el("option",{value:f.id},"Fase: "+f.nome))];
+  function atualizaFasesSel(){document.querySelectorAll('#canaisF select[data-a="fase"]').forEach(s=>{const v=s.value;s.textContent="";s.append(...faseOpts());s.value=v;if(s.value!==v)s.value="";});}
+  function montaFases(c){const host=$("fasesF");host.textContent="";fasesDe(c||{}).forEach(f=>host.append(faseLinha(f)));}
+  $("addFase").onclick=()=>{const r=faseLinha({});$("fasesF").append(r);r.querySelector("input").focus();atualizaFasesSel();};
+  function acaoLinha(a){
+    const eq=equipe(),sResp=el("select",{"data-a":"resp","aria-label":"Responsável pela ação"},el("option",{value:""},"Sem responsável"),
+      ...eq.map(u=>el("option",{value:u.email},(u.nome||u.email)+(u.cargo?" · "+u.cargo:""))));
+    if(a.resp&&!eq.some(u=>u.email===a.resp))sResp.append(el("option",{value:a.resp},uNome(a.resp)));
+    const r=el("div",{class:"acr"},
       el("input",{type:"text","data-a":"nome",maxlength:"120",placeholder:"Ação (ex.: Post carrossel ofertas)","aria-label":"Nome da ação"}),
       el("input",{type:"date","data-a":"data","aria-label":"Data da ação"}),
-      el("select",{"data-a":"status","aria-label":"Situação da ação"},...AST.map(s=>el("option",{value:s.k},s.n))),
-      el("button",{type:"button",class:"lnk","aria-label":"Remover ação",onclick:ev=>ev.currentTarget.parentElement.remove()},"Remover"));
-    r.dataset.id=a.id||uid();r.querySelector('[data-a="nome"]').value=a.nome||"";r.querySelector('[data-a="data"]').value=a.data||"";r.querySelector('[data-a="status"]').value=a.status||"afazer";return r;}
+      el("select",{"data-a":"status","aria-label":"Status da ação"},...AST.map(s=>el("option",{value:s.k},s.n))),
+      el("button",{type:"button",class:"lnk","aria-label":"Remover ação",onclick:ev=>ev.currentTarget.parentElement.remove()},"Remover"),
+      sResp,el("select",{"data-a":"fase","aria-label":"Fase da ação"},...faseOpts()));
+    r.dataset.id=a.id||uid();r.querySelector('[data-a="nome"]').value=a.nome||"";r.querySelector('[data-a="data"]').value=a.data||"";r.querySelector('[data-a="status"]').value=stA(a).k;
+    sResp.value=a.resp||"";const sf=r.querySelector('[data-a="fase"]');sf.value=a.fase||"";if(sf.value!==(a.fase||""))sf.value="";return r;}
   function montaCanais(c){const host=$("canaisF");host.textContent="";
     CANAIS.forEach(x=>{const d=c?cn(c,x.k):{},id="c_"+x.k;
       const acs=el("div",{class:"acs"},...(d.acoes||[]).map(acaoLinha));
@@ -454,7 +594,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
       det.querySelector('[data-f="ativo"]').addEventListener("change",ev=>{if(ev.target.checked)det.open=true;});});}
   function lerCanais(){const o={};
     document.querySelectorAll("#canaisF details.cn").forEach(det=>{const k=det.dataset.k,q=f=>det.querySelector(`[data-f="${f}"]`);
-      const acoes=[...det.querySelectorAll(".acr")].map(r=>({id:r.dataset.id,nome:r.querySelector('[data-a="nome"]').value.trim(),data:r.querySelector('[data-a="data"]').value,status:r.querySelector('[data-a="status"]').value})).filter(a=>a.nome||a.data);
+      const acoes=[...det.querySelectorAll(".acr")].map(r=>({id:r.dataset.id,nome:r.querySelector('[data-a="nome"]').value.trim(),data:r.querySelector('[data-a="data"]').value,status:r.querySelector('[data-a="status"]').value,
+        resp:r.querySelector('[data-a="resp"]').value,fase:r.querySelector('[data-a="fase"]').value})).filter(a=>a.nome||a.data);
       o[k]={ativo:q("ativo").checked,papel:radio("pp_"+k,det),inicio:q("inicio").value,fim:q("fim").value,verba:lerR(q("verba").value),investido:lerR(q("investido").value),
         kpi:q("kpi").value.trim(),link:q("link").value.trim(),obs:q("obs").value.trim(),acoes};});
     return o;}
@@ -468,7 +609,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     $("fNome").value=c?c.nome||"":"";setR("stc",c?stcOf(c).k:"planejamento");setR("obj",c?c.objetivo:"");
     $("fObjDet").value=c?c.objetivoDet||"":"";$("fPub").value=c?c.publico||"":"";$("fMsg").value=c?c.mensagem||"":"";$("fKpi").value=c?c.kpi||"":"";$("fLink").value=c?c.link||"":"";
     $("fIni").value=c?c.inicio||"":"";$("fFim").value=c?c.fim||"":"";$("fVerba").value=c?mostraR(c.verba):"";
-    montaCanais(c);dicas();excluir(false);
+    montaFases(c);montaCanais(c);dicas();excluir(false);
     document.querySelectorAll(".fs,details.cn").forEach(f=>f.classList.toggle("hl",f.id===foco));
     $("overlay").hidden=false;
     setTimeout(()=>{const f=foco&&$(foco);if(f){if(f.tagName==="DETAILS")f.open=true;f.scrollIntoView({block:"start"});}else $("fNome").focus();},40);}
@@ -478,7 +619,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     a.append(el("div",{class:"confirm"},"Excluir esta campanha?",el("button",{class:"btn danger",type:"button",onclick:()=>{doc.campanhas=camps().filter(c=>c.id!==editingId);fechar();gravar("Campanha excluída");}},"Sim, excluir"),el("button",{class:"btn",type:"button",onclick:()=>excluir(false)},"Não")));}
   function duplicar(){const c=camps().find(x=>x.id===editingId);if(!c)return;const k=JSON.parse(JSON.stringify(c));
     k.id=uid();k.nome=(c.nome||"Campanha")+" (cópia)";k.status="planejamento";k.criadoEm=new Date().toISOString();
-    Object.values(k.canais||{}).forEach(d=>{d.investido=0;(d.acoes||[]).forEach(a=>{a.id=uid();a.status="afazer";});});
+    const novoId={};(k.fases||[]).forEach(f=>{novoId[f.id]=uid();f.id=novoId[f.id];});
+    Object.values(k.canais||{}).forEach(d=>{d.investido=0;(d.acoes||[]).forEach(a=>{a.id=uid();a.status="afazer";if(a.fase)a.fase=novoId[a.fase]||"";});});
     doc.campanhas=camps().concat([k]);sel=k.id;guardaSel();fechar();gravar("Campanha duplicada");}
   $("closeBtn").onclick=fechar;$("newBtn").onclick=()=>openForm(null);
   $("overlay").addEventListener("click",ev=>{if(ev.target===$("overlay"))fechar();});
@@ -487,11 +629,12 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     const err=m=>{$("formErr").hidden=false;$("formErr").textContent=m;};
     const nome=$("fNome").value.trim();if(!nome)return err("Dê um nome para a campanha.");
     const a=$("fIni").value,b=$("fFim").value;if(a&&b&&b<a)return err("A data final precisa ser depois do início.");
-    const canais=lerCanais();
+    const canais=lerCanais(),fases=fasesForm().filter(f=>f.nome||f.inicio||f.fim||f.meta);
+    for(const f of fases){if(!f.nome)return err("Dê um nome para cada fase (ou remova a fase vazia).");if(f.inicio&&f.fim&&f.fim<f.inicio)return err(`Fase ${f.nome}: a data final precisa ser depois do início.`);}
     for(const x of CANAIS){const d=canais[x.k];if(d.ativo&&d.inicio&&d.fim&&d.fim<d.inicio)return err(`${x.n}: a data final precisa ser depois do início.`);}
     const now=new Date().toISOString(),prev=camps().find(c=>c.id===editingId);
     const body={id:editingId||uid(),nome,status:radio("stc")||"planejamento",objetivo:radio("obj"),objetivoDet:$("fObjDet").value.trim(),publico:$("fPub").value.trim(),
-      mensagem:$("fMsg").value.trim(),kpi:$("fKpi").value.trim(),link:$("fLink").value.trim(),inicio:a,fim:b,verba:lerR($("fVerba").value),canais,
+      mensagem:$("fMsg").value.trim(),kpi:$("fKpi").value.trim(),link:$("fLink").value.trim(),inicio:a,fim:b,verba:lerR($("fVerba").value),fases,canais,
       criadoEm:prev&&prev.criadoEm||now,atualizadoEm:now};
     doc=doc||{dono:me.email,campanhas:[]};
     doc.campanhas=prev?camps().map(c=>c.id===prev.id?body:c):camps().concat([body]);
@@ -500,6 +643,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   Central.boot("campanhas",user=>{me=user;
     if(!Central.ehDono(user)){$("stage").append(el("div",{class:"empty"},el("strong",null,"Página pessoal"),"Esta página é de uso exclusivo do responsável pela Central."));$("newBtn").hidden=true;$("prox").hidden=true;return;}
     colC=Store.collection("campanhas_multicanal");pronto=true;render();
+    Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u&&u.email);if($("overlay").hidden)render();},()=>{});
     colC.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===meuId());if($("overlay").hidden||!doc)doc=d?d.data():{dono:me.email,campanhas:[]};render();},
       ()=>{$("notice").textContent="Não foi possível carregar as campanhas. Recarregue a página.";$("notice").hidden=false;});});
 })();
