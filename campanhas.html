@@ -157,9 +157,21 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
 .acr{display:grid;grid-template-columns:minmax(0,1fr) 140px 130px auto;gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px}
 .acr [data-a="resp"]{grid-column:1/2}
 .acr [data-a="fase"]{grid-column:2/5}
-.fsr{display:grid;grid-template-columns:minmax(0,1fr) 140px 140px auto;gap:6px;align-items:center;padding:8px;border:1px solid var(--line);border-radius:8px}
-.fsr [data-f="meta"]{grid-column:1/-1}
-.fsr input{padding:7px 9px!important}
+/* fase: cartão no estilo das tarefas — número, nome em destaque (linha inteira), datas com rótulo e a meta embaixo */
+#fasesF{counter-reset:fase}
+.fsr{counter-increment:fase;position:relative;display:flex;flex-direction:column;gap:10px;background:var(--bg);border:0;border-left:4px solid var(--accent);border-radius:10px;padding:12px 14px;box-shadow:0 1px 1px rgba(9,30,66,.16),0 0 1px rgba(9,30,66,.2)}
+.fsr .fs-top{display:flex;align-items:center;gap:10px}
+.fsr .fs-top::before{content:counter(fase,decimal-leading-zero);flex:none;font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:3px 7px}
+.panel .fsr input[data-f="nome"]{flex:1;min-width:0;font-size:16px;font-weight:700;background:transparent;border:1px solid transparent;padding:6px 8px}
+.panel .fsr input[data-f="nome"]:hover{border-color:var(--line)}
+.panel .fsr input[data-f="nome"]:focus{background:var(--surface);border-color:var(--accent)}
+.fsr .fs-x{flex:none;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
+.fsr .fs-x:hover{background:var(--bad-bg);color:var(--bad)}
+.fsr .fs-dt{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end}
+.fsr label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--muted);min-width:0}
+.panel .fsr label input{background:var(--surface);font-weight:400}
+.fsr .fs-dur{font-size:12px;font-weight:700;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:6px 10px;white-space:nowrap;margin-bottom:4px}
+.fsr .fs-dur.err{color:var(--bad);background:var(--bad-bg)}
 .acr input,.acr select{padding:7px 9px!important}
 .lnk{border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:2px 4px}
 .err{font-size:13px;color:var(--bad);font-weight:600}
@@ -214,8 +226,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   .gantt{grid-template-columns:110px minmax(0,1fr)}
   .acr{grid-template-columns:1fr 1fr}
   .acr input[data-a="nome"],.acr [data-a="resp"],.acr [data-a="fase"]{grid-column:1/-1}
-  .fsr{grid-template-columns:1fr 1fr}
-  .fsr [data-f="nome"]{grid-column:1/-1}
+  .fsr .fs-dt{grid-template-columns:1fr 1fr}
+  .fsr .fs-dur{grid-column:1/-1;justify-self:start}
   .sem{grid-template-columns:1fr}
   .pgrid{grid-template-columns:1fr}
   .mrow{grid-template-columns:auto minmax(0,1fr)}
@@ -555,13 +567,21 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   const radio=(n,root)=>((root||document).querySelector(`input[name="${n}"]:checked`)||{}).value||"";
   const setR=(n,v)=>document.querySelectorAll(`input[name="${n}"]`).forEach(i=>i.checked=i.value===v);
   // fases: as do formulário aberto (ainda não salvas também valem para as ações)
-  function faseLinha(f){const r=el("div",{class:"fsr"},
-      el("input",{type:"text","data-f":"nome",maxlength:"60",placeholder:"Fase (ex.: Aquecimento)","aria-label":"Nome da fase"}),
-      el("input",{type:"date","data-f":"inicio","aria-label":"Início da fase"}),
-      el("input",{type:"date","data-f":"fim","aria-label":"Fim da fase"}),
-      el("button",{type:"button",class:"lnk","aria-label":"Remover fase",onclick:ev=>{ev.currentTarget.parentElement.remove();atualizaFasesSel();}},"Remover"),
-      el("input",{type:"text","data-f":"meta",maxlength:"140",placeholder:"Meta da fase (ex.: 200 leads no WhatsApp)","aria-label":"Meta da fase"}));
+  function faseLinha(f){
+    const dur=el("span",{class:"fs-dur"});
+    const r=el("div",{class:"fsr"},
+      el("div",{class:"fs-top"},
+        el("input",{type:"text","data-f":"nome",maxlength:"60",placeholder:"Nome da fase (ex.: Aquecimento)","aria-label":"Nome da fase"}),
+        el("button",{type:"button",class:"fs-x","aria-label":"Remover fase",title:"Remover fase",onclick:ev=>{ev.currentTarget.closest(".fsr").remove();atualizaFasesSel();}},"×")),
+      el("div",{class:"fs-dt"},
+        el("label",null,"Início",el("input",{type:"date","data-f":"inicio"})),
+        el("label",null,"Fim",el("input",{type:"date","data-f":"fim"})),dur),
+      el("label",null,"Meta da fase",el("input",{type:"text","data-f":"meta",maxlength:"140",placeholder:"Ex.: 200 leads no WhatsApp"})));
     r.dataset.id=f.id||uid();["nome","inicio","fim","meta"].forEach(k=>r.querySelector(`[data-f="${k}"]`).value=f[k]||"");
+    // duração da fase ao lado das datas
+    const calc=()=>{const a=r.querySelector('[data-f="inicio"]').value,b=r.querySelector('[data-f="fim"]').value;
+      dur.classList.toggle("err",!!(a&&b&&b<a));dur.textContent=a&&b?(b<a?"fim antes do início":`${dias(a,b)} dia${dias(a,b)===1?"":"s"}`):"sem período";};
+    r.querySelectorAll('input[type="date"]').forEach(i=>i.addEventListener("change",calc));calc();
     r.querySelector('[data-f="nome"]').addEventListener("input",atualizaFasesSel);return r;}
   const fasesForm=()=>[...document.querySelectorAll("#fasesF .fsr")].map(r=>({id:r.dataset.id,nome:r.querySelector('[data-f="nome"]').value.trim(),inicio:r.querySelector('[data-f="inicio"]').value,fim:r.querySelector('[data-f="fim"]').value,meta:r.querySelector('[data-f="meta"]').value.trim()}));
   const faseOpts=()=>[el("option",{value:""},"Sem fase"),...fasesForm().filter(f=>f.nome).map(f=>el("option",{value:f.id},"Fase: "+f.nome))];
