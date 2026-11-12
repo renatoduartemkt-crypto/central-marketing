@@ -332,6 +332,9 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
 
   let me=null, colC=null, doc=null, sel=null, view="mind", editingId=null, pronto=false, users=[], fResp="", fCanal="";
   try{view=localStorage.getItem("cmc-view")||"mind";sel=localStorage.getItem("cmc-sel");}catch(_){}
+  // link do sininho: campanhas.html?v=minhas abre direto em "Minhas ações"
+  let viewUrl="";try{viewUrl=new URLSearchParams(location.search).get("v")||"";}catch(_){}
+  if(["mind","funil","crono","all","verba","minhas"].includes(viewUrl))view=viewUrl;
   const camps=()=>((doc&&doc.campanhas)||[]);
   // equipe (usuários da Central) para o campo Responsável
   const equipe=()=>users.filter(u=>u.ativo!==false).sort((a,b)=>(a.nome||a.email).localeCompare(b.nome||b.email,"pt-BR"));
@@ -648,7 +651,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     sel=body.id;guardaSel();fechar();gravar(prev?"Campanha atualizada":"Campanha criada");});
 
   Central.boot("campanhas",user=>{me=user;dono=Central.ehDono(user);
-    if(!dono){$("newBtn").hidden=true;try{if(!localStorage.getItem("cmc-view"))view="minhas";}catch(_){view="minhas";}}
+    if(!dono){$("newBtn").hidden=true;try{if(!localStorage.getItem("cmc-view")&&!viewUrl)view="minhas";}catch(_){view="minhas";}}
     colC=Store.collection("campanhas_multicanal");pronto=true;render();
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u&&u.email);if($("overlay").hidden)render();},()=>{});
     colC.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===donoId());if($("overlay").hidden||!doc)doc=d?d.data():{dono:me.email,campanhas:[]};render();},

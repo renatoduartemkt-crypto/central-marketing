@@ -66,7 +66,11 @@
     const tog = mk("button", "side-toggle"); tog.type = "button"; tog.setAttribute("aria-expanded", "false"); tog.setAttribute("aria-controls", "side-body");
     tog.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menu</span>';
     tog.onclick = () => { const open = !host.classList.contains("open"); host.classList.toggle("open", open); tog.setAttribute("aria-expanded", String(open)); };
-    top.append(brand, tog);
+    // sininho de notificações: no topo, à direita (no celular, ao lado do botão Menu)
+    const sino = mk("button", "nt-bell"); sino.type = "button"; sino.title = "Notificações";
+    sino.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="nt-n" hidden></span>';
+    if (!user) sino.hidden = true;
+    top.append(brand, sino, tog);
 
     // páginas por grupo
     const body = mk("div", "side-body"); body.id = "side-body";
@@ -124,6 +128,18 @@
     }
     mount(active, user);
     try { start(user); } catch (e) { console.error(e); }
+    iniciarNotificacoes(user);
+  }
+  // carrega custos.js (aprovações) e notificacoes.js só quando a página ainda não tem; depois liga o sininho
+  function carregaScript(src){ return new Promise(ok => { const s = document.createElement("script"); s.src = src; s.charset = "utf-8"; s.onload = s.onerror = () => ok(); document.head.append(s); }); }
+  async function iniciarNotificacoes(user){
+    const b = document.querySelector(".nt-bell"); if (!b || !user) return;
+    const base = ((document.querySelector('script[src*="layout.js"]') || {}).getAttribute ? document.querySelector('script[src*="layout.js"]').getAttribute("src") : "assets/js/layout.js").replace(/layout\.js.*$/, "");
+    try {
+      if (!window.Custos) await carregaScript(base + "custos.js");
+      if (!window.Notificacoes) await carregaScript(base + "notificacoes.js");
+      if (window.Notificacoes) Notificacoes.iniciar(user, b);
+    } catch (e) { console.warn("Notificações indisponíveis", e); }
   }
 
   /* ícone da aba (símbolo da Lopes) em todas as páginas */

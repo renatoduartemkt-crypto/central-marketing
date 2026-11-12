@@ -555,7 +555,10 @@ td.tt{font-weight:600;max-width:340px}
   Central.boot("tarefas",user=>{me=user;loadPref();
     col=Store.collection("tarefas");
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u.email);stFillResp();render();});
-    col.onSnapshot(sn=>{tasks=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();});
+    // link do sininho: tarefas.html?t=ID abre a tarefa assim que ela carregar
+    let abrirId=null;try{abrirId=new URLSearchParams(location.search).get("t");}catch(_){}
+    col.onSnapshot(sn=>{tasks=sn.docs.map(d=>Object.assign({id:d.id},d.data()));render();
+      if(abrirId){const t=tasks.find(x=>x.id===abrirId);if(t){abrirId=null;openTask(t);try{history.replaceState(null,"",location.pathname);}catch(_){}}}});
     render();});
 })();
 </script>
