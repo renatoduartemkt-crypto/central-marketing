@@ -2,6 +2,8 @@
  * Notificações (sininho no topo de todas as páginas).
  * Junta, para quem está logado:
  *  - tarefas e subtarefas vencidas e a vencer (próximos 3 dias), em que a pessoa é responsável;
+ *  - as tarefas rápidas da "Minha agenda diária" (só as da própria pessoa) atrasadas e a vencer;
+ *  - para administradores: tudo o que está atrasado com o resto da equipe (tarefas, subtarefas e ações de campanha);
  *  - ações das Campanhas integradas vencidas e a vencer, em que a pessoa é responsável;
  *  - comentários novos de outras pessoas nas tarefas em que ela está envolvida (responsável, criou ou tem subtarefa);
  *  - aprovações: para administradores, o que está aguardando aprovação; para quem pediu, o que foi aprovado ou recusado.
@@ -25,7 +27,7 @@
   }
 
   let me = null, btn = null, painel = null, users = [];
-  const D = { tarefas: [], campanhas_multicanal: [], aprov: [] };
+  const D = { tarefas: [], campanhas_multicanal: [], agenda_rotinas: [], aprov: [] };
   const KV = () => "central-mkt:notif-visto:" + (me && me.email || "");
   const visto = () => { try { return localStorage.getItem(KV()) || ""; } catch (_) { return ""; } };
   const marcarVisto = () => { try { localStorage.setItem(KV(), new Date().toISOString()); } catch (_) {} };
@@ -42,15 +44,23 @@
   /* ---------- monta a lista ---------- */
   function lista(){
     const h = hoje(), lim = somaDias(h, DIAS_AVISO), desde = new Date(Date.now() - DIAS_HIST * 864e5).toISOString(), v = visto(), eu = me.email;
-    const prazos = [], coments = [], aprov = [];
+    const prazos = [], coments = [], aprov = [], equipe = [];
+    const quem = L => (L || []).filter(Boolean).map(nome).join(", ");
+    // atrasado com outra pessoa: só os administradores veem (para cobrar)
+    const addEquipe = (data, titulo, sub, resp, href) => { if (!admin() || !data || data >= h) return; equipe.push({ tipo: "vencida", data, titulo, sub: [resp ? resp : "sem responsável", sub, prazo(data)].filter(Boolean).join(" · "), href }); };
     const addPrazo = (data, titulo, sub, href) => { if (!data || data > lim) return; prazos.push({ tipo: data < h ? "vencida" : "avencer", data, titulo, sub: [sub, prazo(data)].filter(Boolean).join(" · "), href }); };
 
     // tarefas
     D.tarefas.forEach(t => {
       if (t.fase === "realizado") return;
       const href = url("tarefas.html?t=" + encodeURIComponent(t.id));
-      if ((t.responsaveis || []).includes(eu) && t.entrega) addPrazo(t.entrega, t.titulo || "Tarefa", "Tarefa", href);
-      (t.subtarefas || []).forEach(s => { if (!s.feito && s.resp === eu && s.data) addPrazo(s.data, s.texto || "Subtarefa", "Subtarefa de " + curto(t.titulo || "tarefa", 40), href); });
+      const R = t.responsaveis || [];
+      if (R.includes(eu) && t.entrega) addPrazo(t.entrega, t.titulo || "Tarefa", "Tarefa", href);
+      const outros = R.filter(e => e !== eu);
+      if (t.entrega && !R.includes(eu)) addEquipe(t.entrega, t.titulo || "Tarefa", "Tarefa", quem(outros), href);
+      (t.subtarefas || []).forEach(s => { if (s.feito || !s.data) return;
+        if (s.resp === eu) addPrazo(s.data, s.texto || "Subtarefa", "Subtarefa de " + curto(t.titulo || "tarefa", 40), href);
+        else addEquipe(s.data, s.texto || "Subtarefa", "Subtarefa de " + curto(t.titulo || "tarefa", 40), s.resp ? nome(s.resp) : "", href); });
       const envolvido = (t.responsaveis || []).includes(eu) || t.criadoPor === eu || (t.subtarefas || []).some(s => s.resp === eu);
       if (envolvido) (t.comentarios || []).forEach(c => {
         if (c.autor === eu || !c.em || c.em < desde) return;
@@ -61,8 +71,15 @@
     D.campanhas_multicanal.forEach(doc => (doc.campanhas || []).forEach(c => {
       if (c.status === "encerrada") return;
       Object.keys(c.canais || {}).forEach(k => { const cn = c.canais[k] || {}; if (!cn.ativo) return;
-        (cn.acoes || []).forEach(a => { if (a.resp === eu && a.status !== "feito" && a.status !== "cancelado" && a.data) addPrazo(a.data, a.nome || "Ação", "Campanha " + curto(c.nome || "", 40), url("campanhas.html?v=minhas")); });
+        (cn.acoes || []).forEach(a => { if (a.status === "feito" || a.status === "cancelado" || !a.data) return;
+          if (a.resp === eu) addPrazo(a.data, a.nome || "Ação", "Campanha " + curto(c.nome || "", 40), url("campanhas.html?v=minhas"));
+          else addEquipe(a.data, a.nome || "Ação", "Campanha " + curto(c.nome || "", 40), a.resp ? nome(a.resp) : "", url("campanhas.html?v=crono")); });
       });
+    }));
+    // tarefas rápidas da agenda (o servidor só entrega o registro da própria pessoa)
+    D.agenda_rotinas.filter(r => r.id === (window.Auth && Auth.docId ? Auth.docId(eu) : eu) || r.dono === eu).forEach(r => (r.itens || []).forEach(i => {
+      if (i.tipo === "diaria" || i.feito) return;
+      addPrazo(i.dia || h, i.texto || "Tarefa rápida", "Tarefa rápida da agenda", url("agenda.html"));
     }));
     // aprovações
     D.aprov.forEach(i => {
@@ -76,7 +93,8 @@
     prazos.sort((a, b) => a.data.localeCompare(b.data));
     coments.sort((a, b) => b.em.localeCompare(a.em));
     aprov.sort((a, b) => (a.tipo === "pendente" ? 0 : 1) - (b.tipo === "pendente" ? 0 : 1) || String(b.em).localeCompare(String(a.em)));
-    return { vencidas: prazos.filter(x => x.tipo === "vencida"), avencer: prazos.filter(x => x.tipo === "avencer"), coments, aprov };
+    equipe.sort((a, b) => a.data.localeCompare(b.data));
+    return { vencidas: prazos.filter(x => x.tipo === "vencida"), avencer: prazos.filter(x => x.tipo === "avencer"), coments, aprov, equipe };
   }
   // o número no sininho: vencidas + a vencer + aguardando aprovação + comentários e decisões ainda não vistos
   const conta = L => L.vencidas.length + L.avencer.length + L.coments.filter(x => x.novo).length + L.aprov.filter(x => x.tipo === "pendente" || x.novo).length;
@@ -91,7 +109,7 @@
   }
   function desenha(){
     const L = lista(); painel.textContent = "";
-    const resumo = [[L.vencidas.length, "vencida", "vencidas", "v"], [L.avencer.length, "a vencer", "a vencer", "a"], [L.coments.filter(x => x.novo).length, "comentário novo", "comentários novos", "c"], [L.aprov.filter(x => x.tipo === "pendente" || x.novo).length, "aprovação", "aprovações", "p"]]
+    const resumo = [[L.vencidas.length, "vencida", "vencidas", "v"], [L.avencer.length, "a vencer", "a vencer", "a"], [L.coments.filter(x => x.novo).length, "comentário novo", "comentários novos", "c"], [L.aprov.filter(x => x.tipo === "pendente" || x.novo).length, "aprovação", "aprovações", "p"], [L.equipe.length, "atrasada da equipe", "atrasadas da equipe", "e"]]
       .filter(r => r[0]).map(([n, s, p, k]) => el("span", { class: "nt-chip k-" + k }, `${n} ${n === 1 ? s : p}`));
     painel.append(el("div", { class: "nt-hd" }, el("b", null, "Notificações"),
       el("button", { type: "button", class: "nt-x", "aria-label": "Fechar", onclick: fechar }, "×")),
@@ -105,6 +123,7 @@
     secao(`A vencer (próximos ${DIAS_AVISO} dias)`, L.avencer, "tarefas.html");
     secao("Comentários", L.coments, "tarefas.html");
     secao("Aprovações", L.aprov, admin() ? "aprovacoes.html" : null);
+    secao("Atrasadas da equipe", L.equipe, "tarefas.html");
   }
   // no computador o painel abre ao lado do menu; no celular, logo abaixo da barra do topo
   function posiciona(){
@@ -132,6 +151,7 @@
       assinar("usuarios", L => users = L.map(u => Object.assign({ email: u.email || u.id }, u)));
       assinar("tarefas", L => D.tarefas = L);
       assinar("campanhas_multicanal", L => D.campanhas_multicanal = L);
+      assinar("agenda_rotinas", L => D.agenda_rotinas = L);
       if (window.Custos && Custos.watch) Custos.watch(st => { D.aprov = Custos.pendencias(st.raw); atualizaBotao(); }, ["custos", "eventos", "producao"]);
     }, 1200);
     // a data muda à meia-noite e o "vence hoje" precisa acompanhar
