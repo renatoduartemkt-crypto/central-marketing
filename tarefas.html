@@ -42,20 +42,42 @@
 .due{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
 .due.late{color:var(--bad);font-weight:600}
 .cmt{font-size:12px;color:var(--muted);white-space:nowrap}
-/* kanban */
-.kanban{display:grid;grid-template-columns:repeat(6,minmax(190px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px}
-.colk{background:var(--surface-2);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:360px;min-width:0}
+/* kanban: colunas de largura fixa (como Trello), rolagem própria e só as tarefas do mês */
+.kbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px}
+.kbar .kmes{display:flex;align-items:center;gap:6px}
+.kbar .kmes b{font-size:18px;min-width:150px;text-align:center}
+.kbar .hj{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:700;color:var(--fg);cursor:pointer}
+.kbar .hint{margin-left:auto}
+.kanban{display:flex;gap:12px;overflow-x:auto;align-items:flex-start;padding-bottom:10px;scroll-snap-type:x proximity}
+.colk{flex:0 0 280px;background:var(--surface-2);border-radius:12px;padding:8px;display:flex;flex-direction:column;max-height:calc(100vh - 150px);min-height:120px;scroll-snap-align:start}
 .colk.drop{outline:2px dashed var(--accent);outline-offset:-3px}
-.colk header{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 6px;border-bottom:3px solid var(--c)}
-.colk header b{font-size:14px}
-.colk header span{font-family:var(--mono);font-size:12px;color:var(--muted)}
-.addk{border:1px dashed var(--line);background:transparent;border-radius:8px;padding:7px;font-size:13px;color:var(--muted);cursor:pointer;font-weight:600}
-.addk:hover{color:var(--fg);border-color:var(--muted)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px;display:flex;flex-direction:column;gap:8px;cursor:pointer;text-align:left}
-.card:hover{border-color:var(--muted)}
-.card .t{font-weight:700;font-size:14px;line-height:1.3;overflow-wrap:anywhere}
-.card .m{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+.colk header{display:flex;align-items:center;gap:8px;padding:6px 8px 10px}
+.colk header i{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.colk header b{font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.colk header span{font-size:12px;font-weight:700;color:var(--muted);background:var(--surface);border-radius:999px;padding:1px 8px}
+.kcards{display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding:2px 2px 4px;min-height:8px;scrollbar-width:thin}
+.addk{border:0;background:transparent;border-radius:8px;padding:8px 10px;margin-top:4px;font-size:13.5px;color:var(--muted);cursor:pointer;font-weight:600;text-align:left}
+.addk:hover{color:var(--fg);background:color-mix(in srgb,var(--fg) 8%,transparent)}
+.kmore{border:0;background:transparent;color:var(--accent);font-weight:700;font-size:12.5px;padding:4px 8px;cursor:pointer;text-align:left}
+.card{background:var(--surface);border:0;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer;text-align:left;box-shadow:0 1px 1px rgba(9,30,66,.16),0 0 1px rgba(9,30,66,.2);border-left:3px solid var(--pc,transparent)}
+.card:hover{box-shadow:0 2px 6px rgba(9,30,66,.2),0 0 1px rgba(9,30,66,.3)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.card .lb{display:flex;gap:4px;flex-wrap:wrap}
+.card .lb span{font-size:10.5px;font-weight:800;letter-spacing:.02em;border-radius:4px;padding:1px 7px;color:var(--pc);background:var(--pb)}
+.card .t{font-weight:600;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+.card .ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.card .bd{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);border-radius:5px;padding:2px 6px;white-space:nowrap}
+.card .bd.dt{background:var(--surface-2)}
+.card .bd.dt.late{background:var(--bad);color:#fff}
+.card .bd.dt.soon{background:var(--warn-bg);color:var(--warn)}
+.card .bd.dt.ok{background:var(--ok-bg);color:var(--ok)}
+.card .bd.ck.all{background:var(--ok-bg);color:var(--ok)}
+.card .bd.ck.late{color:var(--bad)}
+.card .ft .avs{margin-left:auto}
+.card .av{width:26px;height:26px;font-size:10px}
+.card.done{opacity:.75}
 .card.done .t{text-decoration:line-through;color:var(--muted)}
+.kvazio{font-size:12.5px;color:var(--muted);padding:6px 8px}
 /* lista */
 .lgroup{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .lgroup>header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-left:4px solid var(--c);background:var(--surface)}
@@ -159,7 +181,8 @@ td.tt{font-weight:600;max-width:340px}
   .props{grid-template-columns:1fr}
   .tr3{grid-template-columns:1fr}
   .dow{display:none}.grid{grid-template-columns:1fr}.day{min-height:0;border-right:0}.day.out,.day.blank:not(.today){display:none}
-  .kanban{grid-template-columns:repeat(6,minmax(240px,82vw))}
+  .colk{flex-basis:min(280px,84vw);max-height:none}
+  .kbar .hint{margin-left:0}
   .filters input{min-width:0;flex:1}
 }
 </style>
@@ -187,7 +210,18 @@ td.tt{font-weight:600;max-width:340px}
     </div>
   </div>
 
-  <section id="vKanban"><div class="kanban" id="kanban"></div></section>
+  <section id="vKanban">
+    <div class="kbar">
+      <div class="kmes"><button class="icon" type="button" id="kPrev" aria-label="Mês anterior">‹</button><b id="kTitle"></b><button class="icon" type="button" id="kNext" aria-label="Próximo mês">›</button></div>
+      <button class="hj" type="button" id="kHoje">Mês atual</button>
+      <div class="seg" id="kModo" role="group" aria-label="Quais tarefas mostrar">
+        <button type="button" data-m="mes" aria-pressed="true">Só o mês</button>
+        <button type="button" data-m="tudo" aria-pressed="false">Todas</button>
+      </div>
+      <span class="hint" id="kHint"></span>
+    </div>
+    <div class="kanban" id="kanban"></div>
+  </section>
   <section id="vLista" hidden style="display:flex;flex-direction:column;gap:12px"></section>
   <section id="vCal" hidden style="display:flex;flex-direction:column;gap:12px">
     <div class="monthbar"><button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button><b id="mTitle"></b><button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button><span class="hint">Tarefas pela data de entrega · arraste para mudar a entrega</span></div>
@@ -347,16 +381,52 @@ td.tt{font-weight:600;max-width:340px}
 
   function drop(node,fn){node.addEventListener("dragover",e=>{e.preventDefault();node.classList.add("drop");});node.addEventListener("dragleave",()=>node.classList.remove("drop"));
     node.addEventListener("drop",e=>{e.preventDefault();node.classList.remove("drop");const id=e.dataTransfer.getData("text/plain");if(id)fn(id);});}
-  function card(t){const f=faseOf(t);
-    return el("div",{class:"card"+(f.k==="realizado"?" done":""),draggable:"true",tabindex:"0",role:"button","aria-label":t.titulo||"Tarefa",
+  /* cartão no estilo Trello/Asana: etiqueta de prioridade, título e uma linha de selos (data, checklist, comentários, anexos) com os responsáveis */
+  const ICO={rel:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    ck:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m8 12 3 3 5-6"/></svg>',
+    cm:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>',
+    ax:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></svg>',
+    rp:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>'};
+  const bd=(cls,ico,txt,title)=>{const e=el("span",{class:"bd "+cls,title:title||null});e.innerHTML=ICO[ico];if(txt!=null)e.append(document.createTextNode(txt));return e;};
+  function card(t){const f=faseOf(t),p=priOf(t),h=hoje(),done=f.k==="realizado";
+    const ft=el("div",{class:"ft"});
+    if(t.entrega){const late=!done&&t.entrega<h,soon=!done&&!late&&t.entrega<=addDias(h,2);
+      ft.append(bd("dt"+(done?" ok":late?" late":soon?" soon":""),"rel",fd(t.entrega),done?"Entregue":late?"Entrega atrasada":soon?"Entrega nos próximos dias":"Data de entrega"));}
+    const S=t.subtarefas||[];if(S.length){const ok=S.filter(x=>x.feito).length,late=S.some(x=>!x.feito&&x.data&&x.data<h);
+      ft.append(bd("ck"+(ok===S.length?" all":late?" late":""),"ck",`${ok}/${S.length}`,`${ok} de ${S.length} subtarefas concluídas`));}
+    const nc=(t.comentarios||[]).length;if(nc)ft.append(bd("","cm",String(nc),`${nc} comentário${nc===1?"":"s"}`));
+    const na=(t.anexos||[]).length;if(na)ft.append(bd("","ax",String(na),`${na} arquivo${na===1?"":"s"}`));
+    if(t.serie)ft.append(bd("","rp",null,"Tarefa repetida"));
+    ft.append(avs(t));
+    return el("div",{class:"card"+(done?" done":""),style:`--pc:var(${p.c});--pb:var(${p.b})`,draggable:"true",tabindex:"0",role:"button","aria-label":`${t.titulo||"Tarefa"} · ${p.n}${t.entrega?" · entrega "+fd(t.entrega):""}`,
       onclick:()=>openTask(t),onkeydown:e=>{if(e.key==="Enter")openTask(t);},ondragstart:e=>e.dataTransfer.setData("text/plain",t.id)},
-      el("div",{class:"m"},priTag(t),el("span",{style:"display:flex;gap:8px"},anxEl(t),stkEl(t),cmts(t))),el("div",{class:"t"},t.titulo||"Sem nome",t.serie?el("span",{class:"rp-tag",title:"Tarefa repetida"},"↻"):null),el("div",{class:"m"},dueEl(t)||el("span",{class:"due"},"Sem entrega"),avs(t)));}
-  function renderKanban(){const k=$("kanban");k.textContent="";const L=sortT(filtered());
-    FASES.forEach(f=>{const items=L.filter(t=>faseOf(t).k===f.k);
-      const c=el("div",{class:"colk",style:`--c:var(${f.c})`},el("header",null,el("b",null,f.n),el("span",null,items.length)));
-      items.forEach(t=>c.append(card(t)));
-      c.append(el("button",{type:"button",class:"addk",onclick:()=>openTask(null,{fase:f.k})},"+ Adicionar tarefa"));
+      p.k!=="normal"?el("div",{class:"lb"},el("span",null,p.n)):null,
+      el("div",{class:"t"},t.titulo||"Sem nome"),ft);}
+  // Kanban por mês: tarefas com entrega no mês escolhido. No mês atual também aparecem as atrasadas de meses anteriores
+  // e as abertas sem data (ideias e planejadas); realizadas sem data entram no mês em que foram atualizadas.
+  const KMK="central-mkt:tarefas-kmodo";let kModo="mes",KY=new Date().getFullYear(),KM=new Date().getMonth(),kMais={};
+  try{if(localStorage.getItem(KMK)==="tudo")kModo="tudo";}catch(_){}
+  function noMes(t){const mk=`${KY}-${pad(KM+1)}`,h=hoje(),atual=mk===h.slice(0,7),feito=t.fase==="realizado";
+    if(t.entrega)return t.entrega.slice(0,7)===mk||(atual&&!feito&&t.entrega<h);
+    return feito?String(t.atualizadoEm||t.criadoEm||"").slice(0,7)===mk:atual;}
+  const LIM=15;
+  function renderKanban(){const k=$("kanban");k.textContent="";const T=sortT(filtered()),L=kModo==="mes"?T.filter(noMes):T;
+    [...$("kModo").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===kModo)));
+    const atual=`${KY}-${pad(KM+1)}`===hoje().slice(0,7);
+    $("kTitle").textContent=kModo==="mes"?`${MESES[KM][0].toUpperCase()+MESES[KM].slice(1)} ${KY}`:"Todas as datas";
+    ["kPrev","kNext","kHoje"].forEach(id=>$(id).hidden=kModo!=="mes");$("kHoje").hidden=kModo!=="mes"||atual;
+    $("kHint").textContent=kModo==="mes"?`${L.length} de ${T.length} tarefas`+(atual?" · atrasadas de meses anteriores e ideias sem data também aparecem aqui":""):`${T.length} tarefas`;
+    FASES.forEach(f=>{const items=L.filter(t=>faseOf(t).k===f.k),max=kMais[f.k]?Infinity:LIM;
+      const lista=el("div",{class:"kcards"},...items.slice(0,max).map(card));
+      if(!items.length)lista.append(el("p",{class:"kvazio"},kModo==="mes"?"Nada neste mês.":"Nenhuma tarefa."));
+      if(items.length>max)lista.append(el("button",{type:"button",class:"kmore",onclick:()=>{kMais[f.k]=true;renderKanban();}},`Mostrar mais ${items.length-max}`));
+      const c=el("div",{class:"colk",style:`--c:var(${f.c})`},el("header",null,el("i"),el("b",null,f.n),el("span",null,items.length)),lista,
+        el("button",{type:"button",class:"addk",onclick:()=>openTask(null,{fase:f.k})},"+ Adicionar tarefa"));
       drop(c,id=>changeFase(id,f.k));k.append(c);});}
+  $("kPrev").onclick=()=>{KM--;if(KM<0){KM=11;KY--;}kMais={};renderKanban();};
+  $("kNext").onclick=()=>{KM++;if(KM>11){KM=0;KY++;}kMais={};renderKanban();};
+  $("kHoje").onclick=()=>{const n=new Date();KY=n.getFullYear();KM=n.getMonth();kMais={};renderKanban();};
+  $("kModo").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;kModo=b.dataset.m;kMais={};try{localStorage.setItem(KMK,kModo);}catch(_){}renderKanban();});
   function renderLista(){const v=$("vLista");v.textContent="";const L=sortT(filtered());
     FASES.forEach(f=>{const items=L.filter(t=>faseOf(t).k===f.k);
       const g=el("div",{class:"lgroup",style:`--c:var(${f.c})`},el("header",null,el("i",{class:"dot",style:`--c:var(${f.c})`}),el("b",null,f.n),el("span",null,items.length),el("button",{type:"button",class:"btn",style:"padding:5px 10px;font-size:12.5px",onclick:()=>openTask(null,{fase:f.k})},"+ Tarefa")));
