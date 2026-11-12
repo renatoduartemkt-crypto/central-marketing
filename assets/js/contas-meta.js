@@ -1,7 +1,10 @@
 /*
  * Conta de anúncio do Meta (Lopes) — página Tráfego pago.
  *   - Calculadora de verba: saldo de cada conta = recargas registradas − gasto lido dos relatórios do Meta.
- *   - Importação de relatórios do Gerenciador de Anúncios (.csv ou .xlsx): lê o gasto e os principais
+ *   - Relatório automático do mês (trafego_relatorios/meta-auto-AAAA-MM), gravado todo dia útil pela rotina do conector
+ *     do Meta Ads. Quando ele existe, os relatórios manuais do mesmo mês ficam de fora (para não contar o gasto duas vezes),
+ *     e as campanhas do Meta se ligam às campanhas do site pelo nome.
+ *   - Importação manual de relatórios do Gerenciador de Anúncios (.csv ou .xlsx), para meses antigos: lê o gasto e os principais
  *     indicadores de cada campanha e liga cada campanha do Meta a uma campanha cadastrada no site (pelo nome).
  * Uso: ContasMeta.painel(elemento)
  * Coleções: trafego_recargas, trafego_relatorios (e lê/atualiza trafego_campanhas).
@@ -164,7 +167,7 @@
 
   /* ---------------- painel ---------------- */
   function painel(host){
-    let rec = [], rels = [], camps = [], Y = new Date().getFullYear(), M = new Date().getMonth(), prev = null, abertos = {};
+    let rec = [], rels = [], relsFora = [], camps = [], Y = new Date().getFullYear(), M = new Date().getMonth(), prev = null, abertos = {};
     try { const s = sessionStorage.getItem("cm-mes"); if (s) { const [a, b] = s.split("-"); Y = +a; M = +b; } } catch (_) {}
     const colR = Store.collection("trafego_recargas"), colI = Store.collection("trafego_relatorios"), colC = Store.collection("trafego_campanhas");
     const me = () => (Auth.current() || {}).email || "";
@@ -179,13 +182,15 @@
     const gastoConta = (k, so) => rels.filter(r => r.empresa === k && (!so || (r.inicio || "").slice(0, 7) === so)).reduce((s, r) => s + (+r.gasto || 0), 0);
     const recConta = (k, so) => rec.filter(r => r.empresa === k && (!so || (r.data || "").slice(0, 7) === so)).reduce((s, r) => s + (+r.valor || 0), 0);
     const campNome = id => { const c = camps.find(x => x.id === id); return c ? c.nome || "Sem nome" : ""; };
+    const cid = (l, r) => l.campanhaId || (r && r.auto ? sugerir(l.nome, r.empresa, camps) : "");
+    const auto = () => rels.filter(r => r.auto).sort((a, b) => String(b.atualizadoEm || "").localeCompare(String(a.atualizadoEm || "")))[0];
 
     // gasto por campanha no mês: soma os relatórios do mês, agrupando pela campanha ligada (ou pelo nome do Meta)
     function porCampanha(){
       const g = {};
       rels.filter(r => (r.inicio || "").slice(0, 7) === mk()).forEach(r => (r.linhas || []).forEach(l => {
-        const key = l.campanhaId ? "c:" + l.campanhaId : "m:" + r.empresa + ":" + l.nome;
-        const x = g[key] || (g[key] = { key, campanhaId: l.campanhaId || "", nome: l.campanhaId ? campNome(l.campanhaId) || l.nome : l.nome, metas: new Set(), empresa: r.empresa,
+        const id = cid(l, r), key = id ? "c:" + id : "m:" + r.empresa + ":" + l.nome;
+        const x = g[key] || (g[key] = { key, campanhaId: id || "", nome: id ? campNome(id) || l.nome : l.nome, metas: new Set(), empresa: r.empresa,
           gasto: 0, impressoes: 0, alcance: 0, cliques: 0, resultados: 0, indicador: l.indicador || "", aprox: false });
         if (l.alcanceSomado) x.aprox = true;
         x.metas.add(l.nome); x.gasto += +l.gasto || 0; x.impressoes += +l.impressoes || 0; x.alcance += +l.alcance || 0; x.cliques += +l.cliques || 0; x.resultados += +l.resultados || 0;
@@ -194,11 +199,11 @@
       return Object.values(g).sort((a, b) => b.gasto - a.gasto);
     }
     // gasto total (todos os relatórios) de cada campanha ligada → "Verba investida" da campanha
-    const gastoCampanhaTotal = id => rels.reduce((s, r) => s + (r.linhas || []).filter(l => l.campanhaId === id).reduce((t, l) => t + (+l.gasto || 0), 0), 0);
+    const gastoCampanhaTotal = id => rels.reduce((s, r) => s + (r.linhas || []).filter(l => cid(l, r) === id).reduce((t, l) => t + (+l.gasto || 0), 0), 0);
     async function atualizarInvestido(ids, base){
       const L = base || rels;
       for (const id of new Set(ids)) { if (!id || !camps.find(c => c.id === id)) continue;
-        const v = Math.round(L.reduce((s, r) => s + (r.linhas || []).filter(l => l.campanhaId === id).reduce((t, l) => t + (+l.gasto || 0), 0), 0) * 100) / 100;
+        const v = Math.round(L.reduce((s, r) => s + (r.linhas || []).filter(l => cid(l, r) === id).reduce((t, l) => t + (+l.gasto || 0), 0), 0) * 100) / 100;
         try { await colC.doc(id).update({ verbaInvestida: v }); } catch (_) {} }
     }
 
@@ -210,7 +215,8 @@
       const nav = d => { M += d; if (M < 0) { M = 11; Y--; } if (M > 11) { M = 0; Y++; } try { sessionStorage.setItem("cm-mes", `${Y}-${M}`); } catch (_) {} draw(); };
       card.append(el("div", { class: "cx-head" },
         el("div", null, el("h2", null, "Contas de anúncio no Meta · calculadora de verba"),
-          el("p", { class: "cx-hint" }, "Saldo da conta = recargas registradas − gasto lido dos relatórios importados do Gerenciador de Anúncios.")),
+          el("p", { class: "cx-hint" }, auto() ? `Saldo da conta = recargas registradas − gasto no Meta. O gasto entra sozinho, todo dia útil, pelo conector do Meta Ads (última atualização: ${fd(String(auto().atualizadoEm || "").slice(0, 10))}, dados até ${fd(auto().fim)}).`
+            : "Saldo da conta = recargas registradas − gasto lido dos relatórios do Meta.")),
         el("div", { class: "cx-mbar" }, el("button", { class: "cx-icon", type: "button", "aria-label": "Mês anterior", onclick: () => nav(-1) }, "‹"),
           el("b", { class: "cx-mtitle" }, `${MESES[M]} ${Y}`), el("button", { class: "cx-icon", type: "button", "aria-label": "Próximo mês", onclick: () => nav(1) }, "›"))));
 
@@ -232,7 +238,8 @@
       // gasto por campanha
       const pc = porCampanha();
       const box = el("div", { class: "cm-sec" }, el("h3", null, `Gasto e indicadores por campanha · ${mesTxt}`));
-      if (!pc.length) box.append(el("p", { class: "cx-hint" }, "Nenhum relatório importado para este mês. Use “Importar relatório do Meta” abaixo."));
+      if (relsFora.some(r => (r.inicio || "").slice(0, 7) === mk())) box.append(el("p", { class: "cx-hint" }, "Este mês já tem o relatório automático do Meta Ads; os relatórios importados à mão para o mesmo mês ficam de fora para o gasto não ser contado duas vezes."));
+      if (!pc.length) box.append(el("p", { class: "cx-hint" }, "Nenhum gasto do Meta neste mês ainda. O relatório do mês entra sozinho todo dia útil; para meses antigos, use “Importar relatório do Meta” abaixo."));
       else {
         const tb = el("tbody"); let T = { gasto: 0, impressoes: 0, alcance: 0, cliques: 0, resultados: 0, verba: 0 };
         pc.forEach(x => {
@@ -266,7 +273,7 @@
       card.append(box);
 
       card.append(detalhe("rec", "+ Registrar recarga ou saldo inicial", formRecarga()));
-      card.append(detalhe("imp", "Importar relatório do Meta (.csv ou .xlsx)", formImport()));
+      card.append(detalhe("imp", "Importar relatório do Meta à mão (.csv ou .xlsx) · só para meses antigos", formImport()));
       card.append(detalhe("hist", `Recargas e relatórios lançados (${rec.length + rels.length})`, historico()));
       host.append(card);
     }
@@ -370,7 +377,7 @@
       w.append(el("h3", null, "Recargas"), rec.length ? el("div", { class: "cx-tw" }, el("table", { class: "cx-table" }, el("thead", null, el("tr", null, el("th", null, "Data"), el("th", null, "Conta"), el("th", null, "Observação"), el("th", { class: "cx-r" }, "Valor"), el("th"))), tr)) : el("p", { class: "cx-hint" }, "Nenhuma recarga registrada."));
       const ti = el("tbody");
       rels.slice().sort((a, b) => (b.inicio || "").localeCompare(a.inicio || "")).forEach(x => ti.append(el("tr", null,
-        el("td", { class: "cx-mono" }, `${fdc(x.inicio)} a ${fd(x.fim)}`), el("td", null, empN(x.empresa)), el("td", null, x.arquivo || "—", el("div", { class: "cx-who" }, `${(x.linhas || []).length} campanha(s) · ${Custos.userName(x.criadoPor) || ""}`)),
+        el("td", { class: "cx-mono" }, `${fdc(x.inicio)} a ${fd(x.fim)}`), el("td", null, empN(x.empresa)), el("td", null, x.arquivo || "—", el("div", { class: "cx-who" }, `${(x.linhas || []).length} campanha(s) · ${x.auto ? "atualizado todo dia útil" : Custos.userName(x.criadoPor) || ""}`)),
         el("td", { class: "cx-r cx-mono" }, brl(x.gasto)),
         el("td", null, podeApagar(x) ? apagar(async () => { const ids = (x.linhas || []).map(l => l.campanhaId); await colI.doc(x.id).delete(); await atualizarInvestido(ids, rels.filter(z => z.id !== x.id)); }, "Relatório excluído") : null))));
       w.append(el("h3", null, "Relatórios importados"), rels.length ? el("div", { class: "cx-tw" }, el("table", { class: "cx-table" }, el("thead", null, el("tr", null, el("th", null, "Período"), el("th", null, "Conta"), el("th", null, "Arquivo"), el("th", { class: "cx-r" }, "Gasto"), el("th"))), ti)) : el("p", { class: "cx-hint" }, "Nenhum relatório importado."));
@@ -386,8 +393,21 @@
 
     estilo();
     colR.onSnapshot(sn => { rec = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); });
-    colI.onSnapshot(sn => { rels = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); });
-    colC.onSnapshot(sn => { camps = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); });
+    colI.onSnapshot(sn => { const L = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data())));
+      const autoMes = new Set(L.filter(r => r.auto).map(r => (r.inicio || "").slice(0, 7)));
+      rels = L.filter(r => r.auto || !autoMes.has((r.inicio || "").slice(0, 7))); relsFora = L.filter(r => !rels.includes(r)); render(); ligarAuto(); });
+    colC.onSnapshot(sn => { camps = Central.filtraOpta(sn.docs.filter(d => d.exists).map(d => Object.assign({ id: d.id }, d.data()))); render(); ligarAuto(); });
+    // quando o relatório automático muda, um administrador (ao abrir a página) atualiza a "Verba investida" das campanhas ligadas
+    const PROC = "central-mkt:cm-auto-proc";
+    async function ligarAuto(){
+      if (!Auth.isAdmin() || !camps.length) return;
+      for (const r of rels.filter(x => x.auto)) {
+        const chave = r.id + "|" + (r.atualizadoEm || ""); let feito = ""; try { feito = localStorage.getItem(PROC + ":" + r.id) || ""; } catch (_) {}
+        if (feito === chave) continue;
+        try { localStorage.setItem(PROC + ":" + r.id, chave); } catch (_) {}
+        await atualizarInvestido((r.linhas || []).map(l => cid(l, r)).filter(Boolean));
+      }
+    }
     draw();
   }
 

@@ -57,7 +57,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-12b';
+const VERSAO_API = '2026-11-13a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -1062,6 +1062,50 @@ function entradaClarity_(j) {
     return 'clarity ' + mes + ' até ' + atual.fim + ': ' + atual.sessoes + ' sessões';
   });
 }
+/* Meta Ads (conector do Facebook na rotina): números do mês da conta da Lopes.
+   Grava metas_mensais/metaads-AAAA-MM (painel da página Tráfego pago) e trafego_relatorios/meta-auto-AAAA-MM
+   (o "relatório do mês", no mesmo formato da importação manual, para a calculadora de verba e o gasto por campanha).
+   Mantém as ligações das campanhas do Meta com as campanhas do site que já existiam. */
+function metaNum_(v) { const n = Number(v); return isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; }
+function metaTxt_(v, n) { return String(v == null ? '' : v).trim().slice(0, n || 150); }
+function metaData_(v) { const s = String(v || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''; }
+function metaLinha_(x) {
+  const o = { gasto: metaNum_(x.gasto), alcance: Math.round(metaNum_(x.alcance)), impressoes: Math.round(metaNum_(x.impressoes)), cliques: Math.round(metaNum_(x.cliques)),
+    cliquesLink: Math.round(metaNum_(x.cliquesLink)), leads: Math.round(metaNum_(x.leads)), conversas: Math.round(metaNum_(x.conversas)), compras: Math.round(metaNum_(x.compras)), valorCompras: metaNum_(x.valorCompras) };
+  return o;
+}
+const META_IND_ = { 'actions:onsite_conversion.messaging_conversation_started_7d': 'Conversas no WhatsApp', 'actions:omni_landing_page_view': 'Visitas à página',
+  'actions:offsite_conversion.fb_pixel_purchase': 'Compras no site', 'reach': 'Alcance', 'actions:link_click': 'Cliques no link', 'lead': 'Leads', 'actions:post_engagement': 'Engajamentos' };
+function entradaMetaAds_(j) {
+  const mes = String(j.mes || '');
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error('mês inválido (use AAAA-MM).');
+  const ate = metaData_(j.ate) || mes + '-01';
+  const camps = (Array.isArray(j.campanhas) ? j.campanhas : []).slice(0, 300).map(function (c) {
+    return Object.assign({ id: metaTxt_(c.id, 40).replace(/[^0-9]/g, ''), nome: metaTxt_(c.nome, 200), status: metaTxt_(c.status, 30).toUpperCase(), objetivo: metaTxt_(c.objetivo, 40),
+      inicio: metaData_(c.inicio), fim: metaData_(c.fim), resultados: metaNum_(c.resultados), indicador: metaTxt_(c.indicador, 60), custoResultado: metaNum_(c.custoResultado) }, metaLinha_(c));
+  }).filter(function (c) { return c.nome; });
+  const diario = (Array.isArray(j.diario) ? j.diario : []).slice(0, 62).map(function (d) { return Object.assign({ data: metaData_(d.data) }, metaLinha_(d)); })
+    .filter(function (d) { return d.data && d.data.slice(0, 7) === mes; }).sort(function (a, b) { return a.data < b.data ? -1 : 1; });
+  const totais = metaLinha_(j.totais || {});
+  if (!camps.length && !diario.length && !totais.gasto) throw new Error('sem campanhas, sem dias e sem gasto.');
+  const conta = { id: metaTxt_((j.conta || {}).id, 40), nome: metaTxt_((j.conta || {}).nome, 120) };
+  return comLock_(function () {
+    const agora = new Date().toISOString();
+    const idP = 'metaads-' + mes, aP = ler_('metas_mensais', idP);
+    gravarLinha_('metas_mensais', idP, { tipo: 'metaads', mes: mes, ate: ate, conta: conta, totais: totais, campanhas: camps, diario: diario, fonte: 'Meta Ads (conector)', atualizadoEm: agora, atualizadoPor: ROTINA_ }, ROTINA_, !aP, aP);
+    // relatório automático do mês: as campanhas com gasto, no formato da importação manual
+    const idR = 'meta-auto-' + mes, aR = ler_('trafego_relatorios', idR), ligacoes = {};
+    ((aR && aR.dados && aR.dados.linhas) || []).forEach(function (l) { if (l.campanhaId) ligacoes[l.nome] = l.campanhaId; });
+    const linhas = camps.filter(function (c) { return c.gasto > 0; }).map(function (c) {
+      return { nome: c.nome, campanhaId: ligacoes[c.nome] || '', gasto: c.gasto, impressoes: c.impressoes, alcance: c.alcance, cliques: c.cliques, resultados: c.resultados, indicador: META_IND_[c.indicador] || c.indicador, alcanceSomado: false };
+    });
+    const soma = linhas.reduce(function (s, l) { return s + l.gasto; }, 0), outros = Math.round((totais.gasto - soma) * 100) / 100;
+    if (outros >= 0.5) linhas.push({ nome: 'Outras campanhas (arquivadas ou excluídas)', campanhaId: '', gasto: outros, impressoes: 0, alcance: 0, cliques: 0, resultados: 0, indicador: '', alcanceSomado: false });
+    gravarLinha_('trafego_relatorios', idR, { empresa: 'lopes', inicio: mes + '-01', fim: ate, arquivo: 'Automático · Meta Ads (conector)', auto: true,
+      gasto: Math.round(Math.max(soma, totais.gasto) * 100) / 100, linhas: linhas, atualizadoEm: agora, atualizadoPor: ROTINA_ }, ROTINA_, !aR, aR);
+    return 'meta ads ' + mes + ' até ' + ate + ': ' + camps.length + ' campanhas, gasto R$ ' + totais.gasto;
+  });
+}
 // lista de segmentações do RD Station: substitui a lista usada no formulário de e-mails (documento "lista")
 function entradaSegmentacoes_(j) {
   const itens = (Array.isArray(j.itens) ? j.itens : []).slice(0, 500).map(function (x) {
@@ -1088,6 +1132,7 @@ function importarEntrada() {
       else if (j.tipo === 'emails_resultados') msg = entradaEmails_(j);
       else if (j.tipo === 'rd_segmentacoes') msg = entradaSegmentacoes_(j);
       else if (j.tipo === 'clarity_mensal') msg = entradaClarity_(j);
+      else if (j.tipo === 'meta_ads') msg = entradaMetaAds_(j);
       else throw new Error('tipo desconhecido: ' + j.tipo);
     } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
     f.setDescription(msg.slice(0, 1000));

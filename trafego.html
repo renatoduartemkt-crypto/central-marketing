@@ -202,6 +202,7 @@ textarea{min-height:64px;resize:vertical}
   </header>
 
   <div class="notice" id="notice" hidden></div>
+  <section id="metaPanel" aria-label="Resultados do Meta Ads"></section>
   <section class="kpis" id="kpis" aria-label="Resumo das campanhas"></section>
 
   <div class="bar">
@@ -306,6 +307,7 @@ textarea{min-height:64px;resize:vertical}
 <script src="assets/js/layout.js" charset="utf-8"></script>
 <script src="assets/js/custos.js" charset="utf-8"></script>
 <script src="assets/js/contas-meta.js" charset="utf-8"></script>
+<script src="assets/js/meta-ads.js" charset="utf-8"></script>
 <script>
 (function(){
   const EMP=[{k:"lopes",n:"Lopes"}];
@@ -552,6 +554,7 @@ textarea{min-height:64px;resize:vertical}
 
   render();
   Central.boot("trafego",user=>{
+    MetaAds.painel(document.getElementById("metaPanel"));
     ContasMeta.painel(document.getElementById("contasPanel"));
     Custos.painel(document.getElementById("custosPanel"),{origem:"trafego",titulo:"Custos com produção e impulsionamento",centroPadrao:"propaganda",tipos:[{k:"producao",n:"Produção"},{k:"impulsionamento",n:"Impulsionamento"}],refLabel:"Campanha (opcional)",refs:()=>camps.map(c=>({id:c.id,nome:c.nome||"Campanha"}))});
     col=Store.collection("trafego_campanhas"); canWrite=true;
