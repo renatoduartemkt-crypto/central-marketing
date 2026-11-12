@@ -305,8 +305,9 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
 <script src="assets/js/layout.js" charset="utf-8"></script>
 <script>
 (function(){
-  /* Dados: coleção pessoal "campanhas_multicanal", um documento por pessoa (id = login) com a lista de campanhas.
-     O servidor só entrega e só aceita o documento do próprio usuário; o menu só mostra a página para o dono da Central. */
+  /* Dados: coleção "campanhas_multicanal", documento do dono da Central (id = login dele) com a lista de campanhas.
+     Toda a equipe vê as campanhas; só o dono cria e edita. Os outros só mudam o status das ações em que são o responsável
+     (o servidor confere e ignora qualquer outra alteração). */
   const CANAIS=[{k:"meta",n:"Meta Ads",s:"Instagram e Facebook",c:"#1877F2"},{k:"google",n:"Google Ads",s:"Pesquisa, Display, YouTube",c:"#2E9E4F"},
     {k:"site",n:"Site / E-commerce",s:"Banners, landing page, vitrine",c:"#F04F2C"},{k:"whatsapp",n:"WhatsApp",s:"Listas, status, atendimento",c:"#1FAF5A"},
     {k:"eventos",n:"Eventos",s:"Feiras, ações presenciais, PDV",c:"#8B5CF6"},{k:"email",n:"E-mail marketing",s:"RD Station",c:"#E09A00"}];
@@ -338,10 +339,13 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   const stA=a=>by(AST,a.status)||AST[0], vale=a=>a.status!=="cancelado", feita=a=>a.status==="feito";
   const fasesDe=c=>c.fases||[];
   const faseN=(c,id)=>(fasesDe(c).find(f=>f.id===id)||{}).nome||"";
-  const meuId=()=>Auth.docId(me.email);
+  let dono=false;
+  const donoId=()=>Auth.docId(String((window.APP_CONFIG.administradores||[])[0]||me.email));
   async function gravar(msg){if(!colC)return;
-    doc=Object.assign({},doc||{},{dono:me.email,atualizadoEm:new Date().toISOString()});render();
-    try{await colC.doc(meuId()).set(doc);if(msg)toast(msg);}catch(e){toast(e&&e.message?e.message:"Não foi possível salvar.");}}
+    doc=Object.assign({},doc||{},dono?{dono:me.email}:{},{atualizadoEm:new Date().toISOString()});render();
+    try{await colC.doc(donoId()).set(doc);if(msg)toast(msg);}catch(e){toast(e&&e.message?e.message:"Não foi possível salvar.");}}
+  // quem não é o dono só altera o status das próprias ações
+  const podeStatus=a=>dono||a.resp===me.email;
 
   // cálculos de cada campanha
   const stcOf=c=>by(STC,c.status)||STC[0];
@@ -480,8 +484,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   function renderVerba(c){const tb=el("tbody");let tp=0,ti=0;
     const mexe=(k,patch)=>{const C=camps().find(z=>z.id===c.id);C.canais=C.canais||{};C.canais[k]=Object.assign({},C.canais[k]||{},patch);gravar("Verba atualizada");};
     ativos(c).forEach(x=>{const d=cn(c,x.k),p=+d.verba||0,i=+d.investido||0,pct=p?i/p*100:0;tp+=p;ti+=i;
-      const inP=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00","aria-label":"Verba de "+x.n,value:mostraR(p)});inP.onchange=()=>mexe(x.k,{verba:lerR(inP.value)});
-      const inI=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00","aria-label":"Investido em "+x.n,value:mostraR(i)});inI.onchange=()=>mexe(x.k,{investido:lerR(inI.value)});
+      const inP=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00","aria-label":"Verba de "+x.n,value:mostraR(p),readonly:!dono});inP.onchange=()=>mexe(x.k,{verba:lerR(inP.value)});
+      const inI=el("input",{type:"text",class:"money",inputmode:"decimal",placeholder:"0,00","aria-label":"Investido em "+x.n,value:mostraR(i),readonly:!dono});inI.onchange=()=>mexe(x.k,{investido:lerR(inI.value)});
       tb.append(el("tr",null,el("td",null,el("span",{class:"chip",style:`--cc:${x.c}`},el("i"),x.n)),el("td",null,(by(PAPEIS,d.papel)||{n:"—"}).n),
         el("td",{class:"num"},inP),el("td",{class:"num"},inI),el("td",{class:"num"},brl(p-i)),
         el("td",null,el("div",{class:"ub",title:`${Math.round(pct)}% investido`},el("i",{class:pct>100?"over":"",style:`width:${Math.min(100,pct)}%`})),el("span",{class:"hint"},`${Math.round(pct)}%`)),
@@ -513,7 +517,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     if(!A.length){box.append(el("p",{class:"hint",style:"margin:0"},"Nada pendente nos próximos 14 dias."));return;}
     A.forEach(z=>{const late=z.a.data<h;
       box.append(el("div",{class:"ac",style:`--cc:${z.canal.c}`},
-        el("button",{type:"button",class:"ck","aria-label":"Marcar como feita: "+(z.a.nome||"ação"),title:"Marcar como feita",onclick:()=>{z.a.status="feito";gravar("Ação concluída");}}),
+        podeStatus(z.a)?el("button",{type:"button",class:"ck","aria-label":"Marcar como feita: "+(z.a.nome||"ação"),title:"Marcar como feita",onclick:()=>{z.a.status="feito";gravar("Ação concluída");}}):el("span",{class:"ck",style:"opacity:.35",title:"Só o responsável marca"}),
         el("div",null,el("b",null,z.a.nome||"Ação"),el("br"),el("small",null,[z.canal.n,z.c.nome||"Campanha",z.a.resp?uNome(z.a.resp):""].filter(Boolean).join(" · "))),
         el("span",{class:"dt"+(late?" late":"")},late?`atrasada · ${fd(z.a.data)}`:z.a.data===h?"hoje":fd(z.a.data))));});}
 
@@ -526,7 +530,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
       ring(c),el("span",{class:"nm"},c.nome||"Sem nome"),el("i",{class:"dot",style:`--sc:var(${stcOf(c).c})`,title:stcOf(c).n}))));
     [...$("viewSeg").children].forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)));
     const st=$("stage");st.textContent="";const c=list.find(x=>x.id===sel);
-    if(!list.length)st.append(el("div",{class:"empty"},el("strong",null,"Nenhuma campanha integrada ainda"),
+    if(!list.length&&!dono)st.append(el("div",{class:"empty"},el("strong",null,"Nenhuma campanha integrada ainda"),"Quando o responsável pela Central criar uma campanha, ela aparece aqui."));
+    else if(!list.length)st.append(el("div",{class:"empty"},el("strong",null,"Nenhuma campanha integrada ainda"),
       el("span",null,"Crie a campanha, defina objetivo, público, mensagem e meta, e ligue os canais: Meta, Google, Site, WhatsApp, Eventos e E-mail. Cada canal ganha papel no funil, verba e ações com data."),
       el("button",{class:"btn primary",type:"button",onclick:()=>openForm(null)},"+ Nova campanha")));
     else if(view==="minhas")st.append(renderMinhas());
@@ -534,7 +539,8 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     else if(view==="funil")st.append(renderFunil(c));
     else if(view==="crono")st.append(renderCrono(c));
     else if(view==="verba")st.append(renderVerba(c));
-    else st.append(window.matchMedia("(max-width:760px)").matches?renderFunil(c):renderMind(c));}
+    else st.append(window.matchMedia("(max-width:760px)").matches?renderFunil(c):renderMind(c));
+    if(!dono&&list.length&&!$("notice").dataset.erro){$("notice").textContent="Você vê as campanhas para acompanhar. Só o responsável pela Central cria e edita; em “Minhas ações” você muda o status das ações que estão com você.";$("notice").hidden=false;}}
   const guardaSel=()=>{try{localStorage.setItem("cmc-sel",sel||"")}catch(_){}};
   $("viewSeg").addEventListener("click",ev=>{const b=ev.target.closest("button");if(!b)return;view=b.dataset.v;try{localStorage.setItem("cmc-view",view)}catch(_){}render();});
   let estreito=window.matchMedia("(max-width:760px)").matches;
@@ -605,6 +611,7 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
   $("form").addEventListener("input",dicas);$("form").addEventListener("change",dicas);
 
   function openForm(c,foco){
+    if(!dono){toast("Só o responsável pela Central edita as campanhas. Suas ações você atualiza em “Minhas ações”.");return;}
     editingId=c?c.id:null;$("formTitle").textContent=c?"Editar campanha":"Nova campanha";$("formErr").hidden=true;
     $("fNome").value=c?c.nome||"":"";setR("stc",c?stcOf(c).k:"planejamento");setR("obj",c?c.objetivo:"");
     $("fObjDet").value=c?c.objetivoDet||"":"";$("fPub").value=c?c.publico||"":"";$("fMsg").value=c?c.mensagem||"":"";$("fKpi").value=c?c.kpi||"":"";$("fLink").value=c?c.link||"":"";
@@ -640,12 +647,12 @@ details.cn.hl{box-shadow:0 0 0 3px var(--accent-soft)}
     doc.campanhas=prev?camps().map(c=>c.id===prev.id?body:c):camps().concat([body]);
     sel=body.id;guardaSel();fechar();gravar(prev?"Campanha atualizada":"Campanha criada");});
 
-  Central.boot("campanhas",user=>{me=user;
-    if(!Central.ehDono(user)){$("stage").append(el("div",{class:"empty"},el("strong",null,"Página pessoal"),"Esta página é de uso exclusivo do responsável pela Central."));$("newBtn").hidden=true;$("prox").hidden=true;return;}
+  Central.boot("campanhas",user=>{me=user;dono=Central.ehDono(user);
+    if(!dono){$("newBtn").hidden=true;try{if(!localStorage.getItem("cmc-view"))view="minhas";}catch(_){view="minhas";}}
     colC=Store.collection("campanhas_multicanal");pronto=true;render();
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>d.data()).filter(u=>u&&u.email);if($("overlay").hidden)render();},()=>{});
-    colC.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===meuId());if($("overlay").hidden||!doc)doc=d?d.data():{dono:me.email,campanhas:[]};render();},
-      ()=>{$("notice").textContent="Não foi possível carregar as campanhas. Recarregue a página.";$("notice").hidden=false;});});
+    colC.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===donoId());if($("overlay").hidden||!doc)doc=d?d.data():{dono:me.email,campanhas:[]};render();},
+      ()=>{$("notice").dataset.erro="1";$("notice").textContent="Não foi possível carregar as campanhas. Recarregue a página.";$("notice").hidden=false;});});
 })();
 </script>
 </body>

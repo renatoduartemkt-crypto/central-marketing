@@ -17,7 +17,7 @@
     { k: "brindes",  href: "brindes.html",  n: "Brindes",          g: "Eventos e trade" },
     { k: "planejamento", href: "planejamento.html", n: "Planejamento 2027", g: "Planejamento" },
     { k: "metas",    href: "metas.html",    n: "Metas e custos",   g: "Planejamento" },
-    { k: "campanhas", href: "campanhas.html", n: "Campanhas integradas", g: "Planejamento", dono: true },
+    { k: "campanhas", href: "campanhas.html", n: "Campanhas integradas", g: "Planejamento" },
     { k: "aprovacoes", href: "aprovacoes.html", n: "Aprovações",   g: "Gestão", admin: true },
     { k: "pdl",      href: "pdl.html",      n: "PDL",              g: "Gestão" },
     { k: "senhas",   href: "senhas.html",   n: "Senhas e acessos", g: "Gestão" },

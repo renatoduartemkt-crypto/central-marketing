@@ -44,7 +44,11 @@ const COLECOES = ['usuarios', 'emails', 'trafego_campanhas', 'posts', 'eventos',
                   'plan_config', 'plan_fases', 'plan_cotas', 'plan_eventos', 'plan_orcamento', 'plan_brindes', 'plan_acoes', 'plan_bi',
                   'rd_segmentacoes', 'agenda_rotinas', 'campanhas_multicanal'];
 // rotina pessoal da "Minha agenda diária": um registro por pessoa (id = login); cada um lê e grava só o seu
-const COL_PESSOAL_ = ['agenda_rotinas', 'campanhas_multicanal'];   // um documento por pessoa (id = login): cada um só lê e grava o seu
+const COL_PESSOAL_ = ['agenda_rotinas', 'campanhas_multicanal'];   // um documento por pessoa (id = login): cada um só grava o seu
+// campanhas integradas: toda a equipe lê as campanhas (para acompanhar as próprias ações); só o dono do documento altera a campanha.
+// Os outros só mudam o status das ações em que são o responsável (ver campanhaStatus_).
+const COL_LEITURA_EQUIPE_ = ['campanhas_multicanal'];
+const AST_CAMP_ = ['afazer', 'andamento', 'feito', 'cancelado'];
 // coleções de dinheiro das contas de anúncio: quem criou fica registrado pelo servidor; só o autor ou um administrador apaga
 const COL_AUTORIA_ = ['trafego_recargas', 'trafego_relatorios'];
 const CHUNK = 45000;           // limite seguro por célula (o Sheets aceita 50.000 caracteres)
@@ -53,7 +57,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-12a';
+const VERSAO_API = '2026-11-12b';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -123,6 +127,8 @@ function api(req) {
     const col = req.colecao;
     if (COLECOES.indexOf(col) < 0) return { erro: 'Coleção desconhecida: ' + col };
     if (col === 'usuarios' && req.acao !== 'listar') return { erro: 'Use a página Usuários para alterar cadastros.' };
+    if (col === 'campanhas_multicanal' && (req.acao === 'gravar' || req.acao === 'mesclar') && String(req.id || '') !== docId_(eu.email))
+      return escrever_(eu, col, String(req.id || ''), campanhaStatus_(eu, String(req.id || ''), req.dados), 'gravar');
     if (COL_PESSOAL_.indexOf(col) >= 0 && req.acao !== 'listar' && String(req.id || '') !== docId_(eu.email)) return { erro: 'Você só pode alterar os seus próprios dados.' };
     switch (req.acao) {
       case 'listar':  return { itens: listarPara_(eu, col) };
@@ -174,9 +180,33 @@ function listarPublico_(col) { let L = cacheLer_(col); if (!L) { L = listar_(col
 // coleção pessoal: cada pessoa recebe só o próprio registro
 function listarPara_(eu, col) {
   const L = listarPublico_(col);
-  if (COL_PESSOAL_.indexOf(col) < 0) return L;
+  if (COL_PESSOAL_.indexOf(col) < 0 || COL_LEITURA_EQUIPE_.indexOf(col) >= 0) return L;
   const meu = docId_(eu.email);
   return L.filter(function (x) { return x.id === meu; });
+}
+/* Campanhas de outra pessoa: parte do registro salvo e aplica só a mudança de status das ações em que
+   quem grava é o responsável. Qualquer outra alteração enviada é ignorada. */
+function campanhaStatus_(eu, id, dados) {
+  const antigo = id ? ler_('campanhas_multicanal', id) : null;
+  if (!antigo) throw new Error('Campanha não encontrada.');
+  const novo = {};
+  ((dados && dados.campanhas) || []).forEach(function (c) {
+    Object.keys((c && c.canais) || {}).forEach(function (k) {
+      ((c.canais[k] || {}).acoes || []).forEach(function (a) { if (a && a.id) novo[c.id + '|' + k + '|' + a.id] = a.status; });
+    });
+  });
+  const final = JSON.parse(JSON.stringify(antigo.dados));
+  let n = 0;
+  (final.campanhas || []).forEach(function (c) {
+    Object.keys(c.canais || {}).forEach(function (k) {
+      ((c.canais[k] || {}).acoes || []).forEach(function (a) {
+        const st = novo[c.id + '|' + k + '|' + a.id];
+        if (a.resp === eu.email && st && AST_CAMP_.indexOf(st) >= 0 && st !== (a.status || 'afazer')) { a.status = st; n++; }
+      });
+    });
+  });
+  if (!n) throw new Error('Você só pode mudar o status das ações em que é o responsável.');
+  return final;
 }
 function isAdmin_(u) { return !!u && (u.perfil === 'admin' || lista_('ADMINISTRADORES').indexOf(u.email) >= 0); }
 
