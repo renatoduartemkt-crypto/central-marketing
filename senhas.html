@@ -44,6 +44,14 @@
 .row .tx small{display:block;color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row .cat{font-size:11px;font-weight:700;background:var(--surface-2);border-radius:4px;padding:2px 7px;white-space:nowrap}
 .row .chev{color:var(--muted);flex:none}
+.rowl{display:flex;align-items:center;border-top:1px solid var(--line)}
+.rowl .row{border-top:0;flex:1;min-width:0}
+.lista h3+.rowl{border-top:0}
+.rowl .abrir{flex:none;margin-right:14px;font-size:13px;font-weight:700;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:7px 11px;white-space:nowrap}
+.rowl .abrir:hover{border-color:var(--accent);background:var(--accent-soft)}
+.pill.livre{background:var(--ok-bg);color:var(--ok)}
+.tipos.tres{grid-template-columns:1fr 1fr 1fr}
+@media (max-width:560px){.tipos.tres{grid-template-columns:1fr}}
 .tile{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:16px;flex:none;background:var(--tc)}
 .tile.g{width:52px;height:52px;font-size:22px}
 .empty{border:1px dashed var(--line);border-radius:12px;padding:30px;color:var(--muted);text-align:center}
@@ -153,6 +161,7 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
           <div class="seg" id="tipoSeg" role="group" aria-label="Mostrar acessos">
             <button type="button" data-t="setor" aria-pressed="true">Do setor</button>
             <button type="button" data-t="pessoal" aria-pressed="false">Pessoais</button>
+            <button type="button" data-t="link" aria-pressed="false">Links e bancos de imagens</button>
           </div>
           <div class="seg" id="abas" role="group" aria-label="Escolher visão" hidden>
             <button type="button" data-v="senhas" aria-pressed="true">Senhas</button>
@@ -201,8 +210,13 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
   const tile=(nome,g)=>el("span",{class:"tile"+(g?" g":""),style:`--tc:${cor(nome)}`,"aria-hidden":"true"},letra(nome));
   const dominio=u=>{try{return new URL(u).hostname.replace(/^www\./,"");}catch(_){return "";}};
 
-  let tipoV="setor";try{tipoV=localStorage.getItem("cofre-tipo")==="pessoal"?"pessoal":"setor";}catch(_){}
+  // três tipos: "setor" (logins de uso comum), "pessoal" (só quem cadastrou) e "link" (links externos e bancos de imagens das indústrias,
+  // com ou sem login; mesmas regras de quem vê do setor)
+  const TIPOS=["setor","pessoal","link"],ROT={setor:"Do setor",pessoal:"Pessoais",link:"Links e bancos de imagens"};
+  const tipoDe=i=>i.tipo==="pessoal"?"pessoal":i.tipo==="link"?"link":"setor";
+  let tipoV="setor";try{const t=localStorage.getItem("cofre-tipo");if(TIPOS.includes(t))tipoV=t;}catch(_){}
   const pessoal=i=>i.tipo==="pessoal";
+  const ehLink=i=>i.tipo==="link";
   let me=null, users=[], itens=[], cofre="", fim=0, view="senhas", reg=[], regLim=200, aberto=null, editando=null, revelada=null, revTimer=null, apagar=false;
   const admin=()=>Auth.isAdmin();
   const userName=e=>{const u=users.find(x=>x.email===e);return u?(u.nome||u.email):(e||"—");};
@@ -220,15 +234,16 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
     const D=lerLocal(), salva=()=>localStorage.setItem(LK,JSON.stringify(D)), log=(a,id,n)=>{D.reg.unshift({em:new Date().toISOString(),usuario:me.email,acao:a,id:id||"",nome:n||""});salva();};
     const ehP=d=>d.tipo==="pessoal",ve=d=>ehP(d)?d.criadoPor===me.email:admin()||d.todos||d.criadoPor===me.email||(d.compartilhado||[]).includes(me.email);
     const pode=d=>ehP(d)?d.criadoPor===me.email:admin()||d.criadoPor===me.email,nomeReg=d=>ehP(d)?"(acesso pessoal)":d.nome;
-    const pub=(id,d)=>{const o=Object.assign({id,temSenha:!!d.senha,tipo:ehP(d)?"pessoal":"setor",podeEditar:pode(d)},d);delete o.senha;if(!o.podeEditar||ehP(d))delete o.compartilhado;return o;};
+    const pub=(id,d)=>{const o=Object.assign({id,temSenha:!!d.senha,podeEditar:pode(d)},d,{tipo:tipoDe(d)});delete o.senha;if(!o.podeEditar||ehP(d))delete o.compartilhado;return o;};
     if(acao==="cofreAbrir"){if(!r.senha)throw {message:"Senha incorreta."};log("abriu a página");return {cofre:uid(),segundos:600};}
     if(acao==="cofreListar")return {itens:Object.entries(D.itens).filter(([,d])=>ve(d)).map(([id,d])=>pub(id,d))};
     if(acao==="cofreSenha"){const d=D.itens[r.id];if(!d||!ve(d))throw {message:"Acesso não encontrado."};log(r.motivo==="copiar"?"copiou a senha":"viu a senha",r.id,nomeReg(d));return {senha:d.senha||""};}
     if(acao==="cofreRegistro"&&!admin())throw {message:"Só o administrador pode fazer isso."};
     if(acao==="cofreSalvar"){const x=r.item;if(!String(x.nome||"").trim())throw {message:"Dê um nome para o acesso."};if(x.url&&!/^https?:\/\/\S+$/i.test(x.url))throw {message:"O endereço precisa começar com http:// ou https://"};
+      if(x.tipo==="link"&&!x.url)throw {message:"Informe o endereço do link."};
       const id=x.id||uid(),antes=D.itens[id],agora=new Date().toISOString(),pp=x.tipo==="pessoal";
       if(antes&&!pode(antes))throw {message:"Só quem cadastrou (ou um administrador, nos acessos do setor) pode alterar este acesso."};
-      const d=Object.assign({},antes||{criadoPor:me.email,criadoEm:agora},{nome:x.nome.trim(),url:x.url||"",usuario:x.usuario||"",categoria:x.categoria||"",nota:x.nota||"",tipo:pp?"pessoal":"setor",todos:!pp&&x.todos===true,compartilhado:pp?[]:x.compartilhado||[],atualizadoEm:agora,atualizadoPor:me.email});
+      const d=Object.assign({},antes||{criadoPor:me.email,criadoEm:agora},{nome:x.nome.trim(),url:x.url||"",usuario:x.usuario||"",categoria:x.categoria||"",nota:x.nota||"",tipo:pp?"pessoal":x.tipo==="link"?"link":"setor",todos:!pp&&x.todos===true,compartilhado:pp?[]:x.compartilhado||[],atualizadoEm:agora,atualizadoPor:me.email});
       if(pp&&d.criadoPor!==me.email)throw {message:"Só quem cadastrou o acesso pode torná-lo pessoal."};
       if(x.senha){d.senha=x.senha;d.senhaTrocadaEm=agora;}D.itens[id]=d;log(!antes?"cadastrou o acesso":x.senha?"alterou o acesso e a senha":"alterou o acesso",id,nomeReg(d));return {item:pub(id,d)};}
     if(acao==="cofreExcluir"){const d=D.itens[r.id];if(d){if(!pode(d))throw {message:"Só quem cadastrou (ou um administrador, nos acessos do setor) pode excluir este acesso."};delete D.itens[r.id];log("excluiu o acesso",r.id,nomeReg(d));}return {ok:true};}
@@ -263,21 +278,25 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
 
   /* ---------- lista ---------- */
   function render(){if(!cofre)return;const v=$("vSenhas");v.textContent="";
-    const nS=itens.filter(i=>!pessoal(i)).length,nP=itens.length-nS;
-    [...$("tipoSeg").children].forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.t===tipoV));b.textContent=(b.dataset.t==="setor"?"Do setor":"Pessoais")+` (${b.dataset.t==="setor"?nS:nP})`;});
-    const q=$("q").value.trim().toLowerCase(),doTipo=itens.filter(i=>(tipoV==="pessoal")===pessoal(i));
+    [...$("tipoSeg").children].forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.t===tipoV));b.textContent=ROT[b.dataset.t]+` (${itens.filter(i=>tipoDe(i)===b.dataset.t).length})`;});
+    const q=$("q").value.trim().toLowerCase(),doTipo=itens.filter(i=>tipoDe(i)===tipoV);
     const L=doTipo.filter(i=>!q||[i.nome,i.usuario,i.url,i.categoria,i.nota].some(x=>String(x||"").toLowerCase().includes(q)));
-    if(!doTipo.length){v.append(tipoV==="pessoal"?el("div",{class:"empty"},el("strong",null,"Nenhum acesso pessoal"),"Guarde aqui os seus logins de trabalho. Só você vê os acessos pessoais: nem o administrador tem acesso a eles."):
+    if(!doTipo.length){v.append(tipoV==="link"?el("div",{class:"empty"},el("strong",null,"Nenhum link cadastrado"),"Clique em “+ Adicionar” para guardar o banco de imagens de uma indústria ou outro link externo, com ou sem login."):tipoV==="pessoal"?el("div",{class:"empty"},el("strong",null,"Nenhum acesso pessoal"),"Guarde aqui os seus logins de trabalho. Só você vê os acessos pessoais: nem o administrador tem acesso a eles."):
       el("div",{class:"empty"},el("strong",null,"Nenhum acesso do setor"),"Clique em “+ Adicionar” para guardar um login de uso comum da equipe."));return;}
     if(!L.length){v.append(el("div",{class:"empty"},el("strong",null,"Nada encontrado"),"Tente outra palavra na pesquisa."));return;}
-    const box=el("div",{class:"card lista"});let grupo="";
-    L.forEach(i=>{const g=letra(i.nome);if(g!==grupo){grupo=g;box.append(el("h3",null,g));}
-      box.append(el("button",{type:"button",class:"row",onclick:()=>abrir(i.id)},tile(i.nome),
-        el("span",{class:"tx"},el("b",null,i.nome),el("small",null,[i.usuario,dominio(i.url)].filter(Boolean).join(" · ")||"Sem usuário")),
-        i.categoria?el("span",{class:"cat"},i.categoria):null,
+    const box=el("div",{class:"card lista"});let grupo=null;
+    // links: agrupados pela indústria (campo categoria); os demais, pela primeira letra
+    const lk=tipoV==="link",ind=i=>(i.categoria||"").trim()||"Sem indústria definida";
+    if(lk)L.sort((a,b)=>(ind(a)==="Sem indústria definida")-(ind(b)==="Sem indústria definida")||ind(a).localeCompare(ind(b),"pt-BR",{sensitivity:"base"})||a.nome.localeCompare(b.nome,"pt-BR",{sensitivity:"base"}));
+    L.forEach(i=>{const g=lk?ind(i):letra(i.nome);if(g!==grupo){grupo=g;box.append(el("h3",null,g));}
+      const login=i.usuario||i.temSenha;
+      const row=el("button",{type:"button",class:"row",onclick:()=>abrir(i.id)},tile(i.nome),
+        el("span",{class:"tx"},el("b",null,i.nome),el("small",null,lk?[dominio(i.url),login?"com login"+(i.usuario?": "+i.usuario:""):"acesso livre, sem login"].filter(Boolean).join(" · "):[i.usuario,dominio(i.url)].filter(Boolean).join(" · ")||"Sem usuário")),
+        i.categoria&&!lk?el("span",{class:"cat"},i.categoria):null,
         !pessoal(i)&&i.todos?el("span",{class:"hint",title:"Toda a equipe pode ver"},"👥 Todos"):i.podeEditar&&(i.compartilhado||[]).length?el("span",{class:"hint",title:"Pessoas que podem ver"},`👥 ${(i.compartilhado||[]).length}`):null,
-        el("span",{class:"chev"},svg(I.chev,18))));});
-    v.append(box,el("p",{class:"hint",style:"margin:8px 2px 0"},`${L.length} de ${doTipo.length} acesso${doTipo.length===1?"":"s"}`+(tipoV==="pessoal"?" · só você vê":"")));}
+        el("span",{class:"chev"},svg(I.chev,18)));
+      box.append(lk&&i.url?el("div",{class:"rowl"},row,el("a",{class:"abrir",href:i.url,target:"_blank",rel:"noopener noreferrer",title:"Abrir "+i.url},"Abrir ↗")):row);});
+    v.append(box,el("p",{class:"hint",style:"margin:8px 2px 0"},`${L.length} de ${doTipo.length} ${lk?(doTipo.length===1?"link":"links"):"acesso"+(doTipo.length===1?"":"s")}`+(tipoV==="pessoal"?" · só você vê":"")));}
   $("q").addEventListener("input",render);
   $("tipoSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tipoV=b.dataset.t;try{localStorage.setItem("cofre-tipo",tipoV);}catch(_){}render();});
 
@@ -293,6 +312,9 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
   function detalhe(){const i=itens.find(x=>x.id===aberto);if(!i){fecharPainel();return;}const p=panel();p.textContent="";
     p.append(cab(i.nome,tile(i.nome,true)));const b=el("div",{class:"pb"});
     if(i.url)b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Site"),el("span",{class:"v"},el("a",{href:i.url,target:"_blank",rel:"noopener noreferrer"},dominio(i.url)||i.url," ↗")))));
+    if(ehLink(i)&&i.categoria)b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Indústria / marca"),el("span",{class:"v"},i.categoria))));
+    if(ehLink(i)&&!i.usuario&&!i.temSenha)b.append(el("div",{class:"f"},el("span",{class:"lab"},"Login"),el("span",null,el("span",{class:"pill livre"},"Acesso livre")," Não precisa de usuário nem senha.")));
+    if(!ehLink(i)||i.usuario||i.temSenha){
     const bCopU=el("button",{type:"button",class:"ib","aria-label":"Copiar usuário",title:"Copiar usuário",onclick:()=>copiarTexto(i.usuario).then(ok=>toast(ok?"Usuário copiado":"Não foi possível copiar"))},svg(I.copiar));
     b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Usuário"),el("span",{class:"v"},i.usuario||"—")),i.usuario?bCopU:null));
     const vis=revelada&&revelada.id===i.id;
@@ -303,7 +325,7 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
       if(aberto===i.id&&!editando)detalhe();}},svg(vis?I.olhoX:I.olho));
     const bCop=el("button",{type:"button",class:"ib","aria-label":"Copiar senha",title:"Copiar senha",disabled:!i.temSenha?true:null,onclick:ev=>copiarSenha(i,ev.currentTarget)},svg(I.copiar));
     b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Senha"),el("span",{class:"v pw"},!i.temSenha?"Sem senha cadastrada":vis?revelada.senha:"••••••••••")),bOlho,bCop));
-    if(vis)b.append(el("p",{class:"hint",style:"margin:-8px 0 0"},"A senha volta a ficar oculta em 30 segundos."));
+    if(vis)b.append(el("p",{class:"hint",style:"margin:-8px 0 0"},"A senha volta a ficar oculta em 30 segundos."));}
     if(i.nota)b.append(el("div",{class:"fld"},el("span",{class:"tx"},el("small",null,"Observação"),el("span",{class:"v",style:"white-space:pre-wrap;font-size:14px"},i.nota))));
     if(pessoal(i))b.append(el("div",{class:"f"},el("span",{class:"lab"},"Quem pode ver"),el("span",null,el("span",{class:"pill pes"},"🔒 Pessoal")," Só você.")));
     else if(i.todos)b.append(el("div",{class:"f"},el("span",{class:"lab"},"Quem pode ver"),el("span",{class:"hint"},"Toda a equipe.")));
@@ -359,10 +381,11 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
     const bGer=el("button",{type:"button",class:"btn",onclick:()=>{fPw.value=gerarSenha(16);fPw.type="text";upd();}},svg(I.dado,16),"Gerar senha forte");
     const sel=new Set((i&&i.compartilhado)||[]);
     const meu=!i||i.criadoPor===me.email;
-    const tipo0=i?(pessoal(i)?"pessoal":"setor"):tipoV;
-    const tipos=el("div",{class:"tipos",role:"radiogroup","aria-label":"Tipo de acesso"},
+    const tipo0=i?tipoDe(i):tipoV;
+    const tipos=el("div",{class:"tipos"+(meu?" tres":""),role:"radiogroup","aria-label":"Tipo de acesso"},
       el("label",null,el("input",{type:"radio",name:"eTipo",value:"setor",checked:tipo0==="setor"?true:null}),el("b",null,"👥 Do setor"),el("small",null,"Uso comum da equipe")),
-      meu?el("label",null,el("input",{type:"radio",name:"eTipo",value:"pessoal",checked:tipo0==="pessoal"?true:null}),el("b",null,"🔒 Pessoal"),el("small",null,"Só você vê (nem o administrador)")):null);
+      meu?el("label",null,el("input",{type:"radio",name:"eTipo",value:"pessoal",checked:tipo0==="pessoal"?true:null}),el("b",null,"🔒 Pessoal"),el("small",null,"Só você vê (nem o administrador)")):null,
+      el("label",null,el("input",{type:"radio",name:"eTipo",value:"link",checked:tipo0==="link"?true:null}),el("b",null,"🔗 Link / banco de imagens"),el("small",null,"Com ou sem login")));
     const alcance=el("div",{class:"tipos",role:"radiogroup","aria-label":"Quem pode ver"},
       el("label",null,el("input",{type:"radio",name:"eAlc",value:"todos",checked:!i||i.todos?true:null}),el("b",null,"Toda a equipe"),el("small",null,"Qualquer membro da Central")),
       el("label",null,el("input",{type:"radio",name:"eAlc",value:"escolher",checked:i&&!i.todos?true:null}),el("b",null,"Pessoas escolhidas"),el("small",null,"Marque abaixo quem pode ver")));
@@ -371,15 +394,20 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
       const eu=u.email===me.email;
       return el("label",null,el("input",{type:"checkbox",value:u.email,checked:ad||eu||sel.has(u.email)?true:null,disabled:ad||eu?true:null,"data-q":"1"}),Central.avatar(u,26),u.nome||u.email,el("small",null,ad?"administrador · sempre vê":eu?"você · sempre vê":u.cargo||""));}));
     const blocoQuem=el("div",{class:"f"},el("span",{class:"lab"},"Quem pode ver e copiar"),alcance,quem,el("span",{class:"hint"},"Cada vez que alguém vê ou copia a senha, fica registrado."));
-    const sync=()=>{const t=(tipos.querySelector("input:checked")||{}).value;blocoQuem.hidden=t==="pessoal";quem.hidden=(alcance.querySelector("input:checked")||{}).value!=="escolher";};
+    const lUrl=el("label",{for:"eUrl"}),lUser=el("label",{for:"eUser"}),lPw=el("label",{for:"ePw"}),lCat=el("label",{for:"eCat"});
+    const sync=()=>{const t=(tipos.querySelector("input:checked")||{}).value,lk=t==="link";blocoQuem.hidden=t==="pessoal";quem.hidden=(alcance.querySelector("input:checked")||{}).value!=="escolher";
+      lUrl.textContent=lk?"Endereço do link":"Endereço do site (opcional)";lUser.textContent=lk?"Usuário (só se tiver login)":"Usuário";
+      lPw.textContent=(novo?"Senha":"Nova senha")+(lk?" (só se tiver login)":"");lCat.textContent=lk?"Indústria / marca":"Categoria (opcional)";
+      fCat.placeholder=lk?"Ex.: Tigre, Amanco, Vonder":"Ex.: Redes sociais";fNome.placeholder=lk?"Ex.: Banco de imagens Tigre":"Ex.: Meta Business, RD Station, Canva";
+      fPw.placeholder=lk?"Deixe em branco se o acesso for livre":novo?"Senha do acesso":"Deixe em branco para manter a senha atual";};
     tipos.addEventListener("change",sync);alcance.addEventListener("change",sync);
     const err=el("p",{class:"err",role:"alert",hidden:true});
     const b=el("div",{class:"pb"},
       el("div",{class:"f"},el("label",{for:"eNome"},"Nome do site ou serviço"),fNome),
-      el("div",{class:"f"},el("label",{for:"eUrl"},"Endereço do site (opcional)"),fUrl),
-      el("div",{class:"f"},el("label",{for:"eUser"},"Usuário"),fUser),
-      el("div",{class:"f"},el("label",{for:"ePw"},novo?"Senha":"Nova senha"),el("div",{class:"pwbox"},fPw,bVer),barra,el("div",{class:"acts",style:"justify-content:space-between"},fTx,bGer)),
-      el("div",{class:"f"},el("label",{for:"eCat"},"Categoria (opcional)"),fCat,el("datalist",{id:"cats"},cats.map(c=>el("option",{value:c})))),
+      el("div",{class:"f"},lUrl,fUrl),
+      el("div",{class:"f"},lCat,fCat,el("datalist",{id:"cats"},cats.map(c=>el("option",{value:c})))),
+      el("div",{class:"f"},lUser,fUser),
+      el("div",{class:"f"},lPw,el("div",{class:"pwbox"},fPw,bVer),barra,el("div",{class:"acts",style:"justify-content:space-between"},fTx,bGer)),
       el("div",{class:"f"},el("label",{for:"eNota"},"Observação (opcional)"),fNota),
       blocoQuem,err);
     b.prepend(el("div",{class:"f"},el("span",{class:"lab"},"Tipo de acesso"),tipos));sync();
@@ -387,15 +415,16 @@ td.mono{font-family:var(--mono);white-space:nowrap;font-size:12.5px}
     const form=el("form",{novalidate:true,style:"display:flex;flex-direction:column;flex:1"},b,el("div",{class:"pf"},el("span"),salvar));
     form.addEventListener("submit",async e=>{e.preventDefault();err.hidden=true;const bad=m=>{err.textContent=m;err.hidden=false;};
       const tp=(tipos.querySelector("input:checked")||{}).value||"setor",tod=(alcance.querySelector("input:checked")||{}).value!=="escolher";
-      const item={nome:fNome.value.trim(),url:fUrl.value.trim(),usuario:fUser.value.trim(),categoria:fCat.value.trim(),nota:fNota.value.trim(),tipo:tp,todos:tp==="setor"&&tod,
-        compartilhado:tp==="setor"&&!tod?[...quem.querySelectorAll("input[data-q]:checked:not(:disabled)")].map(x=>x.value):[]};
+      const item={nome:fNome.value.trim(),url:fUrl.value.trim(),usuario:fUser.value.trim(),categoria:fCat.value.trim(),nota:fNota.value.trim(),tipo:tp,todos:tp!=="pessoal"&&tod,
+        compartilhado:tp!=="pessoal"&&!tod?[...quem.querySelectorAll("input[data-q]:checked:not(:disabled)")].map(x=>x.value):[]};
       if(!item.nome)return bad("Dê um nome para o acesso.");
       if(item.url&&!/^https?:\/\/\S+$/i.test(item.url))item.url="https://"+item.url.replace(/^\/+/,"");
-      if(fPw.value)item.senha=fPw.value;else if(novo&&!item.usuario)return bad("Informe pelo menos o usuário ou a senha.");
+      if(tp==="link"&&!item.url)return bad("Informe o endereço do link.");
+      if(fPw.value)item.senha=fPw.value;else if(novo&&!item.usuario&&tp!=="link")return bad("Informe pelo menos o usuário ou a senha.");
       if(!novo)item.id=i.id;
       salvar.disabled=true;salvar.textContent="Salvando…";
       try{const r=await chamar("cofreSalvar",{item});const k=itens.findIndex(x=>x.id===r.item.id);if(k>=0)itens[k]=r.item;else itens.push(r.item);
-        itens.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{sensitivity:"base"}));tipoV=pessoal(r.item)?"pessoal":"setor";render();toast(novo?"Acesso adicionado":"Acesso salvo");abrir(r.item.id);}
+        itens.sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR",{sensitivity:"base"}));tipoV=tipoDe(r.item);render();toast(novo?(tipoV==="link"?"Link adicionado":"Acesso adicionado"):"Salvo");abrir(r.item.id);}
       catch(x){if(x.code!=="cofre")bad(x.message||"Não foi possível salvar.");}
       finally{salvar.disabled=false;salvar.textContent=novo?"Adicionar":"Salvar";}});
     p.append(form);setTimeout(()=>fNome.focus(),40);}

@@ -53,7 +53,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-11c';
+const VERSAO_API = '2026-11-12a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -835,7 +835,7 @@ const cofreNomeReg_ = d => cofrePessoal_(d) ? '(acesso pessoal)' : d.nome;
 const COFRE_PUBLICO_ = ['nome', 'url', 'usuario', 'categoria', 'nota', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor', 'senhaTrocadaEm'];
 // a senha nunca sai na lista: só pelo cofreSenha, que registra quem pediu
 function cofrePublico_(eu, it) {
-  const o = { id: it.id, temSenha: !!it.senhaC, tipo: cofrePessoal_(it) ? 'pessoal' : 'setor', todos: it.todos === true, podeEditar: cofrePode_(eu, it) };
+  const o = { id: it.id, temSenha: !!it.senhaC, tipo: cofrePessoal_(it) ? 'pessoal' : it.tipo === 'link' ? 'link' : 'setor', todos: it.todos === true, podeEditar: cofrePode_(eu, it) };
   COFRE_PUBLICO_.forEach(function (k) { if (it[k] != null) o[k] = it[k]; });
   if (o.podeEditar && !cofrePessoal_(it)) o.compartilhado = it.compartilhado || [];
   return o;
@@ -858,6 +858,7 @@ function cofreSalvar_(eu, r) {
   if (!nome) throw new Error('Dê um nome para o acesso.');
   const url = String(x.url || '').trim().slice(0, 500);
   if (url && !/^https?:\/\/\S+$/i.test(url)) throw new Error('O endereço precisa começar com http:// ou https://');
+  if (x.tipo === 'link' && !url) throw new Error('Informe o endereço do link.');
   const compartilhado = (Array.isArray(x.compartilhado) ? x.compartilhado : []).map(function (e) { return String(e).trim().toLowerCase(); })
     .filter(function (e, i, L) { return e && L.indexOf(e) === i && loginOk_(e) && usuario_(e); }).slice(0, 50);
   return comLock_(function () {
@@ -869,7 +870,7 @@ function cofreSalvar_(eu, r) {
     const agora = new Date().toISOString(), pessoal = x.tipo === 'pessoal';
     const d = Object.assign({}, antigo ? antigo.dados : { criadoPor: eu.email, criadoEm: agora }, {
       nome: nome, url: url, usuario: String(x.usuario || '').trim().slice(0, 200), categoria: String(x.categoria || '').trim().slice(0, 60),
-      nota: String(x.nota || '').trim().slice(0, 2000), tipo: pessoal ? 'pessoal' : 'setor', todos: !pessoal && x.todos === true,
+      nota: String(x.nota || '').trim().slice(0, 2000), tipo: pessoal ? 'pessoal' : x.tipo === 'link' ? 'link' : 'setor', todos: !pessoal && x.todos === true,
       compartilhado: pessoal ? [] : compartilhado, atualizadoEm: agora, atualizadoPor: eu.email });
     // um acesso pessoal pertence a quem o cadastrou: um administrador não transforma o acesso do setor de outra pessoa em pessoal dele
     if (pessoal && d.criadoPor !== eu.email) throw new Error('Só quem cadastrou o acesso pode torná-lo pessoal.');
