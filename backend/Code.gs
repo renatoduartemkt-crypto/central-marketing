@@ -57,7 +57,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-16a';
+const VERSAO_API = '2026-11-16b';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -1065,7 +1065,9 @@ function entradaClarity_(j) {
 }
 /* Agenda e e-mails do Google de uma pessoa (rotina na nuvem com os conectores Google Agenda e Gmail).
    Grava agenda_rotinas/<login>__google, que só a própria pessoa recebe (ver listarPara_). Do e-mail guarda só
-   remetente, assunto, data e link: o texto das mensagens não vem para a planilha. */
+   remetente, assunto, data e link: o texto das mensagens não vem para a planilha.
+   "prazos" (entregas e compromissos achados nos e-mails) viram tarefas rápidas da pessoa (agenda_rotinas/<login>),
+   uma vez só por e-mail: se a pessoa apagar a tarefa, ela não volta. Dia de fim de semana passa para segunda. */
 function entradaGoogle_(j) {
   const dono = String(j.dono || '').trim().toLowerCase();
   if (!dono || !usuario_(dono)) throw new Error('"dono" precisa ser o login de um usuário da Central.');
@@ -1080,10 +1082,26 @@ function entradaGoogle_(j) {
   const emails = (Array.isArray(j.emails) ? j.emails : []).slice(0, 30).map(function (m) {
     return { id: txt(m.id, 80), de: txt(m.de, 120), assunto: txt(m.assunto, 200) || '(sem assunto)', data: quando(m.data), link: url(m.link) };
   });
+  const util = function (d) { const x = new Date(d + 'T12:00:00Z'), w = x.getUTCDay(); if (w === 6) x.setUTCDate(x.getUTCDate() + 2); else if (w === 0) x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+  const prazos = (Array.isArray(j.prazos) ? j.prazos : []).slice(0, 30).map(function (x) {
+    return { id: txt(x.id, 80).replace(/[^A-Za-z0-9_-]/g, ''), texto: txt(x.texto, 200), dia: /^\d{4}-\d{2}-\d{2}$/.test(String(x.dia || '')) ? util(String(x.dia)) : '', link: url(x.link) };
+  }).filter(function (x) { return x.id && x.texto && x.dia; });
   return comLock_(function () {
     const id = docId_(dono) + '__google', a = ler_('agenda_rotinas', id);
     gravarLinha_('agenda_rotinas', id, { dono: dono, tipo: 'google', eventos: eventos, emails: emails, conta: txt(j.conta, 120), atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ }, ROTINA_, !a, a);
-    return 'google de ' + dono + ': ' + eventos.length + ' compromissos, ' + emails.length + ' e-mails';
+    let novos = 0;
+    if (prazos.length) {
+      const idR = docId_(dono), aR = ler_('agenda_rotinas', idR), r = aR ? JSON.parse(JSON.stringify(aR.dados)) : { dono: dono, itens: [], feitos: {} };
+      r.itens = r.itens || []; const vistos = r.emailVistos || [];
+      prazos.forEach(function (x) {
+        const k = 'em-' + x.id;
+        if (vistos.indexOf(k) >= 0 || r.itens.some(function (i) { return i.id === k; })) return;
+        r.itens.push({ id: k, texto: x.texto, tipo: 'data', dia: x.dia, origem: 'email', link: x.link, criadoEm: new Date().toISOString() });
+        vistos.push(k); novos++;
+      });
+      if (novos) { r.emailVistos = vistos.slice(-300); gravarLinha_('agenda_rotinas', idR, r, ROTINA_, !aR, aR); }
+    }
+    return 'google de ' + dono + ': ' + eventos.length + ' compromissos, ' + emails.length + ' e-mails, ' + novos + ' prazos novos na agenda';
   });
 }
 /* Meta Ads (conector do Facebook na rotina): números do mês da conta da Lopes.

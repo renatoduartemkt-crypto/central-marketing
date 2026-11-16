@@ -458,7 +458,7 @@
       :selData(ehDiaria(i)?"diaria":(i.dia||h),v=>reprogRot(x,v),{class:"tp"+(x.atrasada?" atr":!ehDiaria(i)&&(i.dia||h)===h?" hoje":""),"aria-label":"Vencimento de "+i.texto,title:"Mudar o dia"});
     return el("div",{class:"ri"+(x.feito?" done":"")},
       el("button",{type:"button",class:"ck"+(x.feito?" on":""),"aria-label":(x.feito?"Desmarcar ":"Marcar como feita ")+i.texto,onclick:()=>marcarRot(x)},ico(CHECK)),
-      el("span",{class:"tx"},i.texto),tag,
+      el("span",{class:"tx"},i.link?el("a",{href:i.link,target:"_blank",rel:"noopener noreferrer",title:"Abrir o e-mail de onde veio este prazo",style:"color:inherit"},i.texto," ✉"):i.texto),tag,
       el("button",{type:"button",class:"del","aria-label":"Remover "+i.texto,title:"Remover",onclick:()=>delRot(x)},"×"));}
   function renderRot(){const box=$("rotina");if(!me||!box)return;
     const {agora,prox}=rotLista(),feitas=agora.filter(x=>x.feito).length,foco=document.activeElement&&document.activeElement.id==="rotTx",rasc=($("rotTx")||{}).value||"";
@@ -501,15 +501,15 @@
     const h=hoje(),E=(gg.eventos||[]).slice().sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
     const hoj=E.filter(e=>ehHoje(e,h)),prox=E.filter(e=>diaDe(e.inicio)>h),M=gg.emails||[];
     box.append(el("header",null,el("h2",null,"Agenda e e-mails do Google"),
-      el("span",{class:"c"},`${hoj.length} compromisso${hoj.length===1?"":"s"} hoje · ${M.length} e-mail${M.length===1?"":"s"} importante${M.length===1?"":"s"}`+(gg.atualizadoEm?` · atualizado às ${horaDe(gg.atualizadoEm)}`:"")),
+      el("span",{class:"c"},`${hoj.length} compromisso${hoj.length===1?"":"s"} hoje · ${M.length} e-mail${M.length===1?"":"s"} da Lopes`+(gg.atualizadoEm?` · atualizado às ${horaDe(gg.atualizadoEm)}`:"")),
       el("button",{type:"button",class:"min","aria-expanded":String(!ggFechado),onclick:()=>{ggFechado=!ggFechado;try{localStorage.setItem(PREF_GG,ggFechado?"1":"0");}catch(_){}renderGoogle();}},ggFechado?"Mostrar":"Ocultar")));
     if(ggFechado)return;
     const ag=el("div",null,el("h3",null,"Reuniões de hoje",el("span",null,hoj.length)));
     if(!hoj.length)ag.append(el("p",{class:"vaz"},"Nenhum compromisso hoje na agenda."));hoj.forEach(e=>ag.append(linhaEv(e,true)));
     if(prox.length){const d=el("details",null,el("summary",null,`Próximos dias (${prox.length})`));let dia="";
       prox.forEach(e=>{const k=diaDe(e.inicio);if(k!==dia){dia=k;d.append(el("div",{class:"dia"},new Date(k+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"})));}d.append(linhaEv(e,false));});ag.append(d);}
-    const ml=el("div",null,el("h3",null,"E-mails importantes não lidos",el("span",null,M.length)));
-    if(!M.length)ml.append(el("p",{class:"vaz"},"Nenhum e-mail importante esperando resposta."));
+    const ml=el("div",null,el("h3",null,"E-mails da Lopes não lidos",el("span",null,M.length)));
+    if(!M.length)ml.append(el("p",{class:"vaz"},"Nenhum e-mail da Lopes esperando resposta."));
     M.forEach(m=>ml.append(el(m.link?"a":"div",{class:"em",href:m.link||null,target:m.link?"_blank":null,rel:m.link?"noopener noreferrer":null},el("b",null,m.assunto),el("small",null,el("span",null,nomeDe(m.de)),el("span",null,quandoEm(m.data))))));
     box.append(el("div",{class:"cols"},ag,ml));}
   setInterval(renderGoogle,60000);
