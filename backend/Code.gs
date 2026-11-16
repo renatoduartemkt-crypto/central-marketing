@@ -57,7 +57,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-13a';
+const VERSAO_API = '2026-11-16a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -182,7 +182,8 @@ function listarPara_(eu, col) {
   const L = listarPublico_(col);
   if (COL_PESSOAL_.indexOf(col) < 0 || COL_LEITURA_EQUIPE_.indexOf(col) >= 0) return L;
   const meu = docId_(eu.email);
-  return L.filter(function (x) { return x.id === meu; });
+  // "<login>__google": agenda e e-mails do Google da própria pessoa, gravados pela rotina (só leitura no site)
+  return L.filter(function (x) { return x.id === meu || x.id === meu + '__google'; });
 }
 /* Campanhas de outra pessoa: parte do registro salvo e aplica só a mudança de status das ações em que
    quem grava é o responsável. Qualquer outra alteração enviada é ignorada. */
@@ -1062,6 +1063,29 @@ function entradaClarity_(j) {
     return 'clarity ' + mes + ' até ' + atual.fim + ': ' + atual.sessoes + ' sessões';
   });
 }
+/* Agenda e e-mails do Google de uma pessoa (rotina na nuvem com os conectores Google Agenda e Gmail).
+   Grava agenda_rotinas/<login>__google, que só a própria pessoa recebe (ver listarPara_). Do e-mail guarda só
+   remetente, assunto, data e link: o texto das mensagens não vem para a planilha. */
+function entradaGoogle_(j) {
+  const dono = String(j.dono || '').trim().toLowerCase();
+  if (!dono || !usuario_(dono)) throw new Error('"dono" precisa ser o login de um usuário da Central.');
+  const txt = function (v, n) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n); };
+  const quando = function (v) { const s = String(v || '').slice(0, 25); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s : ''; };
+  const url = function (v) { const s = String(v || '').trim(); return /^https:\/\/[^\s"<>]+$/i.test(s) ? s.slice(0, 500) : ''; };
+  const eventos = (Array.isArray(j.eventos) ? j.eventos : []).slice(0, 120).map(function (e) {
+    return { id: txt(e.id, 120), titulo: txt(e.titulo, 160) || '(sem título)', inicio: quando(e.inicio), fim: quando(e.fim), diaInteiro: !!e.diaInteiro,
+      local: txt(e.local, 160), link: url(e.link), meet: url(e.meet), organizador: txt(e.organizador, 120), convidados: Math.max(0, Math.round(Number(e.convidados) || 0)),
+      resposta: txt(e.resposta, 20) };
+  }).filter(function (e) { return e.inicio && e.resposta !== 'declined'; });
+  const emails = (Array.isArray(j.emails) ? j.emails : []).slice(0, 30).map(function (m) {
+    return { id: txt(m.id, 80), de: txt(m.de, 120), assunto: txt(m.assunto, 200) || '(sem assunto)', data: quando(m.data), link: url(m.link) };
+  });
+  return comLock_(function () {
+    const id = docId_(dono) + '__google', a = ler_('agenda_rotinas', id);
+    gravarLinha_('agenda_rotinas', id, { dono: dono, tipo: 'google', eventos: eventos, emails: emails, conta: txt(j.conta, 120), atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ }, ROTINA_, !a, a);
+    return 'google de ' + dono + ': ' + eventos.length + ' compromissos, ' + emails.length + ' e-mails';
+  });
+}
 /* Meta Ads (conector do Facebook na rotina): números do mês da conta da Lopes.
    Grava metas_mensais/metaads-AAAA-MM (painel da página Tráfego pago) e trafego_relatorios/meta-auto-AAAA-MM
    (o "relatório do mês", no mesmo formato da importação manual, para a calculadora de verba e o gasto por campanha).
@@ -1133,6 +1157,7 @@ function importarEntrada() {
       else if (j.tipo === 'rd_segmentacoes') msg = entradaSegmentacoes_(j);
       else if (j.tipo === 'clarity_mensal') msg = entradaClarity_(j);
       else if (j.tipo === 'meta_ads') msg = entradaMetaAds_(j);
+      else if (j.tipo === 'google_agenda') msg = entradaGoogle_(j);
       else throw new Error('tipo desconhecido: ' + j.tipo);
     } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
     f.setDescription(msg.slice(0, 1000));

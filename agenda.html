@@ -68,6 +68,39 @@
 .vazio strong{display:block;color:var(--fg);font-size:17px;margin-bottom:4px}
 .vazio .big{font-size:34px;display:block;margin-bottom:6px}
 /* tarefas rápidas pessoais (vencimento em dia útil ou todo dia útil; só a própria pessoa vê) */
+/* agenda e e-mails do Google (rotina na nuvem) */
+.gg{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:18px}
+.gg>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.gg>header h2{font-size:16px}
+.gg>header .c{font-size:12px;color:var(--muted)}
+.gg>header .min{margin-left:auto;border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;padding:4px}
+.gg .cols{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;margin-top:10px}
+.gg h3{font-size:12px;font-family:var(--mono);font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;display:flex;gap:6px;align-items:center}
+.gg h3 span{background:var(--surface-2);border-radius:999px;padding:0 7px}
+.ev{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 6px;border-radius:9px;border-left:3px solid var(--line)}
+.ev+.ev{margin-top:4px}
+.ev.imp{border-left-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.ev.agora{border-left-color:var(--ok);background:var(--ok-bg)}
+.ev.passou{opacity:.55}
+.ev .h{font-family:var(--mono);font-size:12.5px;font-weight:700;white-space:nowrap}
+.ev .t{min-width:0}
+.ev .t b{display:block;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev .t small{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev .tag{font-size:10.5px;font-weight:800;border-radius:4px;padding:0 6px;margin-left:6px;vertical-align:1px}
+.ev .tag.a{background:var(--ok);color:#fff}
+.ev .tag.i{background:var(--accent-soft);color:var(--accent)}
+.ev a.go{font-size:12.5px;font-weight:700;text-decoration:none;border-radius:8px;padding:6px 10px;white-space:nowrap;border:1px solid var(--line);color:var(--fg)}
+.ev a.go.meet{background:#1a73e8;border-color:#1a73e8;color:#fff}
+.gg details{margin-top:10px}
+.gg details summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--muted)}
+.gg .dia{font-size:12px;font-weight:700;color:var(--muted);margin:8px 6px 2px}
+.em{display:flex;flex-direction:column;gap:1px;padding:7px 8px;border-radius:9px;text-decoration:none;color:inherit}
+.em:hover{background:var(--surface-2)}
+.em b{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.em small{font-size:12px;color:var(--muted);display:flex;gap:8px;justify-content:space-between}
+.em small span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gg .vaz{font-size:13px;color:var(--muted);margin:4px 6px}
+@media (max-width:760px){.gg .cols{grid-template-columns:1fr}.ev{grid-template-columns:70px minmax(0,1fr)}.ev a.go{grid-column:2;justify-self:start}}
 .rot{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px 10px;margin-bottom:18px}
 .rot>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .rot>header h2{font-size:16px}
@@ -174,6 +207,7 @@
 
   <div class="grid">
     <main>
+      <section class="gg" id="google" aria-label="Agenda e e-mails do Google" hidden></section>
       <section class="rot" id="rotina" aria-label="Minhas tarefas rápidas"></section>
       <div class="bar">
         <div class="seg" id="filtro" role="group" aria-label="Mostrar"></div>
@@ -446,6 +480,40 @@
     box.append(lst);
     if(foco)setTimeout(()=>{const n=$("rotTx");if(n){n.focus();n.setSelectionRange(n.value.length,n.value.length);}},0);}
 
+  /* ---------- agenda e e-mails do Google: registro "<login>__google", gravado pela rotina na nuvem; só a própria pessoa recebe ---------- */
+  let gg=null,ggFechado=false;const PREF_GG="central-mkt:agenda-google-fechado";try{ggFechado=localStorage.getItem(PREF_GG)==="1";}catch(_){}
+  const diaDe=s=>s.length<=10?s:new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(s));
+  const horaDe=s=>new Date(s).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",timeZone:TZ});
+  const IMP=/(diretoria|reuni|apresenta|comit|cliente|fornecedor|alinhamento|ind[uú]stria|resultado|planejamento|feira|evento)/i;
+  const importante=e=>!e.diaInteiro&&((+e.convidados||0)>=3||IMP.test(e.titulo||""));
+  const nomeDe=s=>String(s||"").replace(/\s*<[^>]*>\s*/,"").replace(/"/g,"").trim()||String(s||"");
+  function quandoEm(s){const d=new Date(s),m=Math.round((Date.now()-d)/60000);if(isNaN(d))return "";if(m<60)return m<=1?"agora":`há ${m} min`;if(m<1440)return `há ${Math.round(m/60)} h`;return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",timeZone:TZ});}
+  function linhaEv(e,hj){const agora=Date.now(),ini=new Date(e.inicio).getTime(),fim=e.fim?new Date(e.fim).getTime():ini;
+    const naHora=hj&&!e.diaInteiro&&ini<=agora&&agora<fim,passou=hj&&!e.diaInteiro&&fim<agora,imp=importante(e);
+    return el("div",{class:"ev"+(naHora?" agora":imp?" imp":"")+(passou?" passou":"")},
+      el("span",{class:"h"},e.diaInteiro?"Dia todo":`${horaDe(e.inicio)}${e.fim?"–"+horaDe(e.fim):""}`),
+      el("span",{class:"t"},el("b",null,e.titulo,naHora?el("span",{class:"tag a"},"agora"):imp?el("span",{class:"tag i"},"importante"):null),
+        el("small",null,[e.local,e.convidados?`${e.convidados} participante${e.convidados===1?"":"s"}`:"",e.organizador?"org.: "+e.organizador:""].filter(Boolean).join(" · ")||" ")),
+      e.meet&&!passou?el("a",{class:"go meet",href:e.meet,target:"_blank",rel:"noopener noreferrer"},"Entrar"):e.link?el("a",{class:"go",href:e.link,target:"_blank",rel:"noopener noreferrer"},"Abrir"):null);}
+  // compromisso de hoje: começa hoje, ou começou antes e ainda não terminou (dia inteiro: a data final é exclusiva)
+  function ehHoje(e,h){const a=diaDe(e.inicio);if(a===h)return true;if(a>h||!e.fim)return false;const b=diaDe(e.fim);return e.diaInteiro?b>h:b>=h;}
+  function renderGoogle(){const box=$("google");if(!box)return;box.hidden=!gg;if(!gg)return;box.textContent="";
+    const h=hoje(),E=(gg.eventos||[]).slice().sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
+    const hoj=E.filter(e=>ehHoje(e,h)),prox=E.filter(e=>diaDe(e.inicio)>h),M=gg.emails||[];
+    box.append(el("header",null,el("h2",null,"Agenda e e-mails do Google"),
+      el("span",{class:"c"},`${hoj.length} compromisso${hoj.length===1?"":"s"} hoje · ${M.length} e-mail${M.length===1?"":"s"} importante${M.length===1?"":"s"}`+(gg.atualizadoEm?` · atualizado às ${horaDe(gg.atualizadoEm)}`:"")),
+      el("button",{type:"button",class:"min","aria-expanded":String(!ggFechado),onclick:()=>{ggFechado=!ggFechado;try{localStorage.setItem(PREF_GG,ggFechado?"1":"0");}catch(_){}renderGoogle();}},ggFechado?"Mostrar":"Ocultar")));
+    if(ggFechado)return;
+    const ag=el("div",null,el("h3",null,"Reuniões de hoje",el("span",null,hoj.length)));
+    if(!hoj.length)ag.append(el("p",{class:"vaz"},"Nenhum compromisso hoje na agenda."));hoj.forEach(e=>ag.append(linhaEv(e,true)));
+    if(prox.length){const d=el("details",null,el("summary",null,`Próximos dias (${prox.length})`));let dia="";
+      prox.forEach(e=>{const k=diaDe(e.inicio);if(k!==dia){dia=k;d.append(el("div",{class:"dia"},new Date(k+"T12:00:00").toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"})));}d.append(linhaEv(e,false));});ag.append(d);}
+    const ml=el("div",null,el("h3",null,"E-mails importantes não lidos",el("span",null,M.length)));
+    if(!M.length)ml.append(el("p",{class:"vaz"},"Nenhum e-mail importante esperando resposta."));
+    M.forEach(m=>ml.append(el(m.link?"a":"div",{class:"em",href:m.link||null,target:m.link?"_blank":null,rel:m.link?"noopener noreferrer":null},el("b",null,m.assunto),el("small",null,el("span",null,nomeDe(m.de)),el("span",null,quandoEm(m.data))))));
+    box.append(el("div",{class:"cols"},ag,ml));}
+  setInterval(renderGoogle,60000);
+
   // a data de "hoje" muda à meia-noite e os atrasos são recalculados
   let dHoje=hoje();setInterval(()=>{if(hoje()!==dHoje){dHoje=hoje();render();renderRot();}},60000);
 
@@ -453,7 +521,8 @@
     $("hojeTx").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long",timeZone:TZ});
     Store.collection("usuarios").onSnapshot(sn=>{users=sn.docs.map(d=>Object.assign({email:d.id},d.data())).filter(u=>u.email);render();});
     col.onSnapshot(sn=>{tasks=Central.filtraOpta(sn.docs.map(d=>Object.assign({id:d.id},d.data())));render();},()=>{$("lista").textContent="";$("lista").append(el("p",{class:"hint"},"Não foi possível carregar as tarefas. Atualize a página."));});
-    colR.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===meuId());rot=d?d.data():null;renderRot();},()=>{});
+    colR.onSnapshot(sn=>{const d=sn.docs.find(x=>x.id===meuId());rot=d?d.data():null;renderRot();
+      const g=sn.docs.find(x=>x.id===meuId()+"__google");gg=g?g.data():null;renderGoogle();},()=>{});
     render();renderRot();});
 })();
 </script>
