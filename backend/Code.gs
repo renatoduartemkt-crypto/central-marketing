@@ -57,7 +57,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-17a';
+const VERSAO_API = '2026-11-17b';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -1185,6 +1185,27 @@ function entradaRdBase_(j) {
     return 'base do RD ' + mes + ': ' + d.ativos + ' ativos, ' + d.indeterminados + ' indeterminados, ' + d.desengajados + ' desengajados';
   });
 }
+/* Saúde da base do RD pelos disparos (sem baixar contatos): a rotina manda os números de cada disparo dos últimos
+   44 dias (limite do plano do RD) e aqui eles se juntam ao histórico, sem repetir disparo (pelo id da campanha).
+   Grava metas_mensais/rdsaude = { ate, d: [[data, contatos, entregues, aberturas, cliques, bounces, descartes, descadastros, spam, id], ...] }
+   (formato curto para caber; guarda ~13 meses). O Meu painel calcula as taxas e a estimativa de ativos. */
+function entradaRdSaude_(j) {
+  const n = function (v) { const x = Number(v); return isFinite(x) && x > 0 ? Math.round(x) : 0; };
+  const novos = (Array.isArray(j.itens) ? j.itens : []).slice(0, 1000).map(function (x) {
+    return [metaData_(x.data), n(x.contatos), n(x.entregues), n(x.aberturas), n(x.cliques), n(x.bounces), n(x.descartes), n(x.descadastros), n(x.spam), metaTxt_(x.id, 30).replace(/[^0-9A-Za-z_-]/g, '')];
+  }).filter(function (x) { return x[0] && x[9] && (x[1] || x[2]); });
+  if (!novos.length) throw new Error('lista "itens" vazia ou sem id/data.');
+  return comLock_(function () {
+    const a = ler_('metas_mensais', 'rdsaude'), mapa = {};
+    ((a && a.dados && a.dados.d) || []).forEach(function (x) { mapa[x[9]] = x; });
+    novos.forEach(function (x) { mapa[x[9]] = x; });
+    const corte = new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10);
+    const d = Object.keys(mapa).map(function (k) { return mapa[k]; }).filter(function (x) { return x[0] >= corte; })
+      .sort(function (x, y) { return x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0; });
+    gravarLinha_('metas_mensais', 'rdsaude', { tipo: 'rdsaude', ate: metaData_(j.ate) || new Date().toISOString().slice(0, 10), d: d, fonte: 'RD Station', atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ }, ROTINA_, !a, a);
+    return 'saúde da base RD: ' + novos.length + ' disparos recebidos, ' + d.length + ' no histórico';
+  });
+}
 // lista de segmentações do RD Station: substitui a lista usada no formulário de e-mails (documento "lista")
 function entradaSegmentacoes_(j) {
   const itens = (Array.isArray(j.itens) ? j.itens : []).slice(0, 500).map(function (x) {
@@ -1215,6 +1236,7 @@ function importarEntrada() {
       else if (j.tipo === 'google_agenda') msg = entradaGoogle_(j);
       else if (j.tipo === 'redes_resumo') msg = entradaRedesResumo_(j);
       else if (j.tipo === 'rd_base') msg = entradaRdBase_(j);
+      else if (j.tipo === 'rd_saude') msg = entradaRdSaude_(j);
       else throw new Error('tipo desconhecido: ' + j.tipo);
     } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
     f.setDescription(msg.slice(0, 1000));

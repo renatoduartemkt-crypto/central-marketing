@@ -67,6 +67,10 @@
 .rdbox .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .rdbox .hd b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
 .rdbox .hd span{font-size:12.5px;color:var(--muted)}
+.rdbox .est{background:var(--bg);border-radius:9px;padding:9px 11px;display:flex;flex-direction:column;gap:3px}
+.rdbox .est b{font-size:14px}
+.rdbox .est small{font-size:11.5px;color:var(--muted);line-height:1.35}
+.tile small.up{color:var(--ok)}.tile small.dn{color:var(--bad)}
 .rdf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .rdf label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600}
 .rdf input{border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:inherit;font-size:14px;background:var(--surface);color:var(--fg);width:100%;min-width:0}
@@ -135,7 +139,7 @@
   const dm=s=>s?`${s.slice(8,10)}/${s.slice(5,7)}`:"";
   const addD=(s,n)=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return iso(d);};
   const segDe=s=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()-(d.getDay()+6)%7);return iso(d);};
-  const mkAnt=()=>{const d=new Date(Y,M-1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;};
+  const mkAnt=k=>{const d=k?new Date(+k.slice(0,4),+k.slice(5,7)-2,1):new Date(Y,M-1,1);return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;};
   const fimMes=()=>`${mk()}-${pad(new Date(Y,M+1,0).getDate())}`;
   // "Mês · novembro até 16/11" (até onde os números chegam)
   const perMes=ate=>`Mês · ${MESES[M]}${ate&&ate<fimMes()?" até "+dm(ate):""}`;
@@ -174,7 +178,7 @@
     put(m,head("Tráfego pago","trafego.html",perMes(ate)),
       el("div",{class:"kpi"},el("b",null,brl(gasto)),el("span",null,vp?`investidos no mês de ${brl(vp)} projetados · ${Math.round(gasto/vp*100)}%`:"investidos no mês (Meta Ads)")),
       vp?meter([[Math.min(gasto,vp),"var(--ok)"],[Math.max(0,vp-gasto),"var(--surface-2)"]]):null,
-      el("div",{class:"tiles"},tile(curto(t.alcance),"alcançadas pelos anúncios","Face + Insta + Whats"),tile(num(leads),"leads no mês","form. + WhatsApp"),tile(leads?brl(gasto/leads):"—","custo por lead")),
+      el("div",{class:"tiles"},tile(curto(t.alcance),"alcançadas pelos anúncios","FB + IG + Whats"),tile(num(leads),"leads no mês","form. + WhatsApp"),tile(leads?brl(gasto/leads):"—","custo por lead")),
       sem.length?el("div",{class:"rows"},...sem):null,
       el("div",{class:"sub"},`${ativas.length} campanha${ativas.length===1?"":"s"} ativa${ativas.length===1?"":"s"} no Meta · maiores gastos do mês`),
       el("div",{class:"rows"},...top.map(c=>row(c.nome,brl(c.gasto),c.status==="ACTIVE"?"var(--ok)":"var(--muted)"))),
@@ -199,19 +203,44 @@
   /* Base do RD Station: foto do mês (metas_mensais/rdbase-AAAA-MM), comparada com a do mês anterior.
      O administrador digita os números que o RD mostra em Contatos › Base de Leads (ou a rotina grava). */
   let rdEdit=false;
+  /* Base do RD: a FOTO (números reais digitados do RD, metas_mensais/rdbase-AAAA-MM) e a SAÚDE pelos disparos
+     (metas_mensais/rdsaude, gravado pela rotina do RD: números de cada disparo, sem contatos).
+     Estimativa da semana: a proporção de ativos da última foto, corrigida pela variação das taxas de abertura e
+     clique dos últimos 28 dias em relação aos 28 dias antes da foto. A foto seguinte recalibra. */
+  const rdJanela=fim=>{const ini=addD(fim,-27),L=((D.mensais.rdsaude||{}).d||[]).filter(x=>x[0]>=ini&&x[0]<=fim);
+    const t=L.reduce((o,x)=>{o.n++;o.c+=x[1];o.e+=x[2];o.a+=x[3];o.k+=x[4];o.b+=x[5];o.x+=x[6];o.u+=x[7];o.s+=x[8];return o;},{n:0,c:0,e:0,a:0,k:0,b:0,x:0,u:0,s:0});
+    t.ini=ini;t.fim=fim;t.ab=t.e?t.a/t.e:0;t.cl=t.e?t.k/t.e:0;t.suj=t.c?(t.b+t.x)/t.c:0;return t;};
+  const pp=v=>`${(v*100).toLocaleString("pt-BR",{maximumFractionDigits:1})}%`;
+  const fotoAte=lim=>Object.keys(D.mensais).filter(k=>k.indexOf("rdbase-")===0&&k.slice(7)<=lim).sort().pop();
   function renderRD(){const m=$("rdBox");if(!m||rdEdit)return;m.textContent="";
-    const R=D.mensais["rdbase-"+mk()], P=D.mensais["rdbase-"+mkAnt()];
+    const kR=fotoAte(mk()), R=kR?D.mensais[kR]:null, kP=R?fotoAte(mkAnt.call(null,kR.slice(7))):null, P=kP&&kP!==kR?D.mensais[kP]:null;
     const C=[["ativos","Ativos","var(--ok)"],["indeterminados","Indeterminados","var(--warn)"],["desengajados","Desengajados","var(--bad)"]];
-    const adm=window.Custos&&Custos.isAdmin(), bt=t=>adm?el("button",{type:"button",class:"btn-s",onclick:()=>formRD(R)},t):null;
-    if(!R){m.append(el("div",{class:"sub"},"Base do RD Station"),el("p",{class:"foot"},"Sem a foto da base deste mês (RD Station › Contatos › Base de Leads)."),bt("Lançar números"));return;}
-    const T=+R.total||C.reduce((s,k)=>s+(+R[k[0]]||0),0)||1, pc=v=>Math.round(v/T*100);
-    const dif=k=>{if(!P||P[k]==null)return null;const d=(+R[k]||0)-(+P[k]||0);if(!d)return null;
-      const bom=k==="desengajados"?d<0:d>0;return el("span",{class:"dl"+(k==="indeterminados"?"":bom?" up":" dn"),title:`desde a foto de ${MESES[(M+11)%12]}`},`${d>0?"+":""}${num(d)}`);};
-    m.append(el("div",{class:"sub"},`Base do RD Station${R.ate?" · foto de "+dm(R.ate):""}`),
-      el("div",{class:"hd"},el("b",null,`${pc(+R.ativos||0)}% ativos`),el("span",null,`${num(T)} contatos na base`)),
-      meter(C.map(k=>[+R[k[0]]||0,k[2]])),
-      el("div",{class:"rows"},...C.map(k=>el("div",{class:"row"},el("span",null,el("i",{class:"dot",style:`--c:${k[2]}`}),k[1]),el("b",null,`${num(R[k[0]])} · ${pc(+R[k[0]]||0)}%`,dif(k[0]))))),
-      bt("Atualizar números"));}
+    const adm=window.Custos&&Custos.isAdmin(), doMes=R&&kR==="rdbase-"+mk();
+    const bt=adm?el("button",{type:"button",class:"btn-s",onclick:()=>formRD(R)},doMes?"Atualizar foto do RD":`Lançar foto de ${MESES[M]}`):null;
+    const RS=D.mensais.rdsaude, fimV=RS&&RS.ate?(RS.ate<fimMes()?RS.ate:fimMes()):null, J=fimV?rdJanela(fimV):null, J0=fimV?rdJanela(addD(fimV,-28)):null;
+    m.append(el("div",{class:"sub"},"Base do RD Station"));
+    if(R){const T=+R.total||C.reduce((s,k)=>s+(+R[k[0]]||0),0)||1, pc=v=>Math.round(v/T*100);
+      const dif=k=>{if(!P||P[k]==null)return null;const d=(+R[k]||0)-(+P[k]||0);if(!d)return null;
+        const bom=k==="desengajados"?d<0:d>0;return el("span",{class:"dl"+(k==="indeterminados"?"":bom?" up":" dn"),title:"desde a foto anterior"},`${d>0?"+":""}${num(d)}`);};
+      m.append(el("div",{class:"hd"},el("b",null,`${pc(+R.ativos||0)}% ativos`),el("span",null,`${num(T)} contatos · foto real de ${dm(R.ate)||MESES[+kR.slice(12)-1]}`)),
+        meter(C.map(k=>[+R[k[0]]||0,k[2]])),
+        el("div",{class:"rows"},...C.map(k=>el("div",{class:"row"},el("span",null,el("i",{class:"dot",style:`--c:${k[2]}`}),k[1]),el("b",null,`${num(R[k[0]])} · ${pc(+R[k[0]]||0)}%`,dif(k[0]))))));
+      // estimativa: só quando há disparos depois da foto
+      const ref=R.ate&&rdJanela(R.ate);
+      if(J&&ref&&ref.e&&J.e&&fimV>R.ate){
+        const fa=(+R.ativos||0)/T, ra=ref.ab?J.ab/ref.ab:1, rc=ref.cl?J.cl/ref.cl:ra, fat=(ra+rc)/2;
+        const at=Math.round(Math.min(1,fa*fat)*T), resto=T-at, ri=(+R.indeterminados||0)+(+R.desengajados||0);
+        const ind=ri?Math.round(resto*(+R.indeterminados||0)/ri):0, des=resto-ind, d=at-(+R.ativos||0);
+        m.append(el("div",{class:"est"},el("b",null,`Estimativa até ${dm(fimV)}: ≈ ${num(at)} ativos (${pc(at)}%)`,d?el("span",{class:"dl "+(d>0?"up":"dn")},`${d>0?"+":""}${num(d)}`):null),
+          el("small",null,`≈ ${num(ind)} indeterminados · ≈ ${num(des)} desengajados. Calculada pelas aberturas e cliques dos disparos dos últimos 28 dias comparados aos 28 dias antes da foto.`)));}
+    } else m.append(el("p",{class:"foot"},"Lance a foto real da base (RD Station › Contatos › Base de Leads) para calibrar a estimativa."));
+    if(J&&J.n){const cmp=(v,v0,bomSobe)=>{if(!J0||!J0.e)return null;const d=v-v0;if(Math.abs(d)<0.0005)return "igual aos 28 dias antes";return `${d>0?"▲":"▼"} ${pp(Math.abs(d)).replace("%"," p.p.")}`;};
+      const cls=(v,v0,bomSobe)=>!J0||!J0.e||Math.abs(v-v0)<0.0005?null:((v>v0)===bomSobe?"up":"dn");
+      const tl=(v,l,v0,bomSobe)=>el("div",{class:"tile"},el("b",null,pp(v)),el("span",null,l),J0&&J0.e?el("small",{class:cls(v,v0,bomSobe)},cmp(v,v0)):null);
+      m.append(el("div",{class:"sub"},`Saúde pelos disparos · 28 dias até ${dm(J.fim)}`),
+        el("div",{class:"tiles q4"},tl(J.ab,"abertura",J0.ab,true),tl(J.cl,"clique",J0.cl,true),tl(J.suj,"bounce + descarte",J0.suj,false),
+          el("div",{class:"tile"},el("b",null,num(J.u+J.s)),el("span",null,"descadastros"),el("small",null,`${num(J.n)} disparos`))));}
+    if(bt)m.append(bt);}
   function formRD(R){rdEdit=true;const m=$("rdBox");m.textContent="";R=R||{};
     const inp=(k,l)=>el("label",null,l,el("input",{type:"number",min:"0",step:"1",inputmode:"numeric",name:k,value:R[k]!=null?R[k]:""}));
     const f=el("form",{class:"rdf"},inp("ativos","Ativos"),inp("indeterminados","Indeterminados"),inp("desengajados","Desengajados"),
