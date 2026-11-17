@@ -57,7 +57,7 @@ const ABA_MOV = 'Movimentações de brindes';
 
 /* ======================= entrada da API (site no GitHub) ======================= */
 
-const VERSAO_API = '2026-11-16b';
+const VERSAO_API = '2026-11-17a';
 
 /** Abrir o link /exec no navegador mostra só o status do backend (as telas ficam no GitHub). */
 function doGet() {
@@ -1148,6 +1148,43 @@ function entradaMetaAds_(j) {
     return 'meta ads ' + mes + ' até ' + ate + ': ' + camps.length + ' campanhas, gasto R$ ' + totais.gasto;
   });
 }
+/* Resumo das redes no mês (conector do mLabs na rotina): seguidores e interações por rede.
+   Grava metas_mensais/social-AAAA-MM = { mes, ate, redes: { instagram: {seguidores, novos, curtidas, comentarios,
+   compartilhamentos, salvamentos, interacoes}, linkedin: {...}, facebook: {...} } } — usado no Meu painel. */
+const SOCIAL_REDES_ = ['instagram', 'linkedin', 'facebook', 'youtube'];
+const SOCIAL_CAMPOS_ = ['seguidores', 'novos', 'curtidas', 'comentarios', 'compartilhamentos', 'salvamentos', 'interacoes', 'alcance'];
+function entradaRedesResumo_(j) {
+  const mes = String(j.mes || '');
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error('mês inválido (use AAAA-MM).');
+  const r = j.redes || {}, redes = {};
+  SOCIAL_REDES_.forEach(function (k) {
+    if (!r[k] || typeof r[k] !== 'object') return;
+    const o = {};
+    SOCIAL_CAMPOS_.forEach(function (c) { if (r[k][c] !== undefined && r[k][c] !== null && isFinite(Number(r[k][c]))) o[c] = Math.round(Number(r[k][c])); });
+    if (Object.keys(o).length) redes[k] = o;
+  });
+  if (!Object.keys(redes).length) throw new Error('nenhuma rede reconhecida (use ' + SOCIAL_REDES_.join(', ') + ').');
+  return comLock_(function () {
+    const id = 'social-' + mes, a = ler_('metas_mensais', id);
+    gravarLinha_('metas_mensais', id, { tipo: 'social', mes: mes, ate: metaData_(j.ate), redes: redes, fonte: metaTxt_(j.fonte || 'mLabs', 40), atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ }, ROTINA_, !a, a);
+    return 'redes resumo ' + mes + ': ' + Object.keys(redes).map(function (k) { return k + ' +' + (redes[k].novos || 0); }).join(', ');
+  });
+}
+/* Situação da base do RD Station (ativos, indeterminados e desengajados): uma foto por mês em metas_mensais/rdbase-AAAA-MM.
+   O administrador também pode digitar os números no Meu painel. */
+function entradaRdBase_(j) {
+  const mes = String(j.mes || '');
+  if (!/^\d{4}-\d{2}$/.test(mes)) throw new Error('mês inválido (use AAAA-MM).');
+  const n = function (v) { const x = Number(v); return isFinite(x) && x >= 0 ? Math.round(x) : 0; };
+  const d = { tipo: 'rdbase', mes: mes, ate: metaData_(j.ate), ativos: n(j.ativos), indeterminados: n(j.indeterminados), desengajados: n(j.desengajados), fonte: metaTxt_(j.fonte || 'RD Station', 40) };
+  d.total = n(j.total) || d.ativos + d.indeterminados + d.desengajados;
+  if (!d.total) throw new Error('sem números da base.');
+  return comLock_(function () {
+    const id = 'rdbase-' + mes, a = ler_('metas_mensais', id);
+    gravarLinha_('metas_mensais', id, Object.assign(d, { atualizadoEm: new Date().toISOString(), atualizadoPor: ROTINA_ }), ROTINA_, !a, a);
+    return 'base do RD ' + mes + ': ' + d.ativos + ' ativos, ' + d.indeterminados + ' indeterminados, ' + d.desengajados + ' desengajados';
+  });
+}
 // lista de segmentações do RD Station: substitui a lista usada no formulário de e-mails (documento "lista")
 function entradaSegmentacoes_(j) {
   const itens = (Array.isArray(j.itens) ? j.itens : []).slice(0, 500).map(function (x) {
@@ -1176,6 +1213,8 @@ function importarEntrada() {
       else if (j.tipo === 'clarity_mensal') msg = entradaClarity_(j);
       else if (j.tipo === 'meta_ads') msg = entradaMetaAds_(j);
       else if (j.tipo === 'google_agenda') msg = entradaGoogle_(j);
+      else if (j.tipo === 'redes_resumo') msg = entradaRedesResumo_(j);
+      else if (j.tipo === 'rd_base') msg = entradaRdBase_(j);
       else throw new Error('tipo desconhecido: ' + j.tipo);
     } catch (e) { deu = false; msg = 'ERRO: ' + (e && e.message ? e.message : e); }
     f.setDescription(msg.slice(0, 1000));
