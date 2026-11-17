@@ -174,7 +174,7 @@
     put(m,head("Tráfego pago","trafego.html",perMes(ate)),
       el("div",{class:"kpi"},el("b",null,brl(gasto)),el("span",null,vp?`investidos no mês de ${brl(vp)} projetados · ${Math.round(gasto/vp*100)}%`:"investidos no mês (Meta Ads)")),
       vp?meter([[Math.min(gasto,vp),"var(--ok)"],[Math.max(0,vp-gasto),"var(--surface-2)"]]):null,
-      el("div",{class:"tiles"},tile(curto(t.alcance),"contas alcançadas no mês"),tile(num(leads),"leads no mês","form. + WhatsApp"),tile(leads?brl(gasto/leads):"—","custo por lead")),
+      el("div",{class:"tiles"},tile(curto(t.alcance),"alcançadas pelos anúncios","Face + Insta + Whats"),tile(num(leads),"leads no mês","form. + WhatsApp"),tile(leads?brl(gasto/leads):"—","custo por lead")),
       sem.length?el("div",{class:"rows"},...sem):null,
       el("div",{class:"sub"},`${ativas.length} campanha${ativas.length===1?"":"s"} ativa${ativas.length===1?"":"s"} no Meta · maiores gastos do mês`),
       el("div",{class:"rows"},...top.map(c=>row(c.nome,brl(c.gasto),c.status==="ACTIVE"?"var(--ok)":"var(--muted)"))),
