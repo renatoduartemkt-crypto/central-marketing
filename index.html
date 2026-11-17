@@ -51,7 +51,10 @@
 .tile{background:var(--bg);border-radius:9px;padding:9px 10px;min-width:0}
 .tile b{display:block;font-size:19px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile span{display:block;font-size:11.5px;color:var(--muted);line-height:1.3}
-.tile small{display:block;font-size:11px;color:var(--muted)}
+.tiles.q4{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tiles.q4 .tile{padding:8px}
+.tiles.q4 .tile b{font-size:17px}
+.tile small{display:block;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile b.up{color:var(--ok)}
 .leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--muted)}
 .leg b{color:var(--fg);font-family:var(--mono);font-weight:500}
@@ -60,11 +63,15 @@
 .dl.up{color:var(--ok)}.dl.dn{color:var(--bad)}
 .btn-s{align-self:flex-start;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--fg)}
 .btn-s.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.rdbox{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.rdbox .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.rdbox .hd b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.rdbox .hd span{font-size:12.5px;color:var(--muted)}
 .rdf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .rdf label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600}
 .rdf input{border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:inherit;font-size:14px;background:var(--surface);color:var(--fg);width:100%;min-width:0}
 .rdf .acts{grid-column:1/-1;display:flex;gap:8px;align-items:center}
-@media (max-width:980px){.cols,.cols2{grid-template-columns:1fr}.days{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:980px){.cols,.cols2{grid-template-columns:1fr}.tiles.q4{grid-template-columns:repeat(2,minmax(0,1fr))}.days{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -83,8 +90,7 @@
     <section class="mod" id="mRedes"></section>
   </div>
 
-  <div class="cols">
-    <section class="mod" id="mRD" aria-label="Situação da base do RD Station"></section>
+  <div class="cols cols2">
     <section class="mod" id="mMetaE"></section>
     <section class="mod" id="mMetaA"></section>
   </div>
@@ -135,14 +141,16 @@
   const perMes=ate=>`Mês · ${MESES[M]}${ate&&ate<fimMes()?" até "+dm(ate):""}`;
   const tile=(v,l,extra,cls)=>el("div",{class:"tile"},el("b",cls?{class:cls}:null,v),el("span",null,l),extra?el("small",null,extra):null);
 
-  function renderEmail(){const m=$("mEmail");m.textContent="";
+  function renderEmail(){const m=$("mEmail"),fica=rdEdit?$("rdBox"):null;m.textContent="";
     const L=D.emails.filter(e=>(e.data||"").slice(0,7)===mk()); const n=L.length;
     const c=k=>L.filter(e=>execOf(e)===k).length, env=c("enviado"), pro=c("producao"), nao=c("nao_enviado");
     const hoje=iso(new Date()), atr=L.filter(e=>e.data<hoje&&execOf(e)!=="enviado").length;
     m.append(head("E-mail marketing","emails.html",perMes()),
       el("div",{class:"kpi"},el("b",null,`${env}/${n}`),el("span",null,`realizado × planejado · ${n?Math.round(env/n*100):0}%`)),
       meter([[env,"var(--ok)"],[pro,"var(--warn)"],[nao,"var(--bad)"]]),
-      el("div",{class:"rows"},row("Enviados",env,"var(--ok)"),row("Em produção",pro,"var(--warn)"),row("Não enviados",nao,"var(--bad)"),row("Atrasados (data já passou)",atr)));}
+      el("div",{class:"rows"},row("Enviados",env,"var(--ok)"),row("Em produção",pro,"var(--warn)"),row("Não enviados",nao,"var(--bad)"),row("Atrasados (data já passou)",atr)),
+      fica||el("div",{class:"rdbox",id:"rdBox","aria-label":"Situação da base do RD Station"}));
+    if(!fica)renderRD();}
   function renderTraf(){const m=$("mTraf");m.textContent="";
     const ini=`${mk()}-01`, fim=fimMes();
     const L=D.camps.filter(c=>!c.inicio||!c.fim?true:(c.inicio<=fim&&c.fim>=ini));
@@ -166,7 +174,7 @@
     put(m,head("Tráfego pago","trafego.html",perMes(ate)),
       el("div",{class:"kpi"},el("b",null,brl(gasto)),el("span",null,vp?`investidos no mês de ${brl(vp)} projetados · ${Math.round(gasto/vp*100)}%`:"investidos no mês (Meta Ads)")),
       vp?meter([[Math.min(gasto,vp),"var(--ok)"],[Math.max(0,vp-gasto),"var(--surface-2)"]]):null,
-      el("div",{class:"tiles"},tile(curto(t.alcance),"contas alcançadas no mês"),tile(num(leads),"leads no mês","formulário + WhatsApp"),tile(leads?brl(gasto/leads):"—","custo por lead")),
+      el("div",{class:"tiles"},tile(curto(t.alcance),"contas alcançadas no mês"),tile(num(leads),"leads no mês","form. + WhatsApp"),tile(leads?brl(gasto/leads):"—","custo por lead")),
       sem.length?el("div",{class:"rows"},...sem):null,
       el("div",{class:"sub"},`${ativas.length} campanha${ativas.length===1?"":"s"} ativa${ativas.length===1?"":"s"} no Meta · maiores gastos do mês`),
       el("div",{class:"rows"},...top.map(c=>row(c.nome,brl(c.gasto),c.status==="ACTIVE"?"var(--ok)":"var(--muted)"))),
@@ -182,29 +190,29 @@
       el("div",{class:"leg"},...S.filter(s=>c(s[0])).map(s=>el("span",null,el("i",{class:"dot",style:`--c:${s[2]}`}),`${s[1]} `,el("b",null,c(s[0]))))));
     if(ig){const mais=v=>(+v>0?"+":"")+num(v);
       put(m,el("div",{class:"sub"},"Instagram Lopes no mês"),
-        el("div",{class:"tiles"},tile(mais(ig.novos),"novos seguidores",ig.seguidores?`${num(ig.seguidores)} no total`:null,+ig.novos>0?"up":null),
-          tile(num(ig.curtidas),"curtidas"),tile(num(ig.comentarios),"comentários"),tile(num(ig.compartilhamentos),"compartilhamentos")),
-        el("div",{class:"rows"},ig.interacoes!=null?row("Interações no total (com salvamentos e respostas)",num(ig.interacoes)):null,
-          li?row("LinkedIn Grupo Lopes · novos seguidores",`${mais(li.novos)}${li.seguidores?` (${num(li.seguidores)})`:""}`):null),
+        el("div",{class:"tiles q4"},tile(mais(ig.novos),"seguidores",ig.seguidores?`total ${curto(ig.seguidores)}`:null,+ig.novos>0?"up":null),
+          tile(num(ig.curtidas),"curtidas"),tile(num(ig.comentarios),"coment."),tile(num(ig.compartilhamentos),"compart.")),
+        el("div",{class:"rows"},ig.interacoes!=null?row("Interações no mês (todas)",num(ig.interacoes)):null,
+          li?row("LinkedIn · novos seguidores",`${mais(li.novos)}${li.seguidores?` (${num(li.seguidores)})`:""}`):null),
         el("p",{class:"foot"},`mLabs · ${R.ate?"até "+dm(R.ate):""}`));}
     else m.append(el("p",{class:"foot"},"Seguidores e interações do mês chegam pela rotina do mLabs."));}
   /* Base do RD Station: foto do mês (metas_mensais/rdbase-AAAA-MM), comparada com a do mês anterior.
      O administrador digita os números que o RD mostra em Contatos › Base de Leads (ou a rotina grava). */
   let rdEdit=false;
-  function renderRD(){const m=$("mRD");if(!m||rdEdit)return;m.textContent="";
+  function renderRD(){const m=$("rdBox");if(!m||rdEdit)return;m.textContent="";
     const R=D.mensais["rdbase-"+mk()], P=D.mensais["rdbase-"+mkAnt()];
-    const C=[["ativos","Ativos (engajados)","var(--ok)"],["indeterminados","Indeterminados","var(--warn)"],["desengajados","Desengajados","var(--bad)"]];
-    m.append(head("Base do RD Station","emails.html",R&&R.ate?`Foto de ${dm(R.ate)}`:"Mês"));
-    if(R){const T=+R.total||C.reduce((s,k)=>s+(+R[k[0]]||0),0)||1, pc=v=>Math.round(v/T*100);
-      const dif=k=>{if(!P||P[k]==null)return null;const d=(+R[k]||0)-(+P[k]||0);if(!d)return null;
-        const bom=k==="desengajados"?d<0:d>0;return el("span",{class:"dl"+(k==="indeterminados"?"":bom?" up":" dn")},`${d>0?"+":""}${num(d)}`);};
-      m.append(el("div",{class:"kpi"},el("b",null,`${pc(+R.ativos||0)}%`),el("span",null,`da base ativa · ${num(T)} contatos`)),
-        meter(C.map(k=>[+R[k[0]]||0,k[2]])),
-        el("div",{class:"rows"},...C.map(k=>el("div",{class:"row"},el("span",null,el("i",{class:"dot",style:`--c:${k[2]}`}),k[1]),el("b",null,`${num(R[k[0]])} · ${pc(+R[k[0]]||0)}%`,dif(k[0]))))),
-        el("p",{class:"foot"},P?`Em verde/vermelho: mudança desde a foto de ${MESES[(M+11)%12]}.`:"Na próxima foto do mês aparece a comparação com este mês."));}
-    else m.append(el("p",{class:"foot"},"Ainda sem a foto da base deste mês. Os números ficam em RD Station › Contatos › Base de Leads."));
-    if(window.Custos&&Custos.isAdmin())m.append(el("button",{type:"button",class:"btn-s",onclick:()=>formRD(R)},R?"Atualizar números":"Lançar números"));}
-  function formRD(R){rdEdit=true;const m=$("mRD");m.textContent="";R=R||{};
+    const C=[["ativos","Ativos","var(--ok)"],["indeterminados","Indeterminados","var(--warn)"],["desengajados","Desengajados","var(--bad)"]];
+    const adm=window.Custos&&Custos.isAdmin(), bt=t=>adm?el("button",{type:"button",class:"btn-s",onclick:()=>formRD(R)},t):null;
+    if(!R){m.append(el("div",{class:"sub"},"Base do RD Station"),el("p",{class:"foot"},"Sem a foto da base deste mês (RD Station › Contatos › Base de Leads)."),bt("Lançar números"));return;}
+    const T=+R.total||C.reduce((s,k)=>s+(+R[k[0]]||0),0)||1, pc=v=>Math.round(v/T*100);
+    const dif=k=>{if(!P||P[k]==null)return null;const d=(+R[k]||0)-(+P[k]||0);if(!d)return null;
+      const bom=k==="desengajados"?d<0:d>0;return el("span",{class:"dl"+(k==="indeterminados"?"":bom?" up":" dn"),title:`desde a foto de ${MESES[(M+11)%12]}`},`${d>0?"+":""}${num(d)}`);};
+    m.append(el("div",{class:"sub"},`Base do RD Station${R.ate?" · foto de "+dm(R.ate):""}`),
+      el("div",{class:"hd"},el("b",null,`${pc(+R.ativos||0)}% ativos`),el("span",null,`${num(T)} contatos na base`)),
+      meter(C.map(k=>[+R[k[0]]||0,k[2]])),
+      el("div",{class:"rows"},...C.map(k=>el("div",{class:"row"},el("span",null,el("i",{class:"dot",style:`--c:${k[2]}`}),k[1]),el("b",null,`${num(R[k[0]])} · ${pc(+R[k[0]]||0)}%`,dif(k[0]))))),
+      bt("Atualizar números"));}
+  function formRD(R){rdEdit=true;const m=$("rdBox");m.textContent="";R=R||{};
     const inp=(k,l)=>el("label",null,l,el("input",{type:"number",min:"0",step:"1",inputmode:"numeric",name:k,value:R[k]!=null?R[k]:""}));
     const f=el("form",{class:"rdf"},inp("ativos","Ativos"),inp("indeterminados","Indeterminados"),inp("desengajados","Desengajados"),
       el("label",{style:"grid-column:1/-1"},"Data da foto",el("input",{type:"date",name:"ate",value:R.ate||iso(new Date())})),
@@ -215,7 +223,7 @@
       const b=f.querySelector("[type=submit]");b.disabled=true;b.textContent="Salvando…";
       try{await Store.collection("metas_mensais").doc("rdbase-"+mk()).set(d);D.mensais["rdbase-"+mk()]=d;rdEdit=false;renderRD();}
       catch(e){alert("Não salvou: "+(e&&e.message?e.message:e));b.disabled=false;b.textContent="Salvar";}};
-    m.append(head("Base do RD Station",null,`Mês · ${MESES[M]}`),f);f.elements.ativos.focus();}
+    m.append(el("div",{class:"sub"},`Base do RD Station · ${MESES[M]}`),f);f.elements.ativos.focus();}
   function renderMetas(){
     const eL=D.mensais["ecom-"+mk()]||{}, mA=D.mensais["alcance-"+mk()]||{};
     const mE={metaVendas:+eL.metaVendas||0,metaPositivacoes:+eL.metaPositivacoes||0};
@@ -248,7 +256,7 @@
   function renderRes(){if(!window.Resultados)return;
     const r=$("mResR");r.textContent="";r.append(head("Desempenho das redes","redes.html"),Resultados.redes(D.mensais["alcance-"+mk()],{ano:Y,mes:M+1,compacto:true}));
     const e=$("mResE");e.textContent="";e.append(head("Resultados dos e-mails","emails.html"),Resultados.emails(D.emails,{ano:Y,mes:M+1,compacto:true}));}
-  function render(){$("mTitle").textContent=`${MESES[M]} ${Y}`;renderEmail();renderTraf();renderRedes();renderRD();renderMetas();renderRes();renderAgenda();}
+  function render(){$("mTitle").textContent=`${MESES[M]} ${Y}`;renderEmail();renderTraf();renderRedes();renderMetas();renderRes();renderAgenda();}
   $("prevM").onclick=()=>{rdEdit=false;M--;if(M<0){M=11;Y--;}render();};
   $("nextM").onclick=()=>{rdEdit=false;M++;if(M>11){M=0;Y++;}render();};
   Central.boot("painel",user=>{
