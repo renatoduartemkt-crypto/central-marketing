@@ -25,7 +25,7 @@
   const nCan=k=>({CALLCENTER:"Callcenter",FORCA_VENDAS:"Força de vendas",B2B:"Site",WEB:"Site"}[k]||k||"");
   const nSit=s=>String(s||"").split(/,\s*/).filter(Boolean).map(x=>({PEDIDO:"pedido",ORCAMENTO:"orçamento",CARRINHO:"carrinho",PERDIDO:"perdido",EXCLUIDO:"excluído",CANCELADO_ERP:"cancelado",PEDIDO_MESCLADO:"pedido mesclado"}[x]||x.toLowerCase()));
   const temSit=(s,...k)=>k.some(x=>String(s||"").indexOf(x)>=0);
-  const CAN=[["site","Site","var(--accent)","pelo"],["cc","Callcenter","var(--info)","pelo"],["fv","Força de vendas","var(--ok)","pela"]];
+  const CAN=[["site","Site","var(--accent)","pelo"],["cc","Callcenter","var(--cc)","pelo"],["fv","Força de vendas","var(--ok)","pela"]];
 
   /* ---------- leitura das planilhas ---------- */
   let xlsxP=null;
@@ -149,9 +149,9 @@
     if(!ven){out.push(el("p",{class:"foot"},o.vazio||"O relatório de vendas por canal deste mês ainda não foi enviado."));return out;}
     const F=resumoFunil(ven), t=F.orcado||1;
     out.push(el("div",{class:"kpi"},el("b",null,`${Math.round(F.fechado/t*100)}%`),el("span",null,`dos ${brlC(F.orcado)} orçados no site já viraram pedido`)),
-      meter([[F.fe.site,"var(--accent)"],[F.fe.cc,"var(--info)"],[F.fe.fv,"var(--ok)"],[F.aberto,"var(--surface-2)"]]),
-      el("div",{class:"rows"},row("Fechado pelo site",brlC(F.fe.site),"var(--accent)"),row("Fechado pelo Callcenter",brlC(F.fe.cc),"var(--info)"),
-        row("Fechado pela Força de vendas",brlC(F.fe.fv),"var(--ok)"),row("Ainda em aberto",brlC(F.aberto),"var(--muted)"),row("Total orçado no site (soma)",brlC(F.orcado))),
+      meter([[F.fe.site,"var(--accent)"],[F.fe.cc,"var(--cc)"],[F.fe.fv,"var(--ok)"],[F.aberto,"var(--surface-2)"]]),
+      el("div",{class:"rows"},row("Fechado pelo site",brl(F.fe.site),"var(--accent)"),row("Fechado pelo Callcenter",brl(F.fe.cc),"var(--cc)"),
+        row("Fechado pela Força de vendas",brl(F.fe.fv),"var(--ok)"),row("Ainda em aberto",brl(F.aberto),"var(--muted)"),row("Total orçado no site (soma)",brl(F.orcado))),
       el("div",{class:"sec"},el("div",{class:"sub"},`Clientes · ${num(F.clientes)} orçaram no site`),
         el("div",{class:"tiles q4"},tile(num(F.fecharam),"fecharam pedido","em algum canal"),tile(num(F.nada),"não fecharam nada",brlC(F.valorNada)),
           tile(num(F.migraram),"saíram do site","fecharam fora"),tile(num(F.multiAb),"aberto em 2+ canais","pode ser o mesmo")),

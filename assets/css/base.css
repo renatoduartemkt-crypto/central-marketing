@@ -6,7 +6,7 @@
   color-scheme:light;
   --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E9EDF4; --line:#D3DAE5;
   --fg:#16233A; --muted:#5C6B82; --navy:#1B2D49; --accent:#F04F2C; --accent-fg:#FFFFFF; --accent-soft:#FDE6DF; --grad:linear-gradient(120deg,#F16524 0%,#F04F2C 45%,#EE3B2D 100%);
-  --ok:#1E8A5C; --ok-bg:#DDF2E7; --warn:#9A5B00; --warn-bg:#FFF3D6; --bad:#C23A1C; --bad-bg:#FCE4DC; --info:#2F7FD0; --info-bg:#DFEDF8;
+  --ok:#1E8A5C; --ok-bg:#DDF2E7; --warn:#9A5B00; --warn-bg:#FFF3D6; --bad:#C23A1C; --bad-bg:#FCE4DC; --info:#2F7FD0; --info-bg:#DFEDF8; --cc:#7B3FE4;
   --bar-bg:#1B2D49; --bar-fg:#FFFFFF; --bar-muted:#AFC0DA; --btn-primary:#CC3A1A; --btn-primary-h:#B3341A;
   --display:"proxima-nova","Helvetica Neue",Arial,sans-serif;
   --mono:"proxima-nova","Helvetica Neue",Arial,sans-serif;
@@ -14,12 +14,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0E1522; --surface:#152033; --surface-2:#1C2942; --line:#2A3A55;
   --fg:#E7ECF4; --muted:#9AA8BE; --navy:#C9D6EA; --accent:#FF6A45; --accent-fg:#1A0E08; --accent-soft:#3D1F17;
-  --ok:#5FD39A; --ok-bg:#143526; --warn:#F2C46A; --warn-bg:#3A2D12; --bad:#FF8A6E; --bad-bg:#47201A; --info:#6DB0F2; --info-bg:#16324A;
+  --ok:#5FD39A; --ok-bg:#143526; --warn:#F2C46A; --warn-bg:#3A2D12; --bad:#FF8A6E; --bad-bg:#47201A; --info:#6DB0F2; --info-bg:#16324A; --cc:#B794FF;
   --bar-bg:#0A101B; --bar-fg:#E7ECF4; --bar-muted:#8A9AB4; --btn-primary:#D9411E; --btn-primary-h:#E8542F; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0E1522; --surface:#152033; --surface-2:#1C2942; --line:#2A3A55;
   --fg:#E7ECF4; --muted:#9AA8BE; --navy:#C9D6EA; --accent:#FF6A45; --accent-fg:#1A0E08; --accent-soft:#3D1F17;
-  --ok:#5FD39A; --ok-bg:#143526; --warn:#F2C46A; --warn-bg:#3A2D12; --bad:#FF8A6E; --bad-bg:#47201A; --info:#6DB0F2; --info-bg:#16324A;
+  --ok:#5FD39A; --ok-bg:#143526; --warn:#F2C46A; --warn-bg:#3A2D12; --bad:#FF8A6E; --bad-bg:#47201A; --info:#6DB0F2; --info-bg:#16324A; --cc:#B794FF;
   --bar-bg:#0A101B; --bar-fg:#E7ECF4; --bar-muted:#8A9AB4; --btn-primary:#D9411E; --btn-primary-h:#E8542F; color-scheme:dark}
 
 *{box-sizing:border-box}
