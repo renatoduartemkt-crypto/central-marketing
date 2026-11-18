@@ -123,6 +123,7 @@
     <div class="monthbar"><button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button><b id="mTitle"></b><button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button></div>
   </div>
   <div class="wa-acts" id="acts"></div>
+  <section class="mod" id="mEnv" aria-label="Quem subiu as planilhas" hidden></section>
   <div class="cols cols2">
     <section class="mod" id="mWa" aria-label="WhatsApp: campanhas de disparo"></section>
     <section class="mod" id="mFun" aria-label="Orçamentos iniciados no site"></section>
@@ -164,6 +165,20 @@
       a.append(el("button",{type:"button",class:"btn-s pri",onclick:()=>inp.click()},"Subir planilhas"),inp);}
     const t=WA.msg||(adm?"Suba o \"Disparos de Mensagens Meta\" e o \"Conversão de Pedido de Venda por Canal B2B\" (pode ser os dois juntos). As planilhas são lidas no seu navegador: o site guarda só os números e a lista de clientes por código e razão social.":"");
     if(t)a.append(el("span",{class:"wa-msg"},t));}
+  // quem subiu as planilhas do mês: última versão de cada uma + histórico (o mais recente primeiro)
+  function renderEnv(W){const m=$("mEnv");m.textContent="";const E=(W&&W.envios)||[];m.hidden=!W;if(!W)return;
+    const quem=e=>e?(window.Custos&&Custos.userName?Custos.userName(e):e):"não registrado";
+    const dh=s=>{if(!s)return "—";const d=new Date(s);return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});};
+    const ult=(p,n)=>p?`${n}: ${quem(p.enviadoPor)} em ${dh(p.enviadoEm)}${p.arq?" · "+p.arq:""}`:`${n}: ainda não enviado`;
+    m.append(head("Quem subiu as planilhas",null,`${E.length} ${E.length===1?"envio":"envios"} no mês`),
+      el("p",{class:"foot"},ult(W.disparos,"Disparos")),el("p",{class:"foot"},ult(W.vendas,"Vendas por canal")),
+      el("p",{class:"foot"},`Última gravação confirmada pelo servidor: ${quem(W.atualizadoPor)} em ${dh(W.atualizadoEm)}.`));
+    if(E.length){const th=t=>el("th",null,t);
+      m.append(el("div",{class:"wa-scroll"},el("table",{class:"wa-tb"},el("thead",null,el("tr",null,th("Quando"),th("Quem"),th("O que"),th("Arquivos"))),
+        el("tbody",null,...E.slice().reverse().map(e=>el("tr",null,el("td",null,el("small",null,dh(e.em))),el("td",null,el("small",null,e.nome||quem(e.por))),
+          el("td",null,el("small",null,(e.tipos||[]).map(t=>t==="vendas"?"vendas por canal"+(e.periodo?" ("+e.periodo+")":""):"disparos").join(" + "))),
+          el("td",null,el("small",null,(e.arq||[]).join(" · ")))))))));}
+    else m.append(el("p",{class:"foot"},"Os envios anteriores a esta versão não têm histórico. A partir de agora, cada envio fica registrado aqui."));}
   function renderCamp(dis){const m=$("mCamp");m.textContent="";m.hidden=!dis;if(!dis)return;
     const R=Whats.resumoDisparos(dis), th=(t,c)=>el("th",c?{class:c}:null,t);
     m.append(head("Campanhas de disparo",null,`${R.ativas} de ${R.camps} ativas`),
@@ -229,7 +244,7 @@
     renderActs();
     const a=$("mWa");a.textContent="";a.append(...Whats.cardDisparos(W,{per}));
     const b=$("mFun");b.textContent="";b.append(...Whats.cardFunil(W,{per}));
-    renderCamp(W&&W.disparos);renderVal(W);renderFunil(W);renderReg(W);}
+    renderEnv(W);renderCamp(W&&W.disparos);renderVal(W);renderFunil(W);renderReg(W);}
   $("prevM").onclick=()=>{M--;if(M<0){M=11;Y--;}render();};
   $("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}render();};
   let rolou=false;

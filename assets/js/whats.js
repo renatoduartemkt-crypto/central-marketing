@@ -86,7 +86,12 @@
     const mes=dis&&dis.ate?dis.ate.slice(0,7):mesAtual, id="whats-"+mes, ant=mensais[id]||{};
     if(ven){const p=prompt("Qual é o período do relatório de vendas por canal? (ex.: 01/11 a 16/11/2026)",(ant.vendas&&ant.vendas.periodo)||"");
       if(p===null)return {mes:null,msg:"Envio cancelado."};ven.periodo=p.trim().slice(0,60);}
-    const d=Object.assign({},ant,{tipo:"whats",mes,atualizadoEm:new Date().toISOString()});
+    // quem subiu: fica no histórico do mês (o servidor também carimba atualizadoPor e grava na aba _log)
+    const eu=(window.Auth&&Auth.current&&Auth.current())||{}, em=new Date().toISOString(), por=String(eu.email||"").toLowerCase();
+    if(dis){dis.enviadoPor=por;dis.enviadoEm=em;} if(ven){ven.enviadoPor=por;ven.enviadoEm=em;}
+    const envio={em,por,nome:String(eu.nome||"").slice(0,60),arq:nomes.map(n=>String(n).slice(0,90)),tipos:[dis?"disparos":null,ven?"vendas":null].filter(Boolean)};
+    if(ven)envio.periodo=ven.periodo;
+    const d=Object.assign({},ant,{tipo:"whats",mes,atualizadoEm:em,envios:(ant.envios||[]).concat([envio]).slice(-50)});
     if(dis)d.disparos=dis; if(ven)d.vendas=ven;
     await Store.collection("metas_mensais").doc(id).set(d);mensais[id]=d;
     return {mes,msg:`Atualizado com ${nomes.join(" e ")}.`+(ven&&ven.fora?` ${ven.fora} clientes da Opta ficaram de fora.`:"")};}
