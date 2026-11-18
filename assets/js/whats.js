@@ -5,6 +5,9 @@
         (orçamento/carrinho/pedido), canal da compra e valor comprado em até 30 dias.
      2) "Conversão de Pedido de Venda por Canal B2B": por cliente, orçamentos iniciados no site ainda abertos
         (orcamento_b2b / _callcenter / _forcavendas) e pedidos fechados em cada canal (b2b / callcenter / forcavendas).
+        O cliente monta o orçamento no site e pode enviá-lo ao Callcenter ou à Força de vendas para fechar lá; às vezes cota
+        nos dois canais. Por isso um cliente pode ter orçamento aberto em mais de um canal (pode ser o mesmo pedido).
+        valor_orcado_total da planilha = soma das 8 colunas (conferido em 18/11/2026).
    Opta fica de fora (template com "opta", gerente Thiago Neves, supervisor Luiz Couto, carteiras 1994 e 2322).
    Formato gravado: disparos.cli = [cod, nome, templates, dataEnvio, respondeu 0/1, situações, canais, valor30d]
                     vendas.cli   = [cod, cliente, representante, abSite, abCC, abFV, feSite, feCC, feFV] */
@@ -114,7 +117,9 @@
       cliAb:{site:C.filter(r=>r[3]>0).length,cc:C.filter(r=>r[4]>0).length,fv:C.filter(r=>r[5]>0).length},
       fecharam:fech.length,nada:nada.length,abertos:C.filter(r=>abT(r)>0).length,prin,
       migraram:C.filter(r=>!(r[6]>0)&&(r[7]+r[8])>0).length,multi:fech.filter(r=>[6,7,8].filter(j=>r[j]>0).length>1).length,
-      wa:C.filter(r=>wa.has(r[0])).length,valorNada:s(nada,abT)};}
+      wa:C.filter(r=>wa.has(r[0])).length,valorNada:s(nada,abT),multiAb:C.filter(r=>[3,4,5].filter(j=>r[j]>0).length>1).length,
+      abMin:s(C,r=>Math.max(r[3],r[4],r[5]))}; // em aberto se os orçamentos em dois canais forem o mesmo pedido
+  }
 
   /* ---------- cartões no mesmo formato do E-mail: número grande, barra, linhas e quadrinhos ---------- */
   function el(tag,attrs,...kids){const e=document.createElement(tag);if(attrs)for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(typeof v==="function")e.addEventListener(k.replace(/^on/,""),v);else if(k==="style")e.setAttribute("style",v);else if(v!=null)e.setAttribute(k,v);}kids.forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(String(c)));});return e;}
@@ -146,7 +151,7 @@
       el("div",{class:"sec"},el("div",{class:"sub"},`Clientes · ${num(F.clientes)} orçaram no site`),
         el("div",{class:"tiles q4"},tile(num(F.fecharam),"fecharam pedido","em algum canal"),tile(num(F.nada),"não fecharam nada",brlC(F.valorNada)),
           tile(num(F.migraram),"saíram do site","fecharam fora"),tile(num(F.wa),"receberam WhatsApp","nos disparos")),
-        el("p",{class:"foot"},`${num(F.fecharam)} + ${num(F.nada)} = ${num(F.clientes)} clientes. Os valores das linhas somam o total orçado.`)));
+        el("p",{class:"foot"},`${num(F.fecharam)} + ${num(F.nada)} = ${num(F.clientes)} clientes. Os valores das linhas somam o total orçado.${F.multiAb?` ${num(F.multiAb)} clientes têm orçamento aberto em mais de um canal (pode ser o mesmo pedido cotado duas vezes).`:""}`)));
     return out;}
 
   window.Whats={procDisparos,procVendas,subir,resumoDisparos,resumoFunil,cardDisparos,cardFunil,CAN,nCan,num,brl,brlC,pp,dm,el,row,meter,tile,head};
