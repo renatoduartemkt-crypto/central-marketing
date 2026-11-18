@@ -119,7 +119,7 @@
 <header id="app-nav"></header>
 <div class="wrap">
   <div class="top">
-    <div><div class="eyebrow"><a href="index.html">‹ Meu painel</a></div><h1>WhatsApp <span>disparos e jornada do site</span></h1></div>
+    <div><div class="eyebrow"><a href="index.html">‹ Meu painel</a></div><h1>WhatsApp <span>nutrição de inativos e jornada do site</span></h1></div>
     <div class="monthbar"><button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button><b id="mTitle"></b><button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button></div>
   </div>
   <div class="wa-acts" id="acts"></div>
@@ -128,7 +128,8 @@
     <section class="mod" id="mFun" aria-label="Orçamentos iniciados no site"></section>
   </div>
   <section class="mod" id="mCamp" aria-label="Campanhas de disparo"></section>
-  <section class="mod" id="funil" aria-label="Para onde foram os orçamentos do site"></section>
+  <section class="mod" id="mVal" aria-label="Validação dos disparos"></section>
+  <section class="mod" id="funil" aria-label="Jornada do site: para onde foram os orçamentos"></section>
   <section class="mod" id="mReg" aria-label="Clientes com influência do marketing"></section>
 </div>
 
@@ -174,7 +175,7 @@
   function renderFunil(W){const m=$("funil");m.textContent="";const ven=W&&W.vendas, dis=W&&W.disparos;m.hidden=!ven;if(!ven)return;
     const F=Whats.resumoFunil(ven,dis), C=ven.cli, wa=new Set(dis?dis.cli.map(r=>r[0]):[]);
     const ln=(l,cf,vf,ca,va,cls)=>el("tr",cls?{class:cls}:null,el("td",null,l),el("td",{class:"n"},num(cf)),el("td",{class:"n"},brl(vf)),el("td",{class:"n"},num(ca)),el("td",{class:"n"},brl(va)),el("td",{class:"n"},brl(vf+va)));
-    m.append(head("Para onde foram os orçamentos do site",null,ven.periodo||"período não informado"),
+    m.append(head("Jornada do site · para onde foram os orçamentos",null,ven.periodo||"período não informado"),
       el("div",{class:"wa-scroll",style:"max-height:none"},el("table",{class:"wa-tb"},
         el("thead",null,el("tr",null,el("th",null,"Canal"),el("th",{class:"n"},"Fecharam (clientes)"),el("th",{class:"n"},"Valor fechado"),el("th",{class:"n"},"Em aberto (clientes)"),el("th",{class:"n"},"Valor em aberto"),el("th",{class:"n"},"Total"))),
         el("tbody",null,...CAN.map(c=>ln(c[1],F.cliFe[c[0]],F.fe[c[0]],F.cliAb[c[0]],F.ab[c[0]])),ln("Total (cada cliente uma vez)",F.fecharam,F.fechado,F.abertos,F.aberto,"tot")))),
@@ -189,6 +190,18 @@
           el("td",null,el("small",null,r[2])),el("td",{class:"n"},brl(ab(r))),el("td",{class:"n"},feT(r)?brl(feT(r)):"—")))))),
       el("div",{class:"wa-acts"},el("button",{type:"button",class:"btn-s",onclick:()=>baixarCSV(`orcamentos-abertos-${mk()}.csv`,[["codigo","cliente","representante","aberto site","aberto callcenter","aberto forca vendas","fechado site","fechado callcenter","fechado forca vendas","recebeu whatsapp"]].concat(top.map(r=>r.slice(0,3).concat(r.slice(3).map(dec),wa.has(r[0])?"sim":"não"))))},"Baixar lista (Excel)"),
         el("span",{class:"foot"},`${top.length>100?"Mostrando os 100 maiores; a lista completa vai no Excel. ":""}${ven.fora?num(ven.fora)+" clientes da Opta fora":""}${ven.repetidos?" · "+num(ven.repetidos)+" repetidos em duas carteiras contados uma vez":""}`)));}
+  function renderVal(W){const m=$("mVal");m.textContent="";const X=Whats.validacao(W);m.hidden=!X;if(!X)return;
+    const th=(t,c)=>el("th",c?{class:c}:null,t), can=v=>CAN.map((c,i)=>v[6+i]>0?`${c[1]} ${brl(v[6+i])}`:null).filter(Boolean).join(" · ")||"nenhum pedido";
+    m.append(head("Validação dos disparos · clientes nas duas planilhas",null,`${num(X.completo)} de ${num(X.total)} com caminho completo`),
+      el("p",{class:"foot"},"Os disparos vão só para clientes inativos há mais de 90 dias, e o relatório de disparos só conta carrinho, orçamento e compra depois do envio. A jornada do site inclui todos os clientes que passaram pelo site. Por isso a validação vale só para quem está nas duas planilhas."),
+      el("div",{class:"wa-scroll",style:"max-height:none"},el("table",{class:"wa-tb"},el("thead",null,el("tr",null,th("Cliente"),th("Mensagem"),th("Depois da mensagem"),th("No relatório do site"),th("Resultado"))),
+        el("tbody",null,...X.L.map(x=>{const r=x.r,v=x.v;return el("tr",null,
+          el("td",null,el("span",{class:"nm",title:r[1]},r[1]),el("small",null,r[0])),
+          el("td",null,el("small",null,`${dm(r[3])}${r[4]?" · respondeu":" · não respondeu"}`)),
+          el("td",null,el("small",null,[r[5]||"—",r[7]>0?`comprou ${brl(r[7])} (${r[6].split(", ").map(nCan).join(", ")})`:null].filter(Boolean).join(" · "))),
+          el("td",null,el("small",null,`orçou ${brl(v[3]+v[4]+v[5]+v[6]+v[7]+v[8])} · fechou: ${can(v)}`)),
+          el("td",null,el("span",{class:"tag "+x.st[2]},x.st[1]),x.igual?el("small",{style:"display:block"},"valor igual nos dois relatórios"):null));})))),
+      el("p",{class:"foot"},"Clientes que só deixaram carrinho no site não aparecem no relatório de vendas, que conta orçamento e pedido."));}
   function renderReg(W){const m=$("mReg");m.textContent="";const dis=W&&W.disparos, ven=W&&W.vendas;m.hidden=!dis;if(!dis)return;
     const VC=ven?new Map(ven.cli.map(r=>[r[0],r])):new Map(), th=(t,c)=>el("th",c?{class:c}:null,t);
     const F=[["todos","Todos"],["resp","Responderam"],["comp","Compraram em 30 dias"],["orc","Orçamento ou carrinho"],["site","Orçaram no site"],["sem","Sem retorno ainda"]];
@@ -216,7 +229,7 @@
     renderActs();
     const a=$("mWa");a.textContent="";a.append(...Whats.cardDisparos(W,{per}));
     const b=$("mFun");b.textContent="";b.append(...Whats.cardFunil(W,{per}));
-    renderCamp(W&&W.disparos);renderFunil(W);renderReg(W);}
+    renderCamp(W&&W.disparos);renderVal(W);renderFunil(W);renderReg(W);}
   $("prevM").onclick=()=>{M--;if(M<0){M=11;Y--;}render();};
   $("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}render();};
   let rolou=false;

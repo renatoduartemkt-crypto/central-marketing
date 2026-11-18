@@ -129,30 +129,43 @@
   const head=(t,href,per,lab)=>el("header",null,el("div",{class:"ttl"},el("h2",null,t),per?el("span",{class:"per"},per):null),href?el("a",{href},lab||"Abrir ›"):null);
   const plural=(n,s,p)=>n===1?s:p;
 
-  function cardDisparos(W,o){o=o||{};const dis=W&&W.disparos, out=[head("WhatsApp · disparos",o.link,dis&&dis.ini?`Disparos de ${dm(dis.ini)} a ${dm(dis.ate)}`:o.per,o.lab)];
+  /* Disparos = nutrição e reativação: a mensagem vai só para clientes inativos há mais de 90 dias, e o relatório
+     só conta orçamento, carrinho e compra que aconteceram DEPOIS do envio. Reativado = comprou em até 30 dias. */
+  function cardDisparos(W,o){o=o||{};const dis=W&&W.disparos, out=[head("WhatsApp · nutrição de inativos",o.link,dis&&dis.ini?`Disparos de ${dm(dis.ini)} a ${dm(dis.ate)}`:o.per,o.lab)];
     if(!dis){out.push(el("p",{class:"foot"},o.vazio||"Os disparos deste mês ainda não foram enviados."));return out;}
     const R=resumoDisparos(dis), g=R.g;
-    out.push(el("div",{class:"kpi"},el("b",null,num(R.msgs)),el("span",null,`mensagens disparadas · ${R.ativas} de ${R.camps} ${plural(R.camps,"campanha ativa","campanhas ativas")}`)),
+    out.push(el("div",{class:"kpi"},el("b",null,num(R.msgs)),el("span",null,`mensagens para inativos há +90 dias · ${R.ativas} de ${R.camps} ${plural(R.camps,"campanha ativa","campanhas ativas")}`)),
       meter([[g.comp,"var(--ok)"],[g.orc,"var(--warn)"],[g.resp,"var(--info)"],[g.sem,"var(--surface-2)"]]),
-      el("div",{class:"rows"},row("Compraram em até 30 dias",num(g.comp),"var(--ok)"),row("Orçamento ou carrinho, sem compra",num(g.orc),"var(--warn)"),
+      el("div",{class:"rows"},row("Reativados (compraram em até 30 dias)",num(g.comp),"var(--ok)"),row("Voltaram ao site, ainda sem comprar",num(g.orc),"var(--warn)"),
         row("Só responderam",num(g.resp),"var(--info)"),row("Sem retorno ainda",num(g.sem),"var(--muted)"),row("Clientes que receberam (soma)",num(R.clientes))),
-      el("div",{class:"sec"},el("div",{class:"sub"},"Retorno em até 30 dias"),
-        el("div",{class:"tiles q4"},tile(num(R.resp),"responderam",`${pp(R.resp/(R.clientes||1))} dos clientes`),tile(brlC(R.valor),"compraram",`${num(g.comp)} clientes`),
-          tile(num(R.cc),"Callcenter","compraram por lá"),tile(num(R.fv),"Força de vendas","compraram por lá")),
-        el("p",{class:"foot"},`${R.site?num(R.site)+" compraram pelo site. ":"Nenhuma compra pelo site. "}${num(R.respComp)} dos ${num(g.comp)} compradores responderam a mensagem.`)));
+      el("div",{class:"sec"},el("div",{class:"sub"},"Nutrição e reativação · depois da mensagem"),
+        el("div",{class:"tiles q4"},tile(num(R.resp),"responderam",`${pp(R.resp/(R.clientes||1))} dos clientes`),tile(num(R.orcTot),"voltaram ao site","carrinho ou orçamento"),
+          tile(brlC(R.valor),"reativados",`${num(g.comp)} clientes`),tile(`${num(R.cc)} · ${num(R.fv)}`,"Callcenter · FV","canal da compra")),
+        el("p",{class:"foot"},`${num(g.comp-R.respComp)} dos ${num(g.comp)} reativados não responderam: leram e compraram pelo canal de costume.${R.site?` ${num(R.site)} compraram pelo site.`:""}`)));
     return out;}
-  function cardFunil(W,o){o=o||{};const ven=W&&W.vendas, out=[head("Orçamentos iniciados no site",o.link,ven&&ven.periodo?ven.periodo:o.per,o.lab)];
+  /* Jornada do site = todos os clientes que passaram pelo site no período (ativos ou não, com RCA ou não).
+     Objetivo diferente dos disparos: aqui não entra WhatsApp. O cruzamento fica só na validação (validacao()). */
+  function cardFunil(W,o){o=o||{};const ven=W&&W.vendas, out=[head("Jornada do site · orçamentos",o.link,ven&&ven.periodo?ven.periodo:o.per,o.lab)];
     if(!ven){out.push(el("p",{class:"foot"},o.vazio||"O relatório de vendas por canal deste mês ainda não foi enviado."));return out;}
-    const F=resumoFunil(ven,W.disparos), t=F.orcado||1;
+    const F=resumoFunil(ven), t=F.orcado||1;
     out.push(el("div",{class:"kpi"},el("b",null,`${Math.round(F.fechado/t*100)}%`),el("span",null,`dos ${brlC(F.orcado)} orçados no site já viraram pedido`)),
       meter([[F.fe.site,"var(--accent)"],[F.fe.cc,"var(--info)"],[F.fe.fv,"var(--ok)"],[F.aberto,"var(--surface-2)"]]),
       el("div",{class:"rows"},row("Fechado pelo site",brlC(F.fe.site),"var(--accent)"),row("Fechado pelo Callcenter",brlC(F.fe.cc),"var(--info)"),
         row("Fechado pela Força de vendas",brlC(F.fe.fv),"var(--ok)"),row("Ainda em aberto",brlC(F.aberto),"var(--muted)"),row("Total orçado no site (soma)",brlC(F.orcado))),
       el("div",{class:"sec"},el("div",{class:"sub"},`Clientes · ${num(F.clientes)} orçaram no site`),
         el("div",{class:"tiles q4"},tile(num(F.fecharam),"fecharam pedido","em algum canal"),tile(num(F.nada),"não fecharam nada",brlC(F.valorNada)),
-          tile(num(F.migraram),"saíram do site","fecharam fora"),tile(num(F.wa),"receberam WhatsApp","nos disparos")),
-        el("p",{class:"foot"},`${num(F.fecharam)} + ${num(F.nada)} = ${num(F.clientes)} clientes. Os valores das linhas somam o total orçado.${F.multiAb?` ${num(F.multiAb)} clientes têm orçamento aberto em mais de um canal (pode ser o mesmo pedido cotado duas vezes).`:""}`)));
+          tile(num(F.migraram),"saíram do site","fecharam fora"),tile(num(F.multiAb),"aberto em 2+ canais","pode ser o mesmo")),
+        el("p",{class:"foot"},`${num(F.fecharam)} + ${num(F.nada)} = ${num(F.clientes)} clientes. Os valores das linhas somam o total orçado. Inclui todos os clientes que passaram pelo site, ativos ou não.`)));
     return out;}
-
-  window.Whats={procDisparos,procVendas,subir,resumoDisparos,resumoFunil,cardDisparos,cardFunil,CAN,nCan,num,brl,brlC,pp,dm,el,row,meter,tile,head};
+  /* Validação dos disparos: só os clientes que estão nas duas planilhas. Caminho completo = depois da mensagem foi ao site
+     (carrinho/orçamento no relatório de disparos), comprou em até 30 dias, e o relatório de vendas mostra o pedido vindo do site. */
+  function validacao(W){const dis=W&&W.disparos, ven=W&&W.vendas;if(!dis||!ven)return null;
+    const V=new Map(ven.cli.map(r=>[r[0],r]));
+    const L=dis.cli.filter(r=>V.has(r[0])).map(r=>{const v=V.get(r[0]), site=/orçamento|carrinho/.test(r[5]), comp=r[7]>0, fora=v[7]+v[8], noSite=v[6];
+      const st=site&&comp&&fora>0?["completo","Mensagem → site → pedido em outro canal","ok"]:site&&comp&&noSite>0?["site","Mensagem → site → pedido no site","ok"]
+        :site?["foi","Foi ao site, ainda não fechou","warn"]:comp?["semsite","Comprou, sem passagem pelo site depois da mensagem",""]:["nada","Sem retorno depois da mensagem",""];
+      return {r,v,st,igual:comp&&Math.abs((fora+noSite)-r[7])<0.05};});
+    const ord={completo:0,site:1,foi:2,semsite:3,nada:4};L.sort((a,b)=>ord[a.st[0]]-ord[b.st[0]]||b.r[7]-a.r[7]);
+    return {L,total:L.length,completo:L.filter(x=>x.st[0]==="completo"||x.st[0]==="site").length};}
+  window.Whats={procDisparos,procVendas,subir,resumoDisparos,resumoFunil,cardDisparos,cardFunil,validacao,CAN,nCan,num,brl,brlC,pp,dm,el,row,meter,tile,head};
 })();
