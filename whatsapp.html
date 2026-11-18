@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>WhatsApp · Central de Marketing</title>
+<link rel="preconnect" href="https://use.typekit.net" crossorigin>
+<link rel="stylesheet" href="https://use.typekit.net/qnr0hwt.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<style>
+.top{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.monthbar{display:flex;align-items:center;gap:8px}
+.monthbar b{font-size:18px;min-width:160px;text-align:center;text-transform:capitalize}
+.icon{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:34px;height:34px;font-size:18px;cursor:pointer}
+.apv{display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--warn);border-left:6px solid var(--accent);border-radius:12px;padding:14px 18px;text-decoration:none;color:var(--fg)}
+.apv:hover{box-shadow:0 2px 10px -4px rgba(0,0,0,.2)}
+.apv .ic{width:34px;height:34px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;flex:none}
+.apv .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.apv .tx b{font-size:16px}
+.apv .tx small{font-size:12.5px;color:var(--muted)}
+.apv .go{font-weight:700;color:var(--accent);white-space:nowrap;font-size:14px}
+.cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.mod{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.mod header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.mod h2{font-size:18px}
+.mod header a{font-size:13px;font-weight:700;color:var(--accent);text-decoration:none;white-space:nowrap}
+.kpi{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.kpi b{font-size:36px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:13.5px}
+.meter{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden;display:flex}
+.meter i{display:block;height:100%}
+.rows{display:flex;flex-direction:column;gap:7px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;font-size:13.5px;align-items:center}
+.row b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;background:var(--c);vertical-align:0}
+.sub{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.agenda{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.agenda h2{font-size:18px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.dcol{background:var(--bg);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:120px}
+.dcol .dh{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.dcol.today{outline:2px solid var(--accent);outline-offset:-2px}
+.it{display:block;text-decoration:none;color:var(--fg);background:var(--surface);border-left:3px solid var(--c);border-radius:5px;padding:4px 6px;font-size:12px;line-height:1.25}
+.it small{display:block;color:var(--muted);font-size:10.5px;font-weight:600}
+.it span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.none{color:var(--muted);font-size:12px}
+.mod header .ttl{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.per{font-size:11.5px;font-weight:700;background:var(--surface-2);color:var(--muted);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px}
+.tile{background:var(--bg);border-radius:9px;padding:9px 10px;min-width:0}
+.tile b{display:block;font-size:19px;font-weight:800;line-height:1.15;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile span{display:block;font-size:11.5px;color:var(--muted);line-height:1.3}
+.tiles.q4{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tiles.q4 .tile{padding:8px}
+.tiles.q4 .tile b{font-size:17px}
+.tile small{display:block;font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile b.up{color:var(--ok)}
+.leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--muted)}
+.leg b{color:var(--fg);font-family:var(--mono);font-weight:500}
+.foot{font-size:11.5px;color:var(--muted)}
+.dl{font-size:11.5px;font-family:var(--mono);margin-left:6px}
+.dl.up{color:var(--ok)}.dl.dn{color:var(--bad)}
+.btn-s{align-self:flex-start;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--fg)}
+.btn-s.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.sec{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.sec .tile span,.sec .tile small{white-space:normal;overflow-wrap:anywhere}
+.tiles.q3{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.tiles.q3 .tile{padding:8px}.tiles.q3 .tile b{font-size:17px}
+.rdbox{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.rdbox .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.rdbox .hd b{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.rdbox .hd span{font-size:12.5px;color:var(--muted)}
+.rdbox .est{background:var(--bg);border-radius:9px;padding:9px 11px;display:flex;flex-direction:column;gap:3px}
+.rdbox .est b{font-size:14px}
+.rdbox .est small{font-size:11.5px;color:var(--muted);line-height:1.35}
+.tile small.up{color:var(--ok)}.tile small.dn{color:var(--bad)}
+.rdf{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rdf label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600}
+.rdf input{border:1px solid var(--line);border-radius:7px;padding:7px 8px;font:inherit;font-size:14px;background:var(--surface);color:var(--fg);width:100%;min-width:0}
+.rdf .acts{grid-column:1/-1;display:flex;gap:8px;align-items:center}
+.wa-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.wa-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.wa-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px}
+.wa-box{background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.wa-box h3{font-size:15px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--fg)}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+.fun{display:flex;flex-direction:column;gap:9px}
+.fst{display:flex;flex-direction:column;gap:4px}
+.fst .fl{display:flex;justify-content:space-between;gap:8px;font-size:13px;flex-wrap:wrap}
+.fst .fl b{font-family:var(--mono);font-weight:500;font-variant-numeric:tabular-nums}
+.fst .bar{height:22px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.fst .bar i{display:block;height:100%;border-radius:6px;background:var(--c,var(--accent));min-width:3px}
+.fst.sub2{padding-left:16px}.fst.sub2 .bar{height:12px}
+.fst small{font-size:11.5px;color:var(--muted)}
+.wa-tb{width:100%;border-collapse:collapse;font-size:12.5px}
+.wa-tb th{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);text-align:left;padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.wa-tb td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.wa-tb td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.wa-tb td .nm{display:block;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.wa-tb td small{color:var(--muted);font-size:11px}
+.wa-scroll{max-height:420px;overflow:auto;border-radius:8px}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.tag.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.tag.wa{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.tag.warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--fg)}
+.wa-f{display:flex;gap:8px;flex-wrap:wrap}
+.wa-f input,.wa-f select{border:1px solid var(--line);border-radius:7px;padding:6px 8px;font:inherit;font-size:13px;background:var(--surface);color:var(--fg);min-width:0}
+.wa-f input{flex:1}
+.wa-msg{font-size:12.5px;color:var(--muted)}
+.wa-tb tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+.wa-tb th.n{text-align:right}
+.eyebrow a{color:inherit;text-decoration:none}
+@media (max-width:980px){.cols,.cols2{grid-template-columns:1fr}.tiles.q4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<header id="app-nav"></header>
+<div class="wrap">
+  <div class="top">
+    <div><div class="eyebrow"><a href="index.html">‹ Meu painel</a></div><h1>WhatsApp <span>disparos e jornada do site</span></h1></div>
+    <div class="monthbar"><button class="icon" type="button" id="prevM" aria-label="Mês anterior">‹</button><b id="mTitle"></b><button class="icon" type="button" id="nextM" aria-label="Próximo mês">›</button></div>
+  </div>
+  <div class="wa-acts" id="acts"></div>
+  <div class="cols cols2">
+    <section class="mod" id="mWa" aria-label="WhatsApp: campanhas de disparo"></section>
+    <section class="mod" id="mFun" aria-label="Orçamentos iniciados no site"></section>
+  </div>
+  <section class="mod" id="mCamp" aria-label="Campanhas de disparo"></section>
+  <section class="mod" id="funil" aria-label="Para onde foram os orçamentos do site"></section>
+  <section class="mod" id="mReg" aria-label="Clientes com influência do marketing"></section>
+</div>
+
+<script src="assets/js/config.js" charset="utf-8"></script>
+<script src="assets/js/marca.js" charset="utf-8"></script>
+<script src="assets/js/store.js" charset="utf-8"></script>
+<script src="assets/js/auth.js" charset="utf-8"></script>
+<script src="assets/js/layout.js" charset="utf-8"></script>
+<script src="assets/js/custos.js" charset="utf-8"></script>
+<script src="assets/js/whats.js" charset="utf-8"></script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const {el,num,brl,pp,dm,head,CAN,nCan}=Whats;
+  const MESES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  const pad=n=>String(n).padStart(2,"0");
+  const q=(new URLSearchParams(location.search).get("mes")||"").match(/^(\d{4})-(\d{2})$/), now=new Date();
+  let Y=q?+q[1]:now.getFullYear(), M=q?+q[2]-1:now.getMonth();
+  const mk=()=>`${Y}-${pad(M+1)}`;
+  const D={mensais:{}};
+  const WA={canal:"todos",filtro:"todos",busca:"",lim:60,msg:""};
+  const baixarCSV=(nome,linhas)=>{const qt=v=>{const t=String(v==null?"":v);return /[";\n]/.test(t)?`"${t.replace(/"/g,'""')}"`:t;};
+    const b=new Blob(["﻿"+linhas.map(r=>r.map(qt).join(";")).join("\n")],{type:"text/csv;charset=utf-8"});
+    const a=el("a",{href:URL.createObjectURL(b),download:nome});document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);};
+  const dec=v=>String(Math.round(v*100)/100).replace(".",",");
+  async function subir(files){WA.msg="Lendo as planilhas…";renderActs();
+    try{const r=await Whats.subir(files,D.mensais,mk());if(!r)return;WA.msg=r.msg;
+      if(r.mes&&r.mes!==mk()){Y=+r.mes.slice(0,4);M=+r.mes.slice(5,7)-1;}render();}
+    catch(e){WA.msg="Não deu certo: "+(e&&e.message?e.message:e);renderActs();}}
+  function renderActs(){const a=$("acts");a.textContent="";const adm=window.Custos&&Custos.isAdmin();
+    if(adm){const inp=el("input",{type:"file",accept:".xlsx,.xls,.csv",multiple:"",hidden:"",onchange:e=>{const f=[...e.target.files];e.target.value="";if(f.length)subir(f);}});
+      a.append(el("button",{type:"button",class:"btn-s pri",onclick:()=>inp.click()},"Subir planilhas"),inp);}
+    const t=WA.msg||(adm?"Suba o \"Disparos de Mensagens Meta\" e o \"Conversão de Pedido de Venda por Canal B2B\" (pode ser os dois juntos). As planilhas são lidas no seu navegador: o site guarda só os números e a lista de clientes por código e razão social.":"");
+    if(t)a.append(el("span",{class:"wa-msg"},t));}
+  function renderCamp(dis){const m=$("mCamp");m.textContent="";m.hidden=!dis;if(!dis)return;
+    const R=Whats.resumoDisparos(dis), th=(t,c)=>el("th",c?{class:c}:null,t);
+    m.append(head("Campanhas de disparo",null,`${R.ativas} de ${R.camps} ativas`),
+      el("div",{class:"wa-scroll",style:"max-height:none"},el("table",{class:"wa-tb"},el("thead",null,el("tr",null,th("Campanha (template)"),th("Envios"),th("Mensagens","n"),th("Responderam","n"),th("Orç./carrinho","n"),th("Compraram","n"),th("Valor 30 dias","n"))),
+        el("tbody",null,...dis.camps.map(c=>el("tr",null,el("td",null,el("span",{class:"nm"},c.t),c.fim>=R.lim?el("span",{class:"tag ok"},"ativa"):null),
+          el("td",null,c.ini===c.fim?dm(c.ini):`${dm(c.ini)} a ${dm(c.fim)}`),el("td",{class:"n"},num(c.msgs)),
+          el("td",{class:"n"},`${num(c.resp)} · ${c.msgs?pp(c.resp/c.msgs):"—"}`),el("td",{class:"n"},num(c.orc)),el("td",{class:"n"},num(c.compr)),el("td",{class:"n"},brl(c.valor))))))),
+      el("p",{class:"foot"},`Campanha ativa = teve disparo nos últimos 7 dias do relatório. Quem recebeu as duas campanhas aparece nas duas linhas. ${dis.semCad?num(dis.semCad)+" mensagens foram para números sem cadastro de cliente. ":""}As compras contam até 30 dias depois da mensagem: reenvie a planilha para atualizar.`));}
+  function renderFunil(W){const m=$("funil");m.textContent="";const ven=W&&W.vendas, dis=W&&W.disparos;m.hidden=!ven;if(!ven)return;
+    const F=Whats.resumoFunil(ven,dis), C=ven.cli, wa=new Set(dis?dis.cli.map(r=>r[0]):[]);
+    const ln=(l,cf,vf,ca,va,cls)=>el("tr",cls?{class:cls}:null,el("td",null,l),el("td",{class:"n"},num(cf)),el("td",{class:"n"},brl(vf)),el("td",{class:"n"},num(ca)),el("td",{class:"n"},brl(va)),el("td",{class:"n"},brl(vf+va)));
+    m.append(head("Para onde foram os orçamentos do site",null,ven.periodo||"período não informado"),
+      el("div",{class:"wa-scroll",style:"max-height:none"},el("table",{class:"wa-tb"},
+        el("thead",null,el("tr",null,el("th",null,"Canal"),el("th",{class:"n"},"Fecharam (clientes)"),el("th",{class:"n"},"Valor fechado"),el("th",{class:"n"},"Em aberto (clientes)"),el("th",{class:"n"},"Valor em aberto"),el("th",{class:"n"},"Total"))),
+        el("tbody",null,...CAN.map(c=>ln(c[1],F.cliFe[c[0]],F.fe[c[0]],F.cliAb[c[0]],F.ab[c[0]])),ln("Total (cada cliente uma vez)",F.fecharam,F.fechado,F.abertos,F.aberto,"tot")))),
+      el("p",{class:"foot"},`Os valores somam: ${brl(F.fechado)} fechado + ${brl(F.aberto)} em aberto = ${brl(F.orcado)} orçado no site. Os clientes por canal passam do total porque ${num(F.multi)} clientes fecharam em mais de um canal, e muitos têm uma parte fechada e outra ainda em aberto. Clientes: ${num(F.fecharam)} fecharam pedido + ${num(F.nada)} não fecharam nada = ${num(F.clientes)}. ${num(F.migraram)} saíram do site: fecharam só pelo Callcenter ou pela Força de vendas.`));
+    const I={site:3,cc:4,fv:5}, sel=WA.canal==="todos"?["site","cc","fv"]:[WA.canal], ab=r=>sel.reduce((s,k)=>s+r[I[k]],0), feT=r=>r[6]+r[7]+r[8];
+    const top=C.filter(r=>ab(r)>0).sort((a,b)=>ab(b)-ab(a)), cn=CAN.find(c=>c[0]===WA.canal);
+    m.append(el("div",{class:"sub"},`Orçamentos em aberto${cn?" · "+cn[1]:""} · ${num(top.length)} clientes · ${brl(top.reduce((s,r)=>s+ab(r),0))}`),
+      el("div",{class:"chips"},...[["todos","Todos os canais"]].concat(CAN.map(c=>[c[0],c[1]])).map(([k,l])=>el("button",{type:"button",class:"chip","aria-pressed":String(WA.canal===k),onclick:()=>{WA.canal=k;renderFunil(W);}},l))),
+      el("div",{class:"wa-scroll",style:"max-height:360px"},el("table",{class:"wa-tb"},el("thead",null,el("tr",null,el("th",null,"Cliente"),el("th",null,"Representante"),el("th",{class:"n"},"Em aberto"),el("th",{class:"n"},"Já fechou"))),
+        el("tbody",null,...top.slice(0,100).map(r=>el("tr",null,el("td",null,el("span",{class:"nm",title:r[1]},r[1]),el("small",null,r[0]),wa.has(r[0])?el("span",{class:"tag wa",style:"margin-left:6px"},"WhatsApp"):null),
+          el("td",null,el("small",null,r[2])),el("td",{class:"n"},brl(ab(r))),el("td",{class:"n"},feT(r)?brl(feT(r)):"—")))))),
+      el("div",{class:"wa-acts"},el("button",{type:"button",class:"btn-s",onclick:()=>baixarCSV(`orcamentos-abertos-${mk()}.csv`,[["codigo","cliente","representante","aberto site","aberto callcenter","aberto forca vendas","fechado site","fechado callcenter","fechado forca vendas","recebeu whatsapp"]].concat(top.map(r=>r.slice(0,3).concat(r.slice(3).map(dec),wa.has(r[0])?"sim":"não"))))},"Baixar lista (Excel)"),
+        el("span",{class:"foot"},`${top.length>100?"Mostrando os 100 maiores; a lista completa vai no Excel. ":""}${ven.fora?num(ven.fora)+" clientes da Opta fora":""}${ven.repetidos?" · "+num(ven.repetidos)+" repetidos em duas carteiras contados uma vez":""}`)));}
+  function renderReg(W){const m=$("mReg");m.textContent="";const dis=W&&W.disparos, ven=W&&W.vendas;m.hidden=!dis;if(!dis)return;
+    const VC=ven?new Map(ven.cli.map(r=>[r[0],r])):new Map(), th=(t,c)=>el("th",c?{class:c}:null,t);
+    const F=[["todos","Todos"],["resp","Responderam"],["comp","Compraram em 30 dias"],["orc","Orçamento ou carrinho"],["site","Orçaram no site"],["sem","Sem retorno ainda"]];
+    const passa=r=>{const f=WA.filtro, v=VC.get(r[0]);
+      if(f==="resp"&&!r[4])return false;if(f==="comp"&&!(r[7]>0))return false;if(f==="orc"&&!/orçamento|carrinho/.test(r[5]))return false;
+      if(f==="site"&&!v)return false;if(f==="sem"&&(r[4]||r[7]>0||r[5]))return false;
+      const b=WA.busca.trim().toLowerCase();return !b||(r[0]+" "+r[1]).toLowerCase().indexOf(b)>=0;};
+    const L=dis.cli.filter(passa).sort((a,b)=>(b[7]-a[7])||(b[4]-a[4])||(a[1]<b[1]?-1:1));
+    const busca=el("input",{type:"search",placeholder:"Buscar cliente ou código",value:WA.busca,id:"waBusca",oninput:e=>{WA.busca=e.target.value;WA.lim=60;clearTimeout(WA.tm);WA.tm=setTimeout(()=>{renderReg(W);const i=$("waBusca");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250);}});
+    const selF=el("select",{"aria-label":"Filtro",onchange:e=>{WA.filtro=e.target.value;WA.lim=60;renderReg(W);}},...F.map(([k,l])=>{const o=el("option",{value:k},l);if(k===WA.filtro)o.selected=true;return o;}));
+    const tdSite=r=>{const v=VC.get(r[0]);if(!v)return "";const fe=v[6]+v[7]+v[8];return el("span",{class:"tag "+(fe?"ok":"warn")},fe?"orçou e fechou":"orçou, em aberto");};
+    m.append(head("Clientes com influência do marketing",null,`${num(dis.cli.length)} registrados`),el("div",{class:"wa-f"},busca,selF),
+      el("div",{class:"wa-msg"},`${num(L.length)} de ${num(dis.cli.length)} clientes (com código de cliente)`),
+      el("div",{class:"wa-scroll"},el("table",{class:"wa-tb"},el("thead",null,el("tr",null,th("Cliente"),th("Mensagem"),th("Retorno"),th("Comprou em 30 dias","n"))),
+        el("tbody",null,...L.slice(0,WA.lim).map(r=>el("tr",null,
+          el("td",null,el("span",{class:"nm",title:r[1]},r[1]||"(sem nome)"),el("small",null,r[0])),
+          el("td",null,el("small",null,`${dm(r[3])} · ${r[2]}`)),
+          el("td",null,r[4]?el("span",{class:"tag ok"},"respondeu"):null," ",r[5]?el("small",null,r[5]):null," ",tdSite(r)),
+          el("td",{class:"n"},r[7]>0?brl(r[7]):"—",r[6]?el("small",{style:"display:block"},r[6].split(", ").map(nCan).join(", ")):null)))))),
+      el("div",{class:"wa-acts"},L.length>WA.lim?el("button",{type:"button",class:"btn-s",onclick:()=>{WA.lim+=200;renderReg(W);}},`Mostrar mais (${num(L.length-WA.lim)})`):null,
+        el("button",{type:"button",class:"btn-s",onclick:()=>baixarCSV(`clientes-whatsapp-${mk()}.csv`,[["codigo","cliente","campanha","data envio","respondeu","situacao pedido","canal da compra","valor 30 dias","orcou no site","aberto no site/canais","fechado nos canais"]].concat(L.map(r=>{const v=VC.get(r[0]);return [r[0],r[1],r[2],r[3],r[4]?"sim":"não",r[5],r[6].split(", ").map(nCan).join(", "),dec(r[7]),v?"sim":"não",v?dec(v[3]+v[4]+v[5]):"",v?dec(v[6]+v[7]+v[8]):""];})))},"Baixar lista (Excel)")),
+      el("p",{class:"foot"},`Disparos ${dis.arq?"de \""+dis.arq+"\"":""}${W.atualizadoEm?" · atualizado em "+dm(W.atualizadoEm.slice(0,10)):""}. ${num(dis.iniciadasCliente)} conversas começaram pelo cliente (sem disparo) e também estão na lista.`));}
+  function render(){$("mTitle").textContent=`${MESES[M]} ${Y}`;history.replaceState(null,"",`?mes=${mk()}${location.hash}`);
+    const W=D.mensais["whats-"+mk()], per=`Mês · ${MESES[M]}`;
+    renderActs();
+    const a=$("mWa");a.textContent="";a.append(...Whats.cardDisparos(W,{per}));
+    const b=$("mFun");b.textContent="";b.append(...Whats.cardFunil(W,{per}));
+    renderCamp(W&&W.disparos);renderFunil(W);renderReg(W);}
+  $("prevM").onclick=()=>{M--;if(M<0){M=11;Y--;}render();};
+  $("nextM").onclick=()=>{M++;if(M>11){M=0;Y++;}render();};
+  let rolou=false;
+  Central.boot("whatsapp",()=>{
+    Store.collection("metas_mensais").onSnapshot(sn=>{D.mensais={};sn.docs.forEach(d=>D.mensais[d.id]=d.data());render();
+      if(!rolou&&location.hash==="#funil"&&!$("funil").hidden){rolou=true;$("funil").scrollIntoView();}});
+    render();});
+})();
+</script>
+</body>
+</html>

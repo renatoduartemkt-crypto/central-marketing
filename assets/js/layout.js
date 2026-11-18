@@ -13,6 +13,7 @@
     { k: "redes",    href: "redes.html",    n: "Redes sociais",    g: "Operação" },
     { k: "emails",   href: "emails.html",   n: "E-mail marketing", g: "Operação" },
     { k: "trafego",  href: "trafego.html",  n: "Tráfego pago",     g: "Operação" },
+    { k: "whatsapp", href: "whatsapp.html", n: "WhatsApp · disparos", g: "Operação" },
     { k: "eventos",  href: "eventos.html",  n: "Eventos",          g: "Eventos e trade" },
     { k: "brindes",  href: "brindes.html",  n: "Brindes",          g: "Eventos e trade" },
     { k: "planejamento", href: "planejamento.html", n: "Planejamento 2027", g: "Planejamento" },
