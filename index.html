@@ -293,7 +293,7 @@
     const e=$("mResE");e.textContent="";e.append(head("Resultados dos e-mails","emails.html"),Resultados.emails(D.emails,{ano:Y,mes:M+1,compacto:true}));}
   /* WhatsApp: dois cartões curtos (assets/js/whats.js). Detalhes, listas e envio das planilhas ficam em whatsapp.html */
   function renderWhats(){const W=D.mensais["whats-"+mk()], adm=window.Custos&&Custos.isAdmin(), per=`Mês · ${MESES[M]}`;
-    const vz=adm?"Suba as planilhas em Ver detalhes.":null;
+    const vz="Suba as planilhas em Ver detalhes.";
     const a=$("mWa");a.textContent="";a.append(...Whats.cardDisparos(W,{link:`whatsapp.html?mes=${mk()}`,lab:"Ver detalhes ›",per,vazio:vz&&"Os disparos deste mês ainda não foram enviados. "+vz}));
     const b=$("mFun");b.textContent="";b.append(...Whats.cardFunil(W,{link:`whatsapp.html?mes=${mk()}#funil`,lab:"Ver detalhes ›",per,vazio:vz&&"O relatório de vendas por canal ainda não foi enviado. "+vz}));}
   function render(){$("mTitle").textContent=`${MESES[M]} ${Y}`;renderEmail();renderTraf();renderRedes();renderWhats();renderMetas();renderRes();renderAgenda();}

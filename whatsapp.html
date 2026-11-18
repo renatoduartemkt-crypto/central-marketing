@@ -159,7 +159,7 @@
     try{const r=await Whats.subir(files,D.mensais,mk());if(!r)return;WA.msg=r.msg;
       if(r.mes&&r.mes!==mk()){Y=+r.mes.slice(0,4);M=+r.mes.slice(5,7)-1;}render();}
     catch(e){WA.msg="Não deu certo: "+(e&&e.message?e.message:e);renderActs();}}
-  function renderActs(){const a=$("acts");a.textContent="";const adm=window.Custos&&Custos.isAdmin();
+  function renderActs(){const a=$("acts");a.textContent="";const adm=true; // toda a equipe pode subir as planilhas
     if(adm){const inp=el("input",{type:"file",accept:".xlsx,.xls,.csv",multiple:"",hidden:"",onchange:e=>{const f=[...e.target.files];e.target.value="";if(f.length)subir(f);}});
       a.append(el("button",{type:"button",class:"btn-s pri",onclick:()=>inp.click()},"Subir planilhas"),inp);}
     const t=WA.msg||(adm?"Suba o \"Disparos de Mensagens Meta\" e o \"Conversão de Pedido de Venda por Canal B2B\" (pode ser os dois juntos). As planilhas são lidas no seu navegador: o site guarda só os números e a lista de clientes por código e razão social.":"");
