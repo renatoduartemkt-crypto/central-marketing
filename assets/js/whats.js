@@ -68,12 +68,15 @@
   function procVendas(L){const fora=L.filter(optaV).length;
     const cli=L.filter(x=>!optaV(x)).map(x=>{const g=k=>Math.round(nv(x[k])*100)/100;
       return [String(x.codigo_cliente||"").trim(),String(x.cliente||"").trim().slice(0,60),String(x.representante||"").trim().slice(0,40),
-        g("orcamento_b2b"),g("orcamento_callcenter"),g("orcamento_forcavendas")+g("orcamento_b2b_forcavendas"),g("b2b"),g("callcenter"),g("forcavendas")+g("b2b_forcavendas")];})
+        // destino do pedido: site→Callcenter (b2b_callcenter) conta no Callcenter; site→representante (b2b_forcavendas) na Força de vendas
+        g("orcamento_b2b"),g("orcamento_callcenter"),g("orcamento_forcavendas")+g("orcamento_b2b_forcavendas"),g("b2b"),g("callcenter")+g("b2b_callcenter"),g("forcavendas")+g("b2b_forcavendas")];})
       .filter(r=>r[0]&&r.slice(3).some(v=>v>0));
-    // o mesmo cliente pode vir em duas carteiras com os mesmos valores: conta uma vez só
-    const u=new Map();let rep=0;cli.forEach(r=>{const a=u.get(r[0]);if(!a){u.set(r[0],r);return;}rep++;
+    // relatório antigo: o mesmo cliente vinha em duas carteiras com valores idênticos (conta uma vez só).
+    // relatório novo (TI, 18/11): duas linhas = representantes diferentes, cada uma com o seu valor (soma).
+    const u=new Map();let rep=0;cli.forEach(r=>{const a=u.get(r[0]);if(!a){u.set(r[0],r.slice());return;}
       if(r[2]&&a[2].indexOf(r[2])<0)a[2]=(a[2]+" / "+r[2]).slice(0,80);
-      if(r.slice(3).join()!==a.slice(3).join())for(let i=3;i<9;i++)a[i]=Math.max(a[i],r[i]);});
+      if(r.slice(3).join()===a.slice(3).join()){rep++;return;}
+      for(let i=3;i<9;i++)a[i]=Math.round((a[i]+r[i])*100)/100;});
     return {cli:[...u.values()],fora,repetidos:rep,linhas:L.length};}
   /* lê os arquivos e grava metas_mensais/whats-AAAA-MM (mês do último disparo). Devolve {mes, msg}. */
   async function subir(files,mensais,mesAtual){
