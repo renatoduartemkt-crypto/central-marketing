@@ -77,25 +77,42 @@
       if(r[2]&&a[2].indexOf(r[2])<0)a[2]=(a[2]+" / "+r[2]).slice(0,80);
       if(r.slice(3).join()===a.slice(3).join()){rep++;return;}
       for(let i=3;i<9;i++)a[i]=Math.round((a[i]+r[i])*100)/100;});
-    return {cli:[...u.values()],fora,repetidos:rep,linhas:L.length};}
+    // fluxos origem → destino, no mesmo formato do relatório resumido (contraprova). "todos" inclui a Opta, como o resumido.
+    const FX={"B2B -> B2B":"b2b","B2B -> CALLCENTER":"b2b_callcenter","B2B -> FORCA_VENDAS":"b2b_forcavendas","CALLCENTER -> CALLCENTER":"callcenter","FORCA_VENDAS -> FORCA_VENDAS":"forcavendas"};
+    const soma=(A,k)=>Math.round(A.reduce((s,x)=>s+nv(x[k]),0)*100)/100, fx=A=>{const o={};Object.keys(FX).forEach(k=>o[k]=soma(A,FX[k]));return o;};
+    const fluxo=L.length&&"b2b_callcenter" in L[0]?{todos:fx(L),lopes:fx(L.filter(x=>!optaV(x)))}:null;
+    return {cli:[...u.values()],fora,repetidos:rep,linhas:L.length,fluxo};}
+  // relatório "Conversão de Pedido de Venda por Canal B2B Resumido": origem -> destino, quantidade de pedidos e valor
+  function procResumo(L){return {linhas:L.map(x=>{const m=String(x.origem||"").split(/\s*->\s*/);
+      return [m[0].trim(),(m[1]||"").trim(),Math.round(nv(x.quantidade)),Math.round(nv(x.valor)*100)/100];}).filter(r=>r[0]&&r[1])};}
+  // contraprova: compara o resumido com o detalhado, fluxo a fluxo (null se faltar um dos dois)
+  function contraprova(W){const r=W&&W.resumido, f=W&&W.vendas&&W.vendas.fluxo;if(!r)return null;
+    const L=r.linhas.map(([o,d,q,v])=>{const k=o+" -> "+d, det=f&&k in f.todos?f.todos[k]:null;
+      return {o,d,q,v,det,lopes:f&&k in f.lopes?f.lopes[k]:null,dif:det===null?null:Math.round((v-det)*100)/100};});
+    const tot={q:L.reduce((s,x)=>s+x.q,0),v:L.reduce((s,x)=>s+x.v,0),det:f?Object.values(f.todos).reduce((s,v)=>s+v,0):null,lopes:f?Object.values(f.lopes).reduce((s,v)=>s+v,0):null};
+    tot.dif=tot.det===null?null:Math.round((tot.v-tot.det)*100)/100;
+    const semCol=L.filter(x=>x.det===null&&x.v>0);
+    return {L,tot,temDet:!!f,confere:!!f&&Math.abs(tot.dif)<1&&!semCol.length,semCol,
+      mesmoPeriodo:!W.vendas||!r.periodo||!W.vendas.periodo||r.periodo===W.vendas.periodo};}
   /* lê os arquivos e grava metas_mensais/whats-AAAA-MM (mês do último disparo). Devolve {mes, msg}. */
   async function subir(files,mensais,mesAtual){
-    let dis=null,ven=null;const nomes=[];
+    let dis=null,ven=null,res=null;const nomes=[];
     for(const f of files){const L=await lerPlanilha(f),h=L[0]||{};
       if("disparo_api_template" in h||"situacao_sessao" in h){dis=procDisparos(L);dis.arq=f.name;nomes.push(f.name);}
       else if("orcamento_b2b" in h||"valor_orcado_total" in h){ven=procVendas(L);ven.arq=f.name;nomes.push(f.name);}
-      else throw new Error(`não reconheci as colunas de "${f.name}". Use o relatório de disparos da Meta ou o de conversão de pedido por canal.`);}
-    if(!dis&&!ven)return null;
+      else if("origem" in h&&"valor" in h){res=procResumo(L);res.arq=f.name;nomes.push(f.name);}
+      else throw new Error(`não reconheci as colunas de "${f.name}". Use o relatório de disparos da Meta ou o de conversão de pedido por canal (detalhado ou resumido).`);}
+    if(!dis&&!ven&&!res)return null;
     const mes=dis&&dis.ate?dis.ate.slice(0,7):mesAtual, id="whats-"+mes, ant=mensais[id]||{};
-    if(ven){const p=prompt("Qual é o período do relatório de vendas por canal? (ex.: 01/11 a 16/11/2026)",(ant.vendas&&ant.vendas.periodo)||"");
-      if(p===null)return {mes:null,msg:"Envio cancelado."};ven.periodo=p.trim().slice(0,60);}
+    if(ven||res){const p=prompt("Qual é o período do relatório de vendas por canal? (ex.: 01/11 a 16/11/2026)",(ant.vendas&&ant.vendas.periodo)||(ant.resumido&&ant.resumido.periodo)||"");
+      if(p===null)return {mes:null,msg:"Envio cancelado."};if(ven)ven.periodo=p.trim().slice(0,60);if(res)res.periodo=p.trim().slice(0,60);}
     // quem subiu: fica no histórico do mês (o servidor também carimba atualizadoPor e grava na aba _log)
     const eu=(window.Auth&&Auth.current&&Auth.current())||{}, em=new Date().toISOString(), por=String(eu.email||"").toLowerCase();
-    if(dis){dis.enviadoPor=por;dis.enviadoEm=em;} if(ven){ven.enviadoPor=por;ven.enviadoEm=em;}
-    const envio={em,por,nome:String(eu.nome||"").slice(0,60),arq:nomes.map(n=>String(n).slice(0,90)),tipos:[dis?"disparos":null,ven?"vendas":null].filter(Boolean)};
-    if(ven)envio.periodo=ven.periodo;
+    [dis,ven,res].forEach(o=>{if(o){o.enviadoPor=por;o.enviadoEm=em;}});
+    const envio={em,por,nome:String(eu.nome||"").slice(0,60),arq:nomes.map(n=>String(n).slice(0,90)),tipos:[dis?"disparos":null,ven?"vendas":null,res?"resumido":null].filter(Boolean)};
+    if(ven||res)envio.periodo=(ven||res).periodo;
     const d=Object.assign({},ant,{tipo:"whats",mes,atualizadoEm:em,envios:(ant.envios||[]).concat([envio]).slice(-50)});
-    if(dis)d.disparos=dis; if(ven)d.vendas=ven;
+    if(dis)d.disparos=dis; if(ven)d.vendas=ven; if(res)d.resumido=res;
     await Store.collection("metas_mensais").doc(id).set(d);mensais[id]=d;
     return {mes,msg:`Atualizado com ${nomes.join(" e ")}.`+(ven&&ven.fora?` ${ven.fora} clientes da Opta ficaram de fora.`:"")};}
 
@@ -164,6 +181,10 @@
         el("div",{class:"tiles q4"},tile(num(F.fecharam),"fecharam pedido","em algum canal"),tile(num(F.nada),"não fecharam nada",brlC(F.valorNada)),
           tile(num(F.migraram),"saíram do site","fecharam fora"),tile(num(F.multiAb),"aberto em 2+ canais","pode ser o mesmo")),
         el("p",{class:"foot"},`${num(F.fecharam)} + ${num(F.nada)} = ${num(F.clientes)} clientes. Os valores das linhas somam o total orçado. Inclui todos os clientes que passaram pelo site, ativos ou não.`)));
+    const X=contraprova(W);
+    if(X&&X.temDet)out.push(el("p",{class:"foot"},el("span",{class:"tag "+(X.confere&&X.mesmoPeriodo?"ok":"warn")},X.confere&&X.mesmoPeriodo?"Contraprova ok":"Contraprova com diferença"),
+      ` Resumido ${brl(X.tot.v)} × detalhado ${brl(X.tot.det)}${Math.abs(X.tot.dif)>=0.01?` (diferença de ${brl(X.tot.dif)})`:""}${X.mesmoPeriodo?"":" · períodos diferentes"}. Os dois contam a Opta; o cartão acima não conta.`));
+    else if(ven)out.push(el("p",{class:"foot"},"Suba também o relatório resumido para conferir o detalhado (contraprova)."));
     return out;}
   /* Validação dos disparos: só os clientes que estão nas duas planilhas. Caminho completo = depois da mensagem foi ao site
      (carrinho/orçamento no relatório de disparos), comprou em até 30 dias, e o relatório de vendas mostra o pedido vindo do site. */
@@ -175,5 +196,5 @@
       return {r,v,st,igual:comp&&Math.abs((fora+noSite)-r[7])<0.05};});
     const ord={completo:0,site:1,foi:2,semsite:3,nada:4};L.sort((a,b)=>ord[a.st[0]]-ord[b.st[0]]||b.r[7]-a.r[7]);
     return {L,total:L.length,completo:L.filter(x=>x.st[0]==="completo"||x.st[0]==="site").length};}
-  window.Whats={procDisparos,procVendas,subir,resumoDisparos,resumoFunil,cardDisparos,cardFunil,validacao,CAN,nCan,num,brl,brlC,pp,dm,el,row,meter,tile,head};
+  window.Whats={procDisparos,procVendas,procResumo,contraprova,subir,resumoDisparos,resumoFunil,cardDisparos,cardFunil,validacao,CAN,nCan,num,brl,brlC,pp,dm,el,row,meter,tile,head};
 })();

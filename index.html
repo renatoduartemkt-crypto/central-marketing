@@ -64,6 +64,9 @@
 .btn-s{align-self:flex-start;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:700;cursor:pointer;color:var(--fg)}
 .btn-s.pri{background:var(--accent);border-color:var(--accent);color:#fff}
 .sec{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.tag.ok{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+.tag.warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--fg)}
 .sec .tile span,.sec .tile small{white-space:normal;overflow-wrap:anywhere}
 .tiles.q3{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.tiles.q3 .tile{padding:8px}.tiles.q3 .tile b{font-size:17px}
 .rdbox{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
@@ -124,7 +127,7 @@
 <script src="assets/js/layout.js" charset="utf-8"></script>
 <script src="assets/js/resultados.js" charset="utf-8"></script>
 <script src="assets/js/custos.js" charset="utf-8"></script>
-<script src="assets/js/whats.js" charset="utf-8"></script>
+<script src="assets/js/whats.js?v=20261118c" charset="utf-8"></script>
 <script>
 (function(){
   const $=id=>document.getElementById(id);
